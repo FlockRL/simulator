@@ -57,7 +57,24 @@ class CollisionSystem:
         """
         Check for collisions with environment bounds.
         """
-        pass
+
+        x_min, y_min, z_min, x_max, y_max, z_max = bounds
+        collisions = []
+
+        for i, pos in enumerate(state.pos):
+            drone_id = state.ids[i]
+            x, y, z = pos
+
+            if (x - drone_radius < x_min or x + drone_radius > x_max or
+                y - drone_radius < y_min or y + drone_radius > y_max or
+                z - drone_radius < z_min or z + drone_radius > z_max):
+                collisions.append(CollisionInfo(
+                    drone_id=drone_id,
+                    collision_type="bounds",
+                    details={"position": pos}
+                ))
+
+        return collisions
 
     def check_wall_collision(self, state: SwarmState, obstacles: List[Any]) -> List[CollisionInfo]:
         """
