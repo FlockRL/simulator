@@ -4,10 +4,10 @@ Defines the simulation environment including obstacle types, boundaries, and spa
 
 # Definitions
 
-Boundaries: Outer boundary of the simulator
-Walls: A series of walls, each should have a gate (hole) that allows a drone to pass through
-Gates: Holes in walls where drones can pass through
-Clutter: Random objects that can future complicate drone movement
+- Boundaries: Outer boundary of the simulator
+- Walls: A series of walls, each should have a gate (hole) that allows a drone to pass through
+- Gates: Holes in walls where drones can pass through
+- Clutter: Random objects that can future complicate drone movement
 
 # Deliverables
 
