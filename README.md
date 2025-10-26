@@ -16,6 +16,10 @@ flockrl_sim/
   collision/
     __init__.py
     system.py                # Collision detection and response stubs
+  perception/
+    __init__.py
+    sensors.py               # Observation generation scaffolding
+    raycast.py
   visualization/
     __init__.py
     renderer.py              # Offline visualization placeholders
@@ -60,6 +64,7 @@ flockrl generate -n 5 -f 100 -d 10.0 -s 42 -o output.json
 - **Obstacles**: Expand `environment/obstacles.py` with Wall, Gate, Sphere, Box classes
 - **Collision Handling**: Implement `collision/system.py` detection and response logic
 - **Visualization**: Implement `visualization/renderer.py` for offline playback
+- **Perception**: Build `perception/sensors.py` and `perception/raycast.py` to generate agent observations (Future issue)
 
 ### Important notes
 
