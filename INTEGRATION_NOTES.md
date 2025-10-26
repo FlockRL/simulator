@@ -93,5 +93,5 @@ If you need to modify a shared interface (e.g., adding fields to `SwarmState`, c
 
 1. Document the change in a design doc or issue
 2. Notify affected teams
-3. Update this integration notes document
+3. Update this integration notes document (include: originating team, teams affected, date of change, change made, reasoning)
 4. Coordinate any breaking changes
