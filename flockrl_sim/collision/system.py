@@ -53,7 +53,13 @@ class CollisionSystem:
         """
         pass
 
-    def check_wall_collision(self, state: SwarmState, bounds: Any) -> List[CollisionInfo]:
+    def check_bounds_collision(self, state: SwarmState, bounds: Any) -> List[CollisionInfo]:
+        """
+        Check for collisions with environment bounds.
+        """
+        pass
+
+    def check_wall_collision(self, state: SwarmState, obstacles: List[Any]) -> List[CollisionInfo]:
         """
         Check for collisions with static walls.
         """
