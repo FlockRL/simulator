@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
+import pandas as pd
 
 from ..simulator import SimulationRun
 
@@ -26,7 +27,9 @@ class OfflineVisualizer:
         
         Implement log file parsing logic to populate self.run.
         """
-        pass
+        p = Path(self.log_path)
+        df = pd.read_csv(p)
+        print(df.head())
 
     def render(self) -> None:
         """
@@ -34,3 +37,10 @@ class OfflineVisualizer:
         """
         pass
 
+
+# Testing
+if __name__ == "__main__":
+    here = Path(__file__).parent
+    csv_path = here / "testdata.csv"
+    vis = OfflineVisualizer(log_path=csv_path)
+    vis.load()
