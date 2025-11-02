@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 import pandas as pd
 import pyvista as pv
-import time
+import json
 
 from ..simulator import SimulationRun
 
@@ -23,6 +23,7 @@ class OfflineVisualizer:
         self.log_path = log_path
         self.run: Optional[SimulationRun] = None
         self.data: Optional[pd.DataFrame] = None
+        self.obstacles = None
 
     def load(self) -> None:
         """
@@ -30,7 +31,9 @@ class OfflineVisualizer:
 
         Implement log file parsing logic to populate self.run.
         """
-        p = Path(self.log_path)
+        
+        # Read drone data
+        p = Path(self.log_path / "drones.csv")
         df = pd.read_csv(p)
         expected_columns = {"step", "drone_id", "x", "y", "z"}
         if not expected_columns.issubset(set(df.columns)):
@@ -38,6 +41,12 @@ class OfflineVisualizer:
                 f"Log file is missing required columns: {expected_columns}"
             )
         self.data = df
+
+        # Read obstacle data
+        obs_path = Path(self.log_path / "obstacles.json")
+        if obs_path.exists():
+            with open(obs_path, 'r') as f:
+                self.obstacles = json.load(f).get("obstacles", [])
 
     def render(self) -> None:
         """
@@ -70,6 +79,22 @@ class OfflineVisualizer:
         # Set camera
         plotter.camera_position = 'iso'
         plotter.reset_camera() # type: ignore
+
+        # Add obstacles to the scene
+        if self.obstacles:
+            for obstacle in self.obstacles:
+            # Create a box mesh for each obstacle
+                box = pv.Cube(
+                    center=(
+                    obstacle["posx"],
+                    obstacle["posy"],
+                    obstacle["posz"],
+                    ),
+                    x_length=obstacle["width"],
+                    y_length=obstacle["depth"],
+                    z_length=obstacle["height"],
+                )
+                plotter.add_mesh(box, color="red", opacity=0.5)
         
         # Callback function to update point cloud for each step -> easier to manage state + pausing
             # Also there is an issue with normal update
