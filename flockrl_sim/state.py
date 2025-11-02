@@ -46,7 +46,10 @@ class SwarmState:
         Returns:
             Initialized SwarmState with zero velocities and accelerations
         """
-        pass
+        N = positions.shape[0]
+        velocities = np.zeros((N, 3))
+        accelerations = np.zeros((N, 3))
+        return SwarmState(pos=positions, vel=velocities, acc=accelerations, ids=ids)
 
     def clone(self) -> SwarmState:
         """
@@ -56,4 +59,11 @@ class SwarmState:
         
             Core Simulation team: Implement state cloning logic here.
         """
-        pass
+        return SwarmState(
+            t = self.t,
+            pos=self.pos.copy() if self.pos is not None else None,
+            vel=self.vel.copy() if self.vel is not None else None,
+            acc=self.acc.copy() if self.acc is not None else None,
+            ids=self.ids.copy() if self.ids is not None else None,
+            metadata=self.metadata.copy()
+        )
