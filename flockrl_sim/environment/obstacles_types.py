@@ -17,19 +17,18 @@ class Obstacle:
     position: Tuple[float, float, float]  # (x, y, z)
     orientation: Optional[Tuple[float, float, float]] = None
 
-
 @dataclass
 class Wall(Obstacle):
-    length: float
-    height: float
-    thickness: float
+    length: float = 0.0
+    height: float = 0.0
+    thickness: float = 0.0
     gate_id: Optional[str] = None  # ID of gate if wall has a gate
 
 @dataclass
 class Gate(Obstacle):
-    width: float
-    height: float
-    frame_thickness: float
+    width: float = 0.0
+    height: float = 0.0
+    frame_thickness: float = 0.0
 
 @dataclass
 class Clutter(Obstacle):
