@@ -140,8 +140,8 @@ class OfflineVisualizer:
 # Testing
 """if __name__ == "__main__":
     here = Path(__file__).parent
-    csv_path = here / "testdata.csv"
-    vis = OfflineVisualizer(log_path=csv_path)
+    path = here / "test_log_path"
+    vis = OfflineVisualizer(log_path=path)
     vis.load()
     vis.render()
 """
