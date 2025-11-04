@@ -9,22 +9,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
+from enum import Enum, auto
+
+from flockrl_sim.environment.obstacles_types import Obstacle
 
 Bounds = Tuple[float, float, float, float, float, float]  # (x_min, x_max, y_min, y_max, z_min, z_max)
 
 
-@dataclass
-class Obstacle:
-    """
-    Obstacle definition.
-    
-    TODO - Obstacles team: Expand this class with fields needed for your
-    obstacle types (position, size, geometry, orientation, etc.).
-    Consider creating specific subclasses for different obstacle types
-    (Wall, Gate, Sphere, Box, Pyramid) as described in your design doc.
-    """
-    id: str
-    type: str  # e.g., "wall", "gate", "sphere", "box", "pyramid"
 
 @dataclass
 class Environment:
