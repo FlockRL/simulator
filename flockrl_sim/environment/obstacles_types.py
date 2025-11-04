@@ -32,5 +32,5 @@ class Gate(Obstacle):
 
 @dataclass
 class Clutter(Obstacle):
-    subtype: str  # e.g. "box", "pyramid", "sphere"
+    subtype: str = " "  # e.g. "box", "pyramid", "sphere"
 
