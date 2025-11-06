@@ -24,10 +24,12 @@ class SensorConfig:
     Fields:
         max_range: Maximum sensing distance (meters).
         num_rays: Number of ray-cast beams in the virtual LIDAR.
+        max_neighbour_range: Maximum distance to consider a drone as a neighbor (meters).
     """
 
     max_range: float = 50.0
     num_rays: int = 128
+    max_neighbour_range: float = 10.0
 
 @dataclass
 class SensorReading:
@@ -67,7 +69,7 @@ class PerceptionSystem:
         Compute sensor readings for every drone in state.
 
         Returns:
-            List of SensorReading instances aligned with the drone ordering in
-            state.ids (or positional indexing if IDs are absent).
+            List of SensorReading instances maintaining the same ordering as found in state
+            (i.e., readings[i] corresponds to state.pos[i]).
         """
         pass

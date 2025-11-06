@@ -14,8 +14,8 @@ import numpy as np
 from ..environment.obstacles import Obstacle
 
 
-RayHit = Tuple[float, np.ndarray, Obstacle]
-"""Ray casting result: (distance, hit_point, obstacle)"""
+RayHit = Tuple[float, np.ndarray, np.ndarray]
+"""Ray casting result: (distance, hit_point, normal)"""
 
 
 def raycast(
@@ -37,7 +37,7 @@ def raycast(
         max_distance: Maximum ray distance [meters]
     
     Returns:
-        (distance, hit_point, obstacle) or None if no hit
+        (distance, hit_point, normal) or None if no hit
     """
     pass
 
