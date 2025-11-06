@@ -34,3 +34,9 @@ class Gate(Obstacle):
 class Clutter(Obstacle):
     subtype: str = " "  # e.g. "box", "pyramid", "sphere"
 
+
+@dataclass
+class RectangularPrism(Clutter):
+    length: float = 0.0
+    width: float = 0.0
+    height: float = 0.0
