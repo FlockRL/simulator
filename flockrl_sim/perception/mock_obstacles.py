@@ -265,39 +265,3 @@ class MockBox(MockObstacle):
         
         return (t, hit_point, normal)
 
-
-def create_test_obstacles() -> list[MockObstacle]:
-    """
-    Create a standard set of test obstacles for perception team development.
-    
-    Returns:
-        List of mock obstacles in a simple test scene.
-    """
-    obstacles = [
-        # A sphere at the origin
-        MockSphere(center=[0.0, 0.0, 2.0], radius=1.0),
-        
-        # A floor plane
-        MockPlane(
-            point=[0.0, 0.0, 0.0],
-            normal=[0.0, 0.0, 1.0]  # Upward normal
-        ),
-        
-        # A wall plane (y = 5)
-        MockPlane(
-            point=[0.0, 5.0, 0.0],
-            normal=[0.0, -1.0, 0.0]  # Normal pointing inward
-        ),
-        
-        # A box obstacle
-        MockBox(
-            min_corner=[-2.0, -2.0, 0.0],
-            max_corner=[-1.0, -1.0, 3.0]
-        ),
-        
-        # Another sphere offset
-        MockSphere(center=[3.0, 3.0, 1.5], radius=0.5),
-    ]
-    
-    return obstacles
-
