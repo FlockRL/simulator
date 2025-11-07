@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from .state import SwarmState
+from .environment import Environment
 
 CollisionHandler = Callable[[SwarmState], Tuple[SwarmState, dict]]
 RenderHook = Callable[[SwarmState, dict], None]
@@ -48,10 +49,12 @@ class CoreSimulator:
         delta_t: float = 1.0 / 60.0, # Defaults to 60 Hz
         collision_system: Optional[CollisionHandler] = None,
         render_hook: Optional[RenderHook] = None,
+        environment: Optional[Environment] = None,
     ) -> None:
         self.delta_t = delta_t
         self.collision_system = collision_system
         self.render_hook = render_hook
+        self.environment = environment or Environment()  # Default empty environment
         self.state = SwarmState()
         self.current_run: Optional[SimulationRun] = None
 
@@ -72,7 +75,19 @@ class CoreSimulator:
         
         Core Simulation team: Initialize a new SimulationRun and set the initial state.
         """
-        pass
+        if initial_state is None:
+            # Create default state with single drone at origin
+            positions = np.array([[0.0, 0.0, 1.0]])
+            ids = np.array([0])
+            self.state = SwarmState.from_initial_positions(positions, ids)
+        else:
+            self.state = initial_state.clone()
+    
+        self.current_run = SimulationRun(
+            frames=[],
+            metadata=metadata or {}
+        )
+        return self.state
 
     def step(self, actions: np.ndarray) -> tuple[SwarmState, dict]:
         """
@@ -83,7 +98,29 @@ class CoreSimulator:
         
         Core Simulation team: Apply kinematics, collision detection, and update state.
         """
-        pass
+        # 1. Apply actions as accelerations
+        self.state.acc = actions.copy()
+        
+        # 2. Kinematic integration (Euler method)
+        # v(t+dt) = v(t) + a(t) * dt
+        # p(t+dt) = p(t) + v(t) * dt + 0.5 * a(t) * dt^2
+        
+        dt = self.delta_t
+        self.state.vel += self.state.acc * dt
+        self.state.pos += self.state.vel * dt + 0.5 * self.state.acc * dt**2
+        self.state.t += dt
+        
+        # 3. Apply collision detection (if available)
+        info = {}
+        if self.collision_system:
+            self.state, collision_info = self.collision_system(self.state)
+            info.update(collision_info)
+        
+        # 4. Apply render hook if available
+        if self.render_hook:
+            self.render_hook(self.state, info)
+        
+        return self.state, info
 
     def log_frame(self, info: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -94,7 +131,14 @@ class CoreSimulator:
         
         Core Simulation team: Append a SimulationFrame to self.current_run.
         """
-        pass
+        if self.current_run is None:
+            raise RuntimeError("No active run. Call start_run() first.")
+        
+        frame = SimulationFrame(
+            state=self.state.clone(),
+            info=info.copy() if info else {}
+        )
+        self.current_run.frames.append(frame)
 
     def save_run(self, output_path: Path) -> None:
         """
@@ -105,4 +149,29 @@ class CoreSimulator:
         
         Core Simulation team: Serialize self.current_run to disk (e.g., JSON, pickle).
         """
-        pass
+        if self.current_run is None:
+            raise RuntimeError("No run to save. Call start_run() first.")
+        
+        # Convert to serializable format (JSON)
+        data = {
+            "metadata": self.current_run.metadata,
+            "frames": [
+                {
+                    "state": {
+                        "t": frame.state.t,
+                        "pos": frame.state.pos.tolist(),
+                        "vel": frame.state.vel.tolist(),
+                        "acc": frame.state.acc.tolist(),
+                        "ids": frame.state.ids.tolist(),
+                        "metadata": frame.state.metadata
+                    },
+                    "info": frame.info
+                }
+                for frame in self.current_run.frames
+            ]
+        }
+        
+        import json
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, 'w') as f:
+            json.dump(data, f, indent=2)
