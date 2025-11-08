@@ -67,7 +67,7 @@ class EnvironmentBuilder:
             x = random.uniform(self.config.bounds[0], self.config.bounds[1])
             y = random.uniform(self.config.bounds[2], self.config.bounds[3])
             z = random.uniform(self.config.bounds[4], self.config.bounds[5])
-            obstacle = Obstacle(id=i, type="wall", position=(x, y, z))
+            obstacle = Obstacle(id=str(i), type="wall", position=(x, y, z))
             self.config.add_obstacle(obstacle)
         return self
 
