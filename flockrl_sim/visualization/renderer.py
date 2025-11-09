@@ -98,25 +98,22 @@ class OfflineVisualizer:
                 )
                 plotter.add_mesh(box, color="red", opacity=0.5)
         
-        # Track previous positions for trajectory lines
-        # Dictionary to store previous position for each drone
-        prev_positions = {}
-        
         # Use a list to maintain mutable states (to modify inside closure)
         step_idx = [1] 
         
         def update_frame(step_count: int) -> None:
             """Callback function to update the animation that gets called repeatedly by the timer"""
-            nonlocal prev_positions
-            
             # No more steps to process
             if step_idx[0] >= len(steps):
                 return 
             
-            # Get current step
+            # Get current step and previous step
             step = steps[step_idx[0]]
+            prev_step = steps[step_idx[0] - 1]
+            
             assert self.data is not None
             step_df = self.data[self.data["step"] == step]
+            prev_step_df = self.data[self.data["step"] == prev_step]
             points = step_df[["x", "y", "z"]].to_numpy().astype('float32')
             
             # Draw lines from previous positions to current positions for each drone
@@ -124,18 +121,17 @@ class OfflineVisualizer:
                 drone_id = row["drone_id"]
                 current_pos = np.array([row["x"], row["y"], row["z"]])
                 
-                # If we have a previous position for this drone, draw a line
-                if drone_id in prev_positions:
-                    prev_pos = prev_positions[drone_id]
+                # Find this drone's position in the previous step
+                prev_row = prev_step_df[prev_step_df["drone_id"] == drone_id]
+                
+                if not prev_row.empty:
+                    prev_pos = prev_row[["x", "y", "z"]].to_numpy()[0]
                     
                     # Create line between previous and current position
                     line = pv.Line(prev_pos, current_pos)
                     
                     # Add line and keep it persistent (don't remove)
                     plotter.add_mesh(line, color="blue", line_width=3)
-                
-                # Update previous position for this drone
-                prev_positions[drone_id] = current_pos
             
             # Update elements
             cloud.points = points
@@ -159,13 +155,3 @@ class OfflineVisualizer:
         ) # type: ignore
         
         plotter.show() # Start event loop of window
-
-
-# Testing
-"""if __name__ == "__main__":
-    here = Path(__file__).parent
-    path = here / "test_log_path"
-    vis = OfflineVisualizer(log_path=path)
-    vis.load()
-    vis.render()
-"""
