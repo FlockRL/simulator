@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 import pandas as pd
 import pyvista as pv
+import numpy as np
 import json
 
 from ..simulator import SimulationRun
@@ -69,6 +70,7 @@ class OfflineVisualizer:
         plotter.add_points(
             cloud, color="orange", point_size=12, render_points_as_spheres=True
         )
+        
         # Initialize text actor
         text_actor = plotter.add_text(
             f"Step {steps[0]}", 
@@ -96,22 +98,44 @@ class OfflineVisualizer:
                 )
                 plotter.add_mesh(box, color="red", opacity=0.5)
         
-        # Callback function to update point cloud for each step -> easier to manage state + pausing
-            # Also there is an issue with normal update
-        # Use a list to maintain mutable states (to modify inside closuer)
+        # Track previous positions for trajectory lines
+        # Dictionary to store previous position for each drone
+        prev_positions = {}
+        
+        # Use a list to maintain mutable states (to modify inside closure)
         step_idx = [1] 
         
         def update_frame(step_count: int) -> None:
             """Callback function to update the animation that gets called repeatedly by the timer"""
+            nonlocal prev_positions
+            
             # No more steps to process
             if step_idx[0] >= len(steps):
                 return 
             
             # Get current step
             step = steps[step_idx[0]]
-            assert self.data is not None # Can do this because already checked for data outside
+            assert self.data is not None
             step_df = self.data[self.data["step"] == step]
             points = step_df[["x", "y", "z"]].to_numpy().astype('float32')
+            
+            # Draw lines from previous positions to current positions for each drone
+            for _, row in step_df.iterrows():
+                drone_id = row["drone_id"]
+                current_pos = np.array([row["x"], row["y"], row["z"]])
+                
+                # If we have a previous position for this drone, draw a line
+                if drone_id in prev_positions:
+                    prev_pos = prev_positions[drone_id]
+                    
+                    # Create line between previous and current position
+                    line = pv.Line(prev_pos, current_pos)
+                    
+                    # Add line and keep it persistent (don't remove)
+                    plotter.add_mesh(line, color="blue", line_width=3)
+                
+                # Update previous position for this drone
+                prev_positions[drone_id] = current_pos
             
             # Update elements
             cloud.points = points
