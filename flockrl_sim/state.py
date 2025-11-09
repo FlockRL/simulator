@@ -1,7 +1,7 @@
 """
 Shared swarm state container definitions.
 
-This is the "single source of truth" for the simulation state.
+This is the "single source of truth" for the simulation.
 All teams read from SwarmState; only Core writes to it.
 """
 
