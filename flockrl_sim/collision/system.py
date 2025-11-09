@@ -41,6 +41,7 @@ class CollisionSystem:
     """
 
     environment: Environment
+    drone_radius: float = 1.0  # Hardcoded value for drone radius (can change)
 
     def __call__(self, state: SwarmState) -> tuple[SwarmState, dict]:
         """
@@ -99,22 +100,22 @@ class CollisionSystem:
         collisions = []
 
         walls = [obs for obs in obstacles if obs.type == "wall"]
-
+        
         for i, pos in enumerate(state.pos):
             drone_id = state.ids[i]
             drone_vel = state.vel[i]
-
+            
             for wall in walls:
                 if hasattr(wall, 'point') and hasattr(wall, 'normal'):
                     dist = np.dot(pos - wall.point, wall.normal)
-
+                    
                     if abs(dist) < self.drone_radius:
                         contact_point = pos - dist * wall.normal
-
+                        
                         rebound_vel = self.apply_rebound(drone_vel, wall.normal, restitution=0.8)
-
+                        
                         new_pos = pos + (self.drone_radius - dist) * wall.normal
-
+                        
                         collisions.append(CollisionInfo(
                             drone_id=drone_id,
                             collision_type="wall",
@@ -124,7 +125,7 @@ class CollisionSystem:
                             rebound_velocity=rebound_vel,
                             new_position=new_pos
                         ))
-
+        
         return collisions
 
     def check_clutter_collision(self, state: SwarmState, obstacles: List[Any]) -> List[CollisionInfo]:
