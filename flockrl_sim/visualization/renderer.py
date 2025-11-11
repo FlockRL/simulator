@@ -12,7 +12,7 @@ import pyvista as pv
 import numpy as np
 import json
 
-from ..simulator import SimulationRun
+#from ..simulator import SimulationRun
 
 
 class OfflineVisualizer:
@@ -22,7 +22,7 @@ class OfflineVisualizer:
 
     def __init__(self, log_path: Path) -> None:
         self.log_path = log_path
-        self.run: Optional[SimulationRun] = None
+        #self.run: Optional[SimulationRun] = None
         self.data: Optional[pd.DataFrame] = None
         self.obstacles = None
 
@@ -58,10 +58,12 @@ class OfflineVisualizer:
 
         steps = sorted(self.data["step"].unique()) # List of step ids
 
-        plotter = pv.Plotter()
+        plotter = pv.Plotter(window_size=[1920, 1080])
         floor = pv.Plane(center=(0, 0, 0), direction=(0, 0, 1), i_size=20, j_size=20)
         plotter.add_mesh(floor, color="lightgray", style="wireframe", opacity=0.5)
         plotter.add_axes() # type: ignore
+        
+        
 
         # Initialize point cloud (collection of 3d points) with first step
         first_step = self.data[self.data["step"] == steps[0]]
@@ -100,11 +102,16 @@ class OfflineVisualizer:
         
         # Use a list to maintain mutable states (to modify inside closure)
         step_idx = [1] 
-        
+        running = [False]
+
         def update_frame(step_count: int) -> None:
             """Callback function to update the animation that gets called repeatedly by the timer"""
+            # Pause/Play logic
+            if not running[0]:
+                return
             # No more steps to process
             if step_idx[0] >= len(steps):
+                running[0] = False
                 return 
             
             # Get current step and previous step
@@ -140,18 +147,47 @@ class OfflineVisualizer:
             # Move to next step
             step_idx[0] += 1
             
-            if step_idx[0] < len(steps):
+            if running[0] and step_idx[0] < len(steps):
                 plotter.add_timer_event(
                     max_steps=1,
-                    duration=1000,
+                    duration=250, # Note -> if too big, it may create multiple timers and skip frames
                     callback=update_frame
                 ) # type: ignore
-        
-        # Starting timer for animation (to move on to step 1)
-        plotter.add_timer_event(
-            max_steps=1,
-            duration=1000,
-            callback=update_frame
-        ) # type: ignore
-        
-        plotter.show() # Start event loop of window
+
+        def checkbox_callback(checked: bool) -> None:
+            if checked:
+                start_animation()
+            else:
+                stop_animation()
+
+        def start_animation():
+            # Start if not running and steps remain
+            if not running[0]:  
+                running[0] = True
+                if step_idx[0] < len(steps):  
+                    plotter.add_timer_event(
+                        max_steps=1,
+                        duration=0,
+                        callback=update_frame
+                    ) # type: ignore
+
+        def stop_animation():
+            running[0] = False
+
+        plotter.add_checkbox_button_widget(
+            checkbox_callback, 
+            value=False, 
+            position=(10, 10), 
+            size=60, 
+            color_on='green', 
+            color_off='red'
+        )
+
+        plotter.show()
+                
+
+if __name__ == "__main__":
+    log_path = Path(__file__).resolve().parents[2] / "test_log_path"
+    vis = OfflineVisualizer(log_path)
+    vis.load()
+    vis.render()
