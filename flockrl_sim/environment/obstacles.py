@@ -8,9 +8,11 @@ IMPORTANT: Coordinate with Collision team on obstacle geometry representation ne
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
-from enum import Enum, auto
+from typing import Dict, List, Optional, Set, Tuple
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 from flockrl_sim.environment.obstacles_types import Obstacle
 
@@ -26,25 +28,25 @@ class Environment:
 
     def set_bounds(self, bounds: Bounds) -> None:
         self.bounds = bounds
-        print(f"Environment bounds set to {self.bounds}")
+        logger.debug(f"Environment bounds set to {self.bounds}")
 
 
     def add_obstacle(self, obstacle: Obstacle) -> None:
         self.obstacles.append(obstacle)
-        print(f"Added {obstacle}")
+        logger.debug(f"Added obstacle: {obstacle}")
 
     def get_obstacle_by_id(self, obstacle_id: str) -> Optional[Obstacle]:
         for obs in self.obstacles:
             if obs.id == obstacle_id:
-                print(f"Found obstacle: {obs}")
+                logger.debug(f"Found obstacle: {obs}")
                 return obs
         return None
 
     def summary(self) -> str:
-        print("Generating environment summary...")
-        print(f"Bounds: {self.bounds}")
-        print(f"Seed: {self.seed}")
-        print(f"Number of obstacles: {len(self.obstacles)}")
+        logger.debug("Generating environment summary")
+        logger.debug(f"Bounds: {self.bounds}")
+        logger.debug(f"Seed: {self.seed}")
+        logger.debug(f"Number of obstacles: {len(self.obstacles)}")
         return (
             f"Environment bounds: {self.bounds}\n"
             f"Seed: {self.seed}\n"
