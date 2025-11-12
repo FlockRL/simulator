@@ -9,13 +9,13 @@
       "type": "wall",
       "random": true,
       "position": [
+        0.0,
         {
           "uniform": [-8.0, 8.0]
         },
-        0.0,
         0.0
       ],
-      "orientation": [0.0, 0.0, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
@@ -26,13 +26,13 @@
       "type": "wall",
       "random": true,
       "position": [
+        0.0,
         {
           "uniform": [-8.0, 8.0]
         },
-        0.0,
         0.0
       ],
-      "orientation": [0.0, 0.0, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
@@ -43,13 +43,13 @@
       "type": "wall",
       "random": true,
       "position": [
+        0.0,
         {
           "uniform": [-8.0, 8.0]
         },
-        0.0,
         0.0
       ],
-      "orientation": [0.0, 0.0, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
@@ -60,13 +60,13 @@
       "type": "wall",
       "random": true,
       "position": [
+        0.0,
         {
           "uniform": [-8.0, 8.0]
         },
-        0.0,
         0.0
       ],
-      "orientation": [0.0, 0.0, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
@@ -77,15 +77,15 @@
       "type": "gate",
       "random": true,
       "position": [
-        null,
         {
           "uniform": [-6.0, 6.0]
         },
+        null,
         {
           "uniform": [-3.0, 3.0]
         }
       ],
-      "orientation": [null, null, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
       "height": 2.0,
       "frame_thickness": 0.05
@@ -95,15 +95,15 @@
       "type": "gate",
       "random": true,
       "position": [
-        null,
         {
           "uniform": [-6.0, 6.0]
         },
+        null,
         {
           "uniform": [-3.0, 3.0]
         }
       ],
-      "orientation": [null, null, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
       "height": 2.0,
       "frame_thickness": 0.05
@@ -113,15 +113,15 @@
       "type": "gate",
       "random": true,
       "position": [
-        null,
         {
           "uniform": [-6.0, 6.0]
         },
+        null,
         {
           "uniform": [-3.0, 3.0]
         }
       ],
-      "orientation": [null, null, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
       "height": 2.0,
       "frame_thickness": 0.05
@@ -131,15 +131,15 @@
       "type": "gate",
       "random": true,
       "position": [
-        null,
         {
           "uniform": [-6.0, 6.0]
         },
+        null,
         {
           "uniform": [-3.0, 3.0]
         }
       ],
-      "orientation": [null, null, 1.5708],
+      "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
       "height": 2.0,
       "frame_thickness": 0.05
@@ -172,7 +172,7 @@
     }
   ],
   "spawn_zones": {
-    "start_position": [-7.0, 0.0, 0.0],
-    "goal_position": [7.0, 0.0, 0.0]
+    "start_position": [0.0, -7.0, 0.0],
+    "goal_position": [0.0, 7.0, 0.0]
   }
 }
