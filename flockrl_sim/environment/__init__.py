@@ -1,6 +1,16 @@
-"Environment package housing obstacle helpers."
+from .obstacles import Environment, EnvironmentBuilder, EnvironmentValidationError
+from .loader import EnvironmentSpecLoader
 
-from .obstacles import Environment, EnvironmentBuilder, Obstacle
+# Advanced API (for programmatic spec creation)
+from .spec_models.environment import EnvironmentSpec
 
-__all__ = ["Environment", "EnvironmentBuilder", "Obstacle"]
+__all__ = [
+    # Primary API
+    "EnvironmentSpecLoader",
+    "EnvironmentBuilder",
+    "EnvironmentValidationError",
 
+    # Advanced API
+    "Environment",
+    "EnvironmentSpec",
+]
