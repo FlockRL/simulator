@@ -1,0 +1,178 @@
+{
+  "name": "random_only",
+  "description": "Example with only randomly-generated obstacles - demonstrating reproducible generation",
+  "bounds": [-8.0, 8.0, -8.0, 8.0, -4.0, 4.0],
+  "random_seed": 42,
+  "obstacles": [
+    {
+      "id": "wall1",
+      "type": "wall",
+      "random": true,
+      "position": [
+        {
+          "uniform": [-8.0, 8.0]
+        },
+        0.0,
+        0.0
+      ],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 16.0,
+      "height": 8.0,
+      "thickness": 0.1,
+      "gate_id": "gate1"
+    },
+    {
+      "id": "wall2",
+      "type": "wall",
+      "random": true,
+      "position": [
+        {
+          "uniform": [-8.0, 8.0]
+        },
+        0.0,
+        0.0
+      ],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 16.0,
+      "height": 8.0,
+      "thickness": 0.1,
+      "gate_id": "gate2"
+    },
+    {
+      "id": "wall3",
+      "type": "wall",
+      "random": true,
+      "position": [
+        {
+          "uniform": [-8.0, 8.0]
+        },
+        0.0,
+        0.0
+      ],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 16.0,
+      "height": 8.0,
+      "thickness": 0.1,
+      "gate_id": "gate3"
+    },
+    {
+      "id": "wall4",
+      "type": "wall",
+      "random": true,
+      "position": [
+        {
+          "uniform": [-8.0, 8.0]
+        },
+        0.0,
+        0.0
+      ],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 16.0,
+      "height": 8.0,
+      "thickness": 0.1,
+      "gate_id": "gate4"
+    },
+    {
+      "id": "gate1",
+      "type": "gate",
+      "random": true,
+      "position": [
+        null,
+        {
+          "uniform": [-6.0, 6.0]
+        },
+        {
+          "uniform": [-3.0, 3.0]
+        }
+      ],
+      "orientation": [null, null, 1.5708],
+      "width": 2.0,
+      "height": 2.0,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "gate2",
+      "type": "gate",
+      "random": true,
+      "position": [
+        null,
+        {
+          "uniform": [-6.0, 6.0]
+        },
+        {
+          "uniform": [-3.0, 3.0]
+        }
+      ],
+      "orientation": [null, null, 1.5708],
+      "width": 2.0,
+      "height": 2.0,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "gate3",
+      "type": "gate",
+      "random": true,
+      "position": [
+        null,
+        {
+          "uniform": [-6.0, 6.0]
+        },
+        {
+          "uniform": [-3.0, 3.0]
+        }
+      ],
+      "orientation": [null, null, 1.5708],
+      "width": 2.0,
+      "height": 2.0,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "gate4",
+      "type": "gate",
+      "random": true,
+      "position": [
+        null,
+        {
+          "uniform": [-6.0, 6.0]
+        },
+        {
+          "uniform": [-3.0, 3.0]
+        }
+      ],
+      "orientation": [null, null, 1.5708],
+      "width": 2.0,
+      "height": 2.0,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "random_clutter",
+      "type": "clutter",
+      "random": true,
+      "count": 8,
+      "position": [
+        {
+          "uniform": [-8.0, 8.0]
+        },
+        {
+          "uniform": [-8.0, 8.0]
+        },
+        0.0
+      ],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": {
+        "uniform": [0.3, 1.0]
+      },
+      "width": {
+        "uniform": [0.3, 1.0]
+      },
+      "height": {
+        "uniform": [0.3, 1.2]
+      }
+    }
+  ],
+  "spawn_zones": {
+    "start_position": [-7.0, 0.0, 0.0],
+    "goal_position": [7.0, 0.0, 0.0]
+  }
+}

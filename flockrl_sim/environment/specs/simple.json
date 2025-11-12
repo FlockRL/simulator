@@ -1,0 +1,76 @@
+{
+  "name": "simple",
+  "description": "Simple environment with 2 walls with large gates and minimal clutter",
+  "bounds": [-5.0, 5.0, -5.0, 5.0, -4.0, 4.0],
+  "random_seed": 42,
+  "obstacles": [
+    {
+      "id": "wall1",
+      "type": "wall",
+      "position": [0.0, -1.5, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "length": 10.0,
+      "height": 8.0,
+      "thickness": 0.1,
+      "gate_id": "gate1"
+    },
+    {
+      "id": "gate1",
+      "type": "gate",
+      "position": [0.0, -1.5, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "width": 2.0,
+      "height": 2.0,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "wall2",
+      "type": "wall",
+      "position": [0.0, 1.5, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "length": 10.0,
+      "height": 8.0,
+      "thickness": 0.1,
+      "gate_id": "gate2"
+    },
+    {
+      "id": "gate2",
+      "type": "gate",
+      "position": [0.0, 1.5, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "width": 2.0,
+      "height": 2.0,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "simple_clutter",
+      "type": "clutter",
+      "random": true,
+      "count": 3,
+      "position": [
+        {
+          "uniform": [-4.5, 4.5]
+        },
+        {
+          "uniform": [-4.5, 4.5]
+        },
+        0.0
+      ],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": {
+        "uniform": [0.2, 0.5]
+      },
+      "width": {
+        "uniform": [0.2, 0.5]
+      },
+      "height": {
+        "uniform": [0.2, 0.5]
+      }
+    }
+  ],
+  "spawn_zones": {
+    "start_position": [-4.0, -3.0, 0.0],
+    "goal_position": [4.0, 3.0, 0.0]
+  }
+}

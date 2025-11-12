@@ -1,0 +1,114 @@
+{
+  "name": "complex",
+  "description": "Complex environment with many walls, small gates, and dense clutter - high difficulty",
+  "bounds": [-10.0, 10.0, -10.0, 10.0, -4.0, 4.0],
+  "random_seed": 999,
+  "obstacles": [
+    {
+      "id": "wall1",
+      "type": "wall",
+      "position": [-6.0, 0.0, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 20.0,
+      "height": 8.0,
+      "thickness": 0.15,
+      "gate_id": "gate1"
+    },
+    {
+      "id": "gate1",
+      "type": "gate",
+      "position": [-6.0, -3.0, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "width": 0.9,
+      "height": 0.9,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "wall2",
+      "type": "wall",
+      "position": [-2.0, 0.0, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 20.0,
+      "height": 8.0,
+      "thickness": 0.15,
+      "gate_id": "gate2"
+    },
+    {
+      "id": "gate2",
+      "type": "gate",
+      "position": [-2.0, 2.0, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "width": 0.8,
+      "height": 0.8,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "wall3",
+      "type": "wall",
+      "position": [2.0, 0.0, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 20.0,
+      "height": 8.0,
+      "thickness": 0.15,
+      "gate_id": "gate3"
+    },
+    {
+      "id": "gate3",
+      "type": "gate",
+      "position": [2.0, -1.5, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "width": 0.9,
+      "height": 0.9,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "wall4",
+      "type": "wall",
+      "position": [6.0, 0.0, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "length": 20.0,
+      "height": 8.0,
+      "thickness": 0.15,
+      "gate_id": "gate4"
+    },
+    {
+      "id": "gate4",
+      "type": "gate",
+      "position": [6.0, 3.5, 0.0],
+      "orientation": [0.0, 0.0, 1.5708],
+      "width": 0.8,
+      "height": 0.8,
+      "frame_thickness": 0.05
+    },
+    {
+      "id": "complex_clutter",
+      "type": "clutter",
+      "random": true,
+      "count": 15,
+      "position": [
+        {
+          "uniform": [-9.0, 9.0]
+        },
+        {
+          "uniform": [-9.0, 9.0]
+        },
+        0.0
+      ],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": {
+        "uniform": [0.2, 1.2]
+      },
+      "width": {
+        "uniform": [0.2, 1.2]
+      },
+      "height": {
+        "uniform": [0.2, 1.5]
+      }
+    }
+  ],
+  "spawn_zones": {
+    "start_position": [-9.0, 0.0, 0.0],
+    "goal_position": [9.0, 0.0, 0.0]
+  }
+}

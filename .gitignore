@@ -8,4 +8,5 @@ build/
 .pytest_cache/
 *.json
 !examples/*.json
-!test_log_path/*.json
+!flockrl_sim/environment/specs/*.json
+
