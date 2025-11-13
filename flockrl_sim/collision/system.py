@@ -59,7 +59,7 @@ class CollisionSystem:
         Check for collisions with environment bounds.
         """
 
-        x_min, y_min, z_min, x_max, y_max, z_max = bounds
+        x_min, x_max, y_min, y_max, z_min, z_max = bounds
         collisions: List[CollisionInfo] = []
         r = self.drone_radius
 
