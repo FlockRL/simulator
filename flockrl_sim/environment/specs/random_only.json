@@ -87,8 +87,7 @@
       ],
       "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
-      "height": 2.0,
-      "frame_thickness": 0.05
+      "height": 2.0
     },
     {
       "id": "gate2",
@@ -105,8 +104,7 @@
       ],
       "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
-      "height": 2.0,
-      "frame_thickness": 0.05
+      "height": 2.0
     },
     {
       "id": "gate3",
@@ -123,8 +121,7 @@
       ],
       "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
-      "height": 2.0,
-      "frame_thickness": 0.05
+      "height": 2.0
     },
     {
       "id": "gate4",
@@ -141,8 +138,7 @@
       ],
       "orientation": [0.0, 0.0, 0.0],
       "width": 2.0,
-      "height": 2.0,
-      "frame_thickness": 0.05
+      "height": 2.0
     },
     {
       "id": "random_clutter",

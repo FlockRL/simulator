@@ -69,7 +69,7 @@ class TestGeometryValidation:
             position=(0.0, 0.0, 1.0),
             width=1.5,
             height=1.5,
-            frame_thickness=0.05
+            thickness=0.05
         )
         bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
 
@@ -156,7 +156,7 @@ class TestOverlapValidation:
             position=(0.0, 0.0, 1.0),
             width=1.5,
             height=1.5,
-            frame_thickness=0.05
+            thickness=0.05
         )
         wall = Wall(
             id="wall1",
@@ -210,7 +210,7 @@ class TestGateEmbeddingValidation:
             position=(0.0, 0.0, 1.0),
             width=1.5,
             height=1.5,
-            frame_thickness=0.05
+            thickness=0.05
         )
         wall = Wall(
             id="wall1",
@@ -254,7 +254,7 @@ class TestGateEmbeddingValidation:
             position=(10.0, 10.0, 1.0),  # Far from wall
             width=1.5,
             height=1.5,
-            frame_thickness=0.05
+            thickness=0.05
         )
         wall = Wall(
             id="wall1",
@@ -295,7 +295,7 @@ class TestFullEnvironmentValidation:
                 position=(0.0, 0.0, 1.0),
                 width=1.5,
                 height=1.5,
-                frame_thickness=0.05
+                thickness=0.05
             ),
             RectangularPrism(
                 id="clutter1",

@@ -112,10 +112,6 @@ class GateSpec(ObstacleSpec):
     )
     width: ScalarValue = Field(..., description="Gate width in meters")
     height: ScalarValue = Field(..., description="Gate height in meters")
-    frame_thickness: ScalarValue = Field(
-        default=0.05,
-        description="Frame thickness in meters",
-    )
 
     _width_positive = field_validator("width")(
         lambda cls, v: validate_positive_scalar(v, "Gate width")
@@ -123,12 +119,9 @@ class GateSpec(ObstacleSpec):
     _height_positive = field_validator("height")(
         lambda cls, v: validate_positive_scalar(v, "Gate height")
     )
-    _frame_positive = field_validator("frame_thickness")(
-        lambda cls, v: validate_positive_scalar(v, "Gate frame thickness")
-    )
 
     def _randomizable_components(self) -> List[Any]:
-        components: List[Any] = [self.width, self.height, self.frame_thickness]
+        components: List[Any] = [self.width, self.height]
         if self.position is not None:
             components.append(self.position)
         if self.orientation is not None:

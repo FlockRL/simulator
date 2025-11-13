@@ -21,7 +21,7 @@ def draw_wall(ax, wall, color='brown', alpha=0.5):
     draw_rectangular_prism(ax, wall.position, wall.length, wall.thickness, wall.height, color, alpha)
 
 def draw_gate(ax, gate, color='lightblue', alpha=0.3):
-    draw_rectangular_prism(ax, gate.position, gate.width, gate.frame_thickness, gate.height, color, alpha)
+    draw_rectangular_prism(ax, gate.position, gate.width, gate.thickness, gate.height, color, alpha)
 
 def draw_clutter(ax, clutter, color='gray', alpha=0.6):
     if hasattr(clutter, 'length'):
@@ -54,7 +54,7 @@ def draw_topdown_view(ax, env, spec):
         params = {
             'wall': (x-obs.length/2, y-obs.thickness/2, obs.length, obs.thickness,
                     'brown', 'black', 0.6),
-            'gate': (x-obs.width/2, y-obs.frame_thickness/2, obs.width, obs.frame_thickness,
+            'gate': (x-obs.width/2, y-obs.thickness/2, obs.width, obs.thickness,
                     'lightblue', 'blue', 0.4),
             'clutter': (x-obs.length/2, y-obs.width/2, obs.length, obs.width,
                        'gray', 'black', 0.5) if hasattr(obs, 'length') else None
@@ -131,5 +131,4 @@ def visualize_environment(spec_name_or_path):
     draw_topdown_view(fig.add_subplot(122), env, spec)
     plt.tight_layout()
     return fig, ax3d
-
 

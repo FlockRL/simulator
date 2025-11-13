@@ -9,7 +9,7 @@ from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
 from flockrl_sim.environment.spec_models.obstacles import WallSpec, GateSpec, ClutterSpec
 from flockrl_sim.environment.spec_models.random_values import UniformRandomConfig
-from flockrl_sim.environment.obstacles_types import Wall, RectangularPrism
+from flockrl_sim.environment.obstacles_types import Gate, Wall, RectangularPrism
 from flockrl_sim.environment.obstacles import SPAWN_CLEARANCE_METERS
 from flockrl_sim.environment.validation import check_overlap
 
@@ -96,7 +96,6 @@ class TestEnvironmentSpec:
                         id="gate_template",
                         width=1.0,
                         height=1.0,
-                        frame_thickness=0.05,
                     ),
                     WallSpec(
                         id="wall1",
@@ -135,7 +134,6 @@ class TestEnvironmentSpec:
                 count=2,
                 width=1.0,
                 height=1.0,
-                frame_thickness=0.05,
             )
 
 
@@ -301,7 +299,6 @@ class TestEnvironmentBuilder:
                     position=(None, 0.0, 1.0),
                     width=1.0,
                     height=1.0,
-                    frame_thickness=0.05,
                 ),
                 WallSpec(
                     id="wall_template",
@@ -330,6 +327,8 @@ class TestEnvironmentBuilder:
             gate = env.get_obstacle_by_id(expected_gate_id)
             assert gate is not None
             assert gate.position[0] == pytest.approx(wall.position[0])
+            assert isinstance(gate, Gate)
+            assert gate.thickness == pytest.approx(wall.thickness)
 
     def test_random_clutter_generation_count(self):
         spec = EnvironmentSpec(

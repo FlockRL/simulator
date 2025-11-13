@@ -97,7 +97,7 @@ def validate_geometry(
     elif isinstance(obstacle, Gate):
         _validate_positive_dimensions(
             result, obstacle.id, "Gate",
-            [("width", obstacle.width), ("height", obstacle.height), ("frame thickness", obstacle.frame_thickness)]
+            [("width", obstacle.width), ("height", obstacle.height), ("thickness", obstacle.thickness)]
         )
     elif isinstance(obstacle, RectangularPrism):
         _validate_positive_dimensions(
@@ -131,7 +131,7 @@ def _get_dims(obs: Obstacle) -> Tuple[float, float, float]:
         case Wall():
             return obs.length, obs.thickness, obs.height
         case Gate():
-            return obs.width, obs.frame_thickness, obs.height
+            return obs.width, obs.thickness, obs.height
         case RectangularPrism():
             return obs.length, obs.width, obs.height
         case _:

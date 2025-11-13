@@ -20,8 +20,7 @@
       "position": [0.0, -3.0, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "width": 1.5,
-      "height": 1.5,
-      "frame_thickness": 0.05
+      "height": 1.5
     },
     {
       "id": "wall2",
@@ -39,8 +38,7 @@
       "position": [-2.0, 3.0, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "width": 1.2,
-      "height": 1.2,
-      "frame_thickness": 0.05
+      "height": 1.2
     },
     {
       "id": "clutter1",

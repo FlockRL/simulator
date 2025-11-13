@@ -242,6 +242,7 @@ class EnvironmentBuilder:
                         gate_id=_instance_id(spec.gate_id, suffix),
                         wall_position=position,
                         wall_orientation=orientation,
+                        wall_thickness=thickness,
                     )
 
                 wall = Wall(
@@ -291,6 +292,7 @@ class EnvironmentBuilder:
         gate_id: str,
         wall_position: Tuple[float, float, float],
         wall_orientation: Tuple[float, float, float],
+        wall_thickness: float,
     ) -> Gate:
         """Create a gate instance anchored to its parent wall."""
         position = _resolve_partial_vector(template.position, wall_position)
@@ -300,7 +302,6 @@ class EnvironmentBuilder:
         )
         width = _resolve_scalar(template.width)
         height = _resolve_scalar(template.height)
-        frame = _resolve_scalar(template.frame_thickness)
 
         return Gate(
             id=gate_id,
@@ -309,7 +310,7 @@ class EnvironmentBuilder:
             orientation=orientation,
             width=width,
             height=height,
-            frame_thickness=frame,
+            thickness=wall_thickness,
         )
 
     def _process_clutter_spec(

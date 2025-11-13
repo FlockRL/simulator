@@ -65,7 +65,7 @@ def get_obstacle_dimensions(obs):
     if isinstance(obs, Wall):
         return (obs.length, obs.thickness, obs.height)
     if isinstance(obs, Gate):
-        return (obs.width, obs.frame_thickness, obs.height)
+        return (obs.width, obs.thickness, obs.height)
     if isinstance(obs, RectangularPrism):
         return (obs.length, obs.width, obs.height)
     return (1, 1, 1)

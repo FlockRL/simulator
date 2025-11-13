@@ -19,8 +19,7 @@
       "position": [0.0, 0.0, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "width": 1.2,
-      "height": 1.5,
-      "frame_thickness": 0.05
+      "height": 1.5
     },
     {
       "id": "clutter1",

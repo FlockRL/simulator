@@ -28,7 +28,7 @@ class Wall(Obstacle):
 class Gate(Obstacle):
     width: float = 0.0
     height: float = 0.0
-    frame_thickness: float = 0.0
+    thickness: float = 0.0
 
 @dataclass
 class Clutter(Obstacle):
