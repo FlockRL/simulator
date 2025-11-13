@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -131,4 +132,3 @@ def visualize_environment(spec_name_or_path):
     draw_topdown_view(fig.add_subplot(122), env, spec)
     plt.tight_layout()
     return fig, ax3d
-
