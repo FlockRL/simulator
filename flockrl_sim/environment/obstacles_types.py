@@ -15,7 +15,7 @@ class Obstacle:
     id: str
     type: str  # e.g., "wall", "gate", "sphere", "box", "pyramid"
     position: Tuple[float, float, float]  # (x, y, z)
-    orientation: Optional[Tuple[float, float, float]] = None
+    orientation: Optional[Tuple[float, float, float]] = None # Euler angles (roll, pitch, yaw) in radians
 
 @dataclass
 class Wall(Obstacle):
