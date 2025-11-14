@@ -133,12 +133,15 @@ class BaseViewer:
     def __init__(self):
         self.loader = EnvironmentSpecLoader()
         self.presets = self.loader.list_presets()
+        if not self.presets:
+            raise RuntimeError("No environment presets available")
         self.current_idx = 0
         self.load_environment(0)
 
     def load_environment(self, idx):
         self.current_idx = idx % len(self.presets)
-        self.spec = self.loader.load(self.presets[self.current_idx])
+        preset_name = self.presets[self.current_idx]
+        self.spec = self.loader.load_preset(preset_name)
         self.env = EnvironmentBuilder.from_spec(self.spec).build()
         self.bounds = self.env.bounds
         self.z_min, self.z_max = self.env.bounds[4], self.env.bounds[5]
@@ -269,6 +272,7 @@ class ViewerUnified(BaseViewer):
 
 
 def main():
+    print("Select a view mode:")
     mode = select_view_mode()
     {'unified': ViewerUnified, '2d': Viewer2D, '3d': Viewer3D}[mode]()
 

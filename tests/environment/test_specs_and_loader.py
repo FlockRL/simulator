@@ -181,6 +181,27 @@ class TestEnvironmentSpecLoader:
         spec = loader.load("simple")
         assert spec.name == "simple"
 
+    def test_load_suffix_without_file_raises(self):
+        loader = EnvironmentSpecLoader()
+        with pytest.raises(FileNotFoundError):
+            loader.load("simple.json")
+
+    def test_load_prefers_existing_file_over_preset(self, tmp_path, monkeypatch):
+        spec_data = {
+            "name": "custom_simple",
+            "description": "Overrides preset when file exists",
+            "bounds": [-5, 5, -5, 5, 0, 5],
+            "obstacles": [],
+        }
+        custom_file = tmp_path / "simple.json"
+        with open(custom_file, "w") as handle:
+            json.dump(spec_data, handle)
+
+        monkeypatch.chdir(tmp_path)
+        loader = EnvironmentSpecLoader()
+        spec = loader.load("simple.json")
+        assert spec.name == "custom_simple"
+
     def test_smart_load_path(self, tmp_path):
         spec_data = {
             "name": "temp_spec",

@@ -29,22 +29,18 @@ class EnvironmentSpecLoader:
 
         Automatically detects whether input is a preset or path based on structure.
         """
-        path = Path(name_or_path)
+        if isinstance(name_or_path, str):
+            path = Path(name_or_path)
 
-        # If it's already a Path object or has multiple parts, treat as file path
-        if isinstance(name_or_path, Path) or len(path.parts) > 1:
+            # Only bare names qualify as presets
+            if len(path.parts) == 1 and not path.suffix:
+                if path.name in set(self.list_presets()):
+                    return self.load_preset(path.name)
+
             return self.load_from_path(path)
 
-        # If it has a file extension, treat as file path
-        if path.suffix:
-            return self.load_from_path(path)
-
-        # If it exists as a file, treat as file path
-        if path.exists() and path.is_file():
-            return self.load_from_path(path)
-
-        # Otherwise, treat as preset name
-        return self.load_preset(str(name_or_path))
+        # Paths and other inputs are treated as explicit filesystem references
+        return self.load_from_path(Path(name_or_path))
 
     def list_presets(self) -> list[str]:
         if not self.specs_dir.exists():
