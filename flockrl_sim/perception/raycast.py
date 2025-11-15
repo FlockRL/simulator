@@ -39,7 +39,21 @@ def raycast(
     Returns:
         (distance, hit_point, obstacle) or None if no hit
     """
-    pass
+
+    closest_hit = None
+    min_distance = max_distance
+
+    for obstacle in obstacles:
+        hit = obstacle.intersect(origin, direction)
+        if hit is not None:
+            distance, hit_point = hit
+            if 0 < distance < min_distance:
+                min_distance = distance
+                closest_hit = (distance, hit_point, obstacle)
+
+    print(closest_hit)
+    
+    return closest_hit
 
 
 def raycast_batch(
@@ -62,4 +76,14 @@ def raycast_batch(
     Returns:
         Distances to closest hit for each ray (shape=(N,))
     """
-    pass
+    
+    N = origins.shape[0]
+    distances = np.full((N,), max_distance)
+
+    for obstacle in obstacles:
+        hit_distances = obstacle.intersect_batch(origins, directions)
+        mask = (hit_distances > 0) & (hit_distances < distances)
+        distances[mask] = hit_distances[mask]
+        print(distances)
+
+    return distances
