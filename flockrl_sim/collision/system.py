@@ -158,6 +158,45 @@ class CollisionSystem:
                 if collision_info is not None:
                     collisions.append(collision_info)
 
+        # Sphere collisions
+        spheres = [obs for obs in obstacles if getattr(obs, "type", None) == "sphere" or hasattr(obs, "radius")]
+
+        for i, pos in enumerate(state.pos):
+            drone_id = state.ids[i]
+            drone_vel = state.vel[i]
+
+            for sphere in spheres:
+                center = np.array(sphere.position, dtype=float)
+                sphere_r = float(getattr(sphere, "radius", 0.0))
+
+                diff = pos - center
+                dist_sq = float(np.dot(diff, diff))
+                cutoff = (r + sphere_r) ** 2
+
+                if dist_sq < cutoff:
+                    dist = np.sqrt(dist_sq)
+
+                    if dist > 1e-12:
+                        normal = diff / dist
+                    else:
+                        # Drone center coincides with sphere center; pick an arbitrary normal to push drone out along +x.
+                        normal = np.array([1.0, 0.0, 0.0], dtype=float)
+
+                    contact_point = center + sphere_r * normal
+                    penetration = (r + sphere_r) - dist
+                    new_pos = pos + penetration * normal
+                    rebound_vel = self.apply_rebound(drone_vel, normal, restitution=0.8)
+
+                    collisions.append(CollisionInfo(
+                        drone_id=drone_id,
+                        collision_type="sphere",
+                        normal_vector=normal.astype(float),
+                        contact_point=contact_point.astype(float),
+                        penetration_depth=float(penetration),
+                        rebound_velocity=rebound_vel.astype(float),
+                        new_position=new_pos.astype(float),
+                    ))
+
         return collisions
 
     def check_rectangular_prism_collision(
