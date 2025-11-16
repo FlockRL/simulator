@@ -47,9 +47,20 @@ class SwarmState:
             Initialized SwarmState with zero velocities and accelerations
         """
         N = positions.shape[0]
-        velocities = np.zeros((N, 3))
-        accelerations = np.zeros((N, 3))
-        return SwarmState(pos=positions, vel=velocities, acc=accelerations, ids=ids)
+        if ids.shape[0] != N:
+            raise ValueError("Positions and IDs must have the same number of drones (N).")
+        
+        # Initialize velocities and acceleration to zero:
+        velocities = np.zeros_like(positions)
+        accelerations = np.zeros_like(positions)
+        
+        return cls(
+            t=0.0,
+            pos=positions, 
+            vel=velocities, 
+            acc=accelerations, 
+            ids=ids,
+            metadata={})
 
     def clone(self) -> SwarmState:
         """
@@ -59,6 +70,7 @@ class SwarmState:
         
             Core Simulation team: Implement state cloning logic here.
         """
+        # Returning the copy:
         return SwarmState(
             t = self.t,
             pos=self.pos.copy() if self.pos is not None else None,

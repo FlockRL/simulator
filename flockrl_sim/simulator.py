@@ -82,11 +82,16 @@ class CoreSimulator:
             self.state = SwarmState.from_initial_positions(positions, ids)
         else:
             self.state = initial_state.clone()
-    
+
+        # Creating a run:
         self.current_run = SimulationRun(
             frames=[],
             metadata=metadata or {}
         )
+
+        # Logging the first frame:
+        self.log_frame(info={"event": "run_started"})
+
         return self.state
 
     def step(self, actions: np.ndarray) -> tuple[SwarmState, dict]:
@@ -98,29 +103,46 @@ class CoreSimulator:
         
         Core Simulation team: Apply kinematics, collision detection, and update state.
         """
+        if self.state.pos is None:
+            raise RuntimeError("Simulator state is not initialized. Did you forget to call start_run?")
+        
         # 1. Apply actions as accelerations
-        self.state.acc = actions.copy()
+        self.state.acc = actions
         
-        # 2. Kinematic integration (Euler method)
-        # v(t+dt) = v(t) + a(t) * dt
-        # p(t+dt) = p(t) + v(t) * dt + 0.5 * a(t) * dt^2
-        
-        dt = self.delta_t
-        self.state.vel += self.state.acc * dt
-        self.state.pos += self.state.vel * dt + 0.5 * self.state.acc * dt**2
-        self.state.t += dt
-        
-        # 3. Apply collision detection (if available)
-        info = {}
+        # Calculate proposed new velocities and positions
+        proposed_vel = self.state.vel + self.state.acc * self.delta_t
+        proposed_pos = self.state.pos + self.state.vel * self.delta_t + 0.5 * self.state.acc * (self.delta_t ** 2)
+        proposed_t = self.state.t + self.delta_t
+
+        # 2. Create proposed state for collision checking
+        proposed_state = self.state.clone()
+        proposed_state.t = proposed_t
+        proposed_state.pos = proposed_pos
+        proposed_state.vel = proposed_vel
+        proposed_state.acc = actions
+
+        info_dict = {}
+        final_state = proposed_state
+
+        # 3. Call Collision System (Integration)
         if self.collision_system:
-            self.state, collision_info = self.collision_system(self.state)
-            info.update(collision_info)
-        
-        # 4. Apply render hook if available
+            # The collision system is responsible for detecting collisions
+            # and returning a *new state* with corrected positions
+            # and rebound velocities.
+            final_state, info_dict = self.collision_system(proposed_state)
+
+        # 4. Update master state
+        self.state = final_state
+
+        # 5. Log for Visualization (Integration)
+        # We log the *final* state *after* collisions are resolved.
+        self.log_frame(info=info_dict)
+
+        # 6. Call Render Hook (Integration)
         if self.render_hook:
-            self.render_hook(self.state, info)
-        
-        return self.state, info
+            self.render_hook(self.state, info_dict)
+            
+        return self.state, info_dict
 
     def log_frame(self, info: Optional[Dict[str, Any]] = None) -> None:
         """
