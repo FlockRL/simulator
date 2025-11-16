@@ -104,9 +104,9 @@ Drones are treated as points. Populate `neighbor_vectors` by computing relative 
 
 **Outputs**:
 - `neighbor_vectors`: Array of relative vectors to nearby drones
-  - Shape: `(num_neighbors, 3)` for positions, or `(num_neighbors, 6)` if including velocities
-  - Each vector represents the relative position (and optionally velocity) from the observing drone to a neighbor
-  - Empty array or `None` if no neighbors detected within range
+  - Shape: `(num_neighbors, 6)` for positions and velocities
+  - Each vector represents the relative position and velocity from the observing drone to a neighbor
+  - Empty array if no neighbors detected within range
 
 #### 5. Batch Ray Casting (`raycast_batch()`) (Optional)
 
