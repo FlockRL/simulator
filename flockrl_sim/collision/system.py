@@ -37,7 +37,6 @@ class CollisionSystem:
     """
     Collision system that will handle collision detection and response for drone swarms in the simulation environment.
     
-    Boilerplate class for now, feel free to change as much as you want.
     """
 
     environment: Environment
@@ -45,14 +44,50 @@ class CollisionSystem:
 
     def __call__(self, state: SwarmState) -> tuple[SwarmState, dict]:
         """
-        Detect and resolve collisions, return updated state and info dict.
-        
-        The info dict should include a "collisions" key containing a list of
-        CollisionInfo objects for logging and visualization.
-        
-        Collision team: Implement the full collision pipeline here.
+        Detect collisions and compute collision responses.
+
+        Returns:
+            (state, info) where:
+            - state is the (unmodified) SwarmState passed in
+            - info is a dict with:
+                    "collisions": List[CollisionInfo]
         """
-        pass
+        # Degenerate case: 
+        if state.pos is None or state.vel is None or state.ids is None:
+            return state, {"collisions": []}
+
+        collisions: List[CollisionInfo] = []
+
+        bounds = None
+        if hasattr(self.environment, "bounds"):
+            b = self.environment.bounds
+            bounds = b() if callable(b) else b
+        elif hasattr(self.environment, "get_bounds"):
+            bounds = self.environment.get_bounds()
+
+        obstacles = []
+        if hasattr(self.environment, "obstacles"):
+            obs = self.environment.obstacles
+            obstacles = obs() if callable(obs) else obs
+        elif hasattr(self.environment, "get_obstacles"):
+            obstacles = self.environment.get_obstacles()
+
+        # Run collision checks
+
+        # 1. Bounds collisions
+        if bounds is not None:
+            collisions.extend(self.check_bounds_collision(state, bounds))
+
+        # 2. Wall + clutter collisions
+        if obstacles:
+            collisions.extend(self.check_wall_collision(state, obstacles))
+            collisions.extend(self.check_clutter_collision(state, obstacles))
+
+        info = {
+            "collisions": collisions
+        }
+        return state, info
+
 
     def check_bounds_collision(self, state: SwarmState, bounds: Any) -> List[CollisionInfo]:
         """
