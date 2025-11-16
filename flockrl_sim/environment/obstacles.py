@@ -239,7 +239,7 @@ class EnvironmentBuilder:
                         )
                     gate_instance = self._build_gate_instance(
                         template=gate_templates[spec.gate_id],
-                        gate_id=_instance_id(spec.gate_id, suffix),
+                        gate_id=self._gate_instance_id(spec.gate_id, wall_id),
                         wall_position=position,
                         wall_orientation=orientation,
                         wall_thickness=thickness,
@@ -312,6 +312,11 @@ class EnvironmentBuilder:
             height=height,
             thickness=wall_thickness,
         )
+
+    @staticmethod
+    def _gate_instance_id(gate_template_id: str, wall_id: str) -> str:
+        """Derive a unique gate instance identifier for a wall."""
+        return _instance_id(gate_template_id, f"_{wall_id}")
 
     def _process_clutter_spec(
         self,

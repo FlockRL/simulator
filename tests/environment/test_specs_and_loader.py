@@ -270,7 +270,14 @@ class TestEnvironmentBuilder:
         env = EnvironmentBuilder.from_spec(spec).build()
         obstacle_ids = {obs.id for obs in env.obstacles}
         assert "wall1" in obstacle_ids
-        assert "gate1" in obstacle_ids
+
+        gate_template_id = next(obs.id for obs in spec.obstacles if isinstance(obs, GateSpec))
+        wall = next(obs for obs in env.obstacles if isinstance(obs, Wall))
+        expected_gate_id = f"{gate_template_id}_{wall.id}"
+        assert wall.gate_id is not None
+        assert wall.gate_id == expected_gate_id
+        assert wall.gate_id in obstacle_ids
+        assert env.get_obstacle_by_id(wall.gate_id) is not None
 
     def test_build_from_random_spec_reproducibility(self):
         loader = EnvironmentSpecLoader()
@@ -342,13 +349,58 @@ class TestEnvironmentBuilder:
         walls = [obs for obs in env.obstacles if isinstance(obs, Wall)]
         assert len(walls) == 2
 
-        for idx, wall in enumerate(sorted(walls, key=lambda w: w.id)):
-            expected_gate_id = f"gate_template_{idx}"
+        for wall in sorted(walls, key=lambda w: w.id):
+            expected_gate_id = f"gate_template_{wall.id}"
             assert wall.gate_id == expected_gate_id
             gate = env.get_obstacle_by_id(expected_gate_id)
             assert gate is not None
             assert gate.position[0] == pytest.approx(wall.position[0])
             assert isinstance(gate, Gate)
+            assert gate.thickness == pytest.approx(wall.thickness)
+
+    def test_manual_walls_reusing_gate_template_get_unique_gates(self):
+        spec = EnvironmentSpec(
+            name="shared_gate_template",
+            obstacles=[
+                GateSpec(
+                    id="shared_gate",
+                    position=(None, None, 1.0),
+                    width=1.0,
+                    height=1.5,
+                ),
+                WallSpec(
+                    id="wall_a",
+                    position=(-2.0, 0.0, 0.0),
+                    orientation=(0.0, 0.0, 0.0),
+                    length=3.0,
+                    height=2.0,
+                    thickness=0.2,
+                    gate_id="shared_gate",
+                ),
+                WallSpec(
+                    id="wall_b",
+                    position=(2.0, 0.0, 0.0),
+                    orientation=(0.0, 0.0, 0.0),
+                    length=3.0,
+                    height=2.0,
+                    thickness=0.2,
+                    gate_id="shared_gate",
+                ),
+            ],
+        )
+
+        env = EnvironmentBuilder.from_spec(spec).build()
+        walls = sorted([obs for obs in env.obstacles if isinstance(obs, Wall)], key=lambda w: w.id)
+        assert len(walls) == 2
+
+        gate_ids = {wall.gate_id for wall in walls}
+        assert len(gate_ids) == len(walls)
+
+        for wall in walls:
+            expected_gate_id = f"shared_gate_{wall.id}"
+            assert wall.gate_id == expected_gate_id
+            gate = env.get_obstacle_by_id(expected_gate_id)
+            assert gate is not None
             assert gate.thickness == pytest.approx(wall.thickness)
 
     def test_random_clutter_generation_count(self):
