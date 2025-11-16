@@ -33,9 +33,11 @@ class OBBMixin:
 
         o_local = Rt @ (origin - pos)
         d_local = Rt @ direction
+        
+        with np.errstate(divide='ignore', invalid='ignore'):
+            t1 = (-half_sizes - o_local) / d_local
+            t2 = ( half_sizes - o_local) / d_local
 
-        t1 = (-half_sizes - o_local) / d_local
-        t2 = ( half_sizes - o_local) / d_local
 
         tmin = np.maximum.reduce(np.minimum(t1, t2))
         tmax = np.minimum.reduce(np.maximum(t1, t2))
