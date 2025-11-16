@@ -11,11 +11,16 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from ..environment.obstacles import Obstacle
+#from ..environment.obstacles import Obstacle
 
+import sys
+import os
 
-RayHit = Tuple[float, np.ndarray, np.ndarray]
-"""Ray casting result: (distance, hit_point, normal)"""
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+Obstacle = "Obstacle"
+
+RayHit = Tuple[float, np.ndarray, Obstacle]
+"""Ray casting result: (distance, hit_point, obstacle)"""
 
 
 def raycast(
@@ -37,9 +42,21 @@ def raycast(
         max_distance: Maximum ray distance [meters]
     
     Returns:
-        (distance, hit_point, normal) or None if no hit
+        (distance, hit_point, obstacle) or None if no hit
     """
-    pass
+
+    closest_hit = None
+    min_distance = max_distance
+
+    for obstacle in obstacles:
+        hit = obstacle.ray_intersect(origin, direction)
+        if hit is not None:
+            distance, hit_point, normal = hit
+            if 0 < distance < min_distance:
+                min_distance = distance
+                closest_hit = (distance, hit_point, obstacle)
+
+    return closest_hit
 
 
 def raycast_batch(
@@ -62,4 +79,16 @@ def raycast_batch(
     Returns:
         Distances to closest hit for each ray (shape=(N,))
     """
-    pass
+    
+    N = origins.shape[0]
+    distances = np.full((N,), max_distance)
+
+    print("obstacles:", obstacles)
+    print("num obstacles:", len(obstacles))
+
+    for obstacle in obstacles:
+        hit_distances = obstacle.ray_intersect_batch(origins, directions)
+        mask = (hit_distances > 0) & (hit_distances < distances)
+        distances[mask] = hit_distances[mask]
+
+    return distances
