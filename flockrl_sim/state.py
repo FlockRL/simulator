@@ -46,6 +46,10 @@ class SwarmState:
         Returns:
             Initialized SwarmState with zero velocities and accelerations
         """
+        # Copy inputs
+        positions = np.array(positions, copy=True)
+        ids = np.array(ids, copy=True)
+
         N = positions.shape[0]
         if ids.shape[0] != N:
             raise ValueError("Positions and IDs must have the same number of drones (N).")
