@@ -71,8 +71,6 @@ class SwarmState:
         Create a deep copy of this SwarmState.
         
         Useful for collision detection (testing proposed states) and logging.
-        
-            Core Simulation team: Implement state cloning logic here.
         """
         # Returning the copy:
         return SwarmState(

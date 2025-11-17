@@ -40,8 +40,6 @@ class SimulationRun:
 class CoreSimulator:
     """
     Main simulator class that will handle the simulation loop (update state, apply collisions, etc.).
-
-    Boilerplate class for now, feel free to change as much as you want.
     """
 
     def __init__(
@@ -72,8 +70,6 @@ class CoreSimulator:
         
         Returns:
             The initialized SwarmState
-        
-        Core Simulation team: Initialize a new SimulationRun and set the initial state.
         """
         if initial_state is None:
             # Create default state with single drone at origin
@@ -100,8 +96,6 @@ class CoreSimulator:
         
         Returns:
             Tuple of (updated SwarmState, info dict with collision events, etc.)
-        
-        Core Simulation team: Apply kinematics, collision detection, and update state.
         """
         if self.state.pos is None:
             raise RuntimeError("Simulator state is not initialized. Did you forget to call start_run?")
@@ -150,8 +144,6 @@ class CoreSimulator:
         
         Args:
             info: Optional info dict containing collision events, etc.
-        
-        Core Simulation team: Append a SimulationFrame to self.current_run.
         """
         if self.current_run is None:
             raise RuntimeError("No active run. Call start_run() first.")
@@ -168,8 +160,6 @@ class CoreSimulator:
         
         Args:
             output_path: Path where the SimulationRun will be saved
-        
-        Core Simulation team: Serialize self.current_run to disk (e.g., JSON, pickle).
         """
         if self.current_run is None:
             raise RuntimeError("No run to save. Call start_run() first.")
