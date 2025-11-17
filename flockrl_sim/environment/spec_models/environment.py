@@ -1,13 +1,7 @@
-"""Environment-level specification models."""
-
 from __future__ import annotations
-
 from typing import List, Optional, Tuple, Union
-
 from pydantic import BaseModel, Field, field_validator
-
-from .obstacles import ClutterSpec, GateSpec, WallSpec
-
+from .obstacles import ClutterSpec, WallSpec
 
 class SpawnZoneSpec(BaseModel):
     """Specification for spawn zones (start and goal positions)."""
@@ -39,11 +33,8 @@ class SpawnZoneSpec(BaseModel):
 class EnvironmentSpec(BaseModel):
     """Complete environment specification supporting manual and random placement."""
 
-    name: str = Field(..., description="Environment name/identifier")
-    description: Optional[str] = Field(
-        default=None,
-        description="Human-readable description of this environment",
-    )
+    name: str
+    description: Optional[str] = None
     bounds: Tuple[float, float, float, float, float, float] = Field(
         default=(-5.0, 5.0, -5.0, 5.0, 0.0, 5.0),
         description="Environment bounds (x_min, x_max, y_min, y_max, z_min, z_max)",
@@ -52,7 +43,7 @@ class EnvironmentSpec(BaseModel):
         default=None,
         description="Seed used for random sampling to keep environments reproducible",
     )
-    obstacles: List[Union[WallSpec, GateSpec, ClutterSpec]] = Field(
+    obstacles: List[Union[WallSpec, ClutterSpec]] = Field(
         default_factory=list,
         description="List of obstacle templates (manual or random)",
     )
@@ -78,34 +69,11 @@ class EnvironmentSpec(BaseModel):
     @field_validator("obstacles")
     @classmethod
     def validate_unique_ids(
-        cls, obstacles: List[Union[WallSpec, GateSpec, ClutterSpec]]
-    ) -> List[Union[WallSpec, GateSpec, ClutterSpec]]:
+        cls, obstacles: List[Union[WallSpec, ClutterSpec]]
+    ) -> List[Union[WallSpec, ClutterSpec]]:
         ids = [obs.id for obs in obstacles]
         if len(ids) != len(set(ids)):
             raise ValueError("Obstacle template IDs must be unique")
-        return obstacles
-
-    @field_validator("obstacles")
-    @classmethod
-    def validate_gate_references(
-        cls, obstacles: List[Union[WallSpec, GateSpec, ClutterSpec]]
-    ) -> List[Union[WallSpec, GateSpec, ClutterSpec]]:
-        gate_ids = {obs.id for obs in obstacles if isinstance(obs, GateSpec)}
-        referenced_gate_ids: set[str] = set()
-
-        for obs in obstacles:
-            if isinstance(obs, WallSpec) and obs.gate_id is not None:
-                if obs.gate_id not in gate_ids:
-                    raise ValueError(
-                        f"Wall {obs.id} references non-existent gate {obs.gate_id}"
-                    )
-                referenced_gate_ids.add(obs.gate_id)
-
-        unused_gates = gate_ids - referenced_gate_ids
-        if unused_gates:
-            unused = ", ".join(sorted(unused_gates))
-            raise ValueError(f"Gate templates unused by any wall: {unused}")
-
         return obstacles
 
 

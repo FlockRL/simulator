@@ -1,35 +1,16 @@
-"""Environment and obstacle data containers.
-
-Coordinate with Collision team on obstacle geometry representation.
-"""
-
 from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 import random
 from math import hypot
+from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, RectangularPrism
+from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
+from flockrl_sim.environment.spec_models.obstacles import WallSpec, ClutterSpec, GateSpec
+from flockrl_sim.environment.spec_models.random_values import UniformRandomConfig, DiscreteRandomConfig
+from flockrl_sim.environment.validation import check_overlap
 import logging
 
 logger = logging.getLogger(__name__)
-
-from flockrl_sim.environment.obstacles_types import (
-    Obstacle,
-    Wall,
-    Gate,
-    RectangularPrism,
-)
-from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
-from flockrl_sim.environment.spec_models.obstacles import (
-    WallSpec,
-    GateSpec,
-    ClutterSpec,
-)
-from flockrl_sim.environment.spec_models.random_values import (
-    UniformRandomConfig,
-    DiscreteRandomConfig,
-)
-from flockrl_sim.environment.validation import check_overlap
 
 Bounds = Tuple[float, float, float, float, float, float]  # (x_min, x_max, y_min, y_max, z_min, z_max)
 MAX_PLACEMENT_ATTEMPTS = 50
@@ -41,51 +22,31 @@ class EnvironmentValidationError(Exception):
     pass
 
 def _resolve_scalar(value) -> float:
-    """Sample or coerce a scalar value."""
     if isinstance(value, UniformRandomConfig):
-        low, high = value.uniform
-        return random.uniform(low, high)
+        return random.uniform(*value.uniform)
     if isinstance(value, DiscreteRandomConfig):
         return random.choice(value.discrete)
-    return float(value)
+    return value
 
 
 def _resolve_vector(vector) -> Tuple[float, float, float]:
     """Resolve a 3D vector with potential random components."""
-    return (
-        _resolve_scalar(vector[0]),
-        _resolve_scalar(vector[1]),
-        _resolve_scalar(vector[2]),
+    return tuple(_resolve_scalar(vector[i]) for i in range(3))
+
+
+def _resolve_partial_vector(vector, fallback: Tuple[float, float, float]) -> Tuple[float, float, float]:
+    """Resolve a partial 3D vector, None values in vector are replaced with fallback values (usually parent's values)."""
+    if vector is None:
+        return fallback
+    return tuple(
+        fallback[i] if comp is None else _resolve_scalar(comp)
+        for i, comp in enumerate(vector)
     )
 
 
-def _resolve_partial_vector(
-    vector,
-    fallback: Tuple[float, float, float],
-) -> Tuple[float, float, float]:
-    """Resolve a partial vector using fallback components."""
-    if vector is None:
-        return fallback
-    resolved = []
-    for idx, component in enumerate(vector):
-        if component is None:
-            resolved.append(fallback[idx])
-        else:
-            resolved.append(_resolve_scalar(component))
-    return tuple(resolved)
-
-
-def _instance_suffix(index: int, total: int) -> str:
-    """Return the suffix for the Nth instance."""
-    if total <= 1:
-        return ""
-    return f"_{index}"
-
-
-def _instance_id(base_id: str, suffix: str) -> str:
-    """Compose an instance identifier with suffix."""
-    return f"{base_id}{suffix}"
-
+def _instance_id(base_id: str, index: int, total: int) -> str:
+    """Generate instance ID with suffix if total > 1."""
+    return f"{base_id}_{index}" if total > 1 else base_id
 
 
 @dataclass
@@ -104,11 +65,10 @@ class Environment:
         logger.debug(f"Added obstacle: {obstacle}")
 
     def get_obstacle_by_id(self, obstacle_id: str) -> Optional[Obstacle]:
-        for obs in self.obstacles:
-            if obs.id == obstacle_id:
-                logger.debug(f"Found obstacle: {obs}")
-                return obs
-        return None
+        obstacle = next((obs for obs in self.obstacles if obs.id == obstacle_id), None)
+        if obstacle:
+            logger.debug(f"Found obstacle: {obstacle}")
+        return obstacle
 
     def summary(self) -> str:
         logger.debug("Generating environment summary")
@@ -158,32 +118,26 @@ class EnvironmentBuilder:
 
         spawn_zones = spec.spawn_zones
         start_pos = goal_pos = None
-        spawn_positions: List[Tuple[float, float, float]] = []
+        spawn_positions = []
 
         if spawn_zones:
-            if spawn_zones.start_position is not None:
-                start_pos = spawn_zones.start_position
-            elif spawn_zones.start_zone_bounds is not None:
-                start_pos = builder._random_position_in_bounds(spawn_zones.start_zone_bounds)
-
-            if spawn_zones.goal_position is not None:
-                goal_pos = spawn_zones.goal_position
-            elif spawn_zones.goal_zone_bounds is not None:
-                goal_pos = builder._random_position_in_bounds(spawn_zones.goal_zone_bounds)
-
+            start_pos = (
+                spawn_zones.start_position if spawn_zones.start_position is not None
+                else builder._random_position_in_bounds(spawn_zones.start_zone_bounds) if spawn_zones.start_zone_bounds
+                else None
+            )
+            goal_pos = (
+                spawn_zones.goal_position if spawn_zones.goal_position is not None
+                else builder._random_position_in_bounds(spawn_zones.goal_zone_bounds) if spawn_zones.goal_zone_bounds
+                else None
+            )
             spawn_positions = [pos for pos in (start_pos, goal_pos) if pos]
-
-        gate_templates: Dict[str, GateSpec] = {
-            obs.id: obs for obs in spec.obstacles if isinstance(obs, GateSpec)
-        }
 
         for obs_spec in spec.obstacles:
             if isinstance(obs_spec, WallSpec):
-                builder._process_wall_spec(obs_spec, gate_templates, spawn_positions)
+                builder._process_wall_spec(obs_spec, spawn_positions)
             elif isinstance(obs_spec, ClutterSpec):
                 builder._process_clutter_spec(obs_spec, spawn_positions)
-            elif isinstance(obs_spec, GateSpec):
-                continue
             else:
                 raise TypeError(f"Unsupported obstacle spec type: {type(obs_spec)}")
 
@@ -208,42 +162,36 @@ class EnvironmentBuilder:
     def _process_wall_spec(
         self,
         spec: WallSpec,
-        gate_templates: Dict[str, GateSpec],
         spawn_positions: List[Tuple[float, float, float]],
     ) -> None:
-        """Instantiate walls (and optional gates) from a wall template."""
         total = spec.count if spec.random else 1
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
         for index in range(total):
-            suffix = _instance_suffix(index, total)
-            wall_id = _instance_id(spec.id, suffix)
+            wall_id = _instance_id(spec.id, index, total)
             placed = False
 
             for _ in range(attempts):
                 position = _resolve_vector(spec.position)
-                orientation = (
-                    _resolve_vector(spec.orientation)
-                    if spec.orientation is not None
-                    else (0.0, 0.0, 0.0)
-                )
+                orientation = _resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
                 length = _resolve_scalar(spec.length)
                 height = _resolve_scalar(spec.height)
                 thickness = _resolve_scalar(spec.thickness)
 
-                gate_instance: Optional[Gate] = None
-                if spec.gate_id is not None:
-                    if spec.gate_id not in gate_templates:
-                        raise ValueError(
-                            f"Wall {spec.id} references missing gate template {spec.gate_id}"
-                        )
-                    gate_instance = self._build_gate_instance(
-                        template=gate_templates[spec.gate_id],
-                        gate_id=self._gate_instance_id(spec.gate_id, wall_id),
+                # Build inline gates
+                gate_instances = [
+                    self._build_gate_instance(
+                        gate_spec=gate_spec,
+                        gate_id=f"{wall_id}_gate_{gate_idx}",
                         wall_position=position,
                         wall_orientation=orientation,
                         wall_thickness=thickness,
                     )
+                    for gate_idx, gate_spec in enumerate(spec.gates)
+                ]
+
+                # Wall stores ID of first gate for backward compatibility
+                first_gate_id = gate_instances[0].id if gate_instances else None
 
                 wall = Wall(
                     id=wall_id,
@@ -253,28 +201,19 @@ class EnvironmentBuilder:
                     length=length,
                     height=height,
                     thickness=thickness,
-                    gate_id=gate_instance.id if gate_instance else None,
+                    gate_id=first_gate_id,
                 )
 
                 if spec.random:
-                    ignore_gate = {gate_instance.id} if gate_instance else None
-                    if not self._is_clear_of_spawn(wall.position, spawn_positions):
-                        continue
-                    if self._collides_with_existing(wall, ignore_ids=ignore_gate):
+                    if not self._check_placement(wall, spawn_positions, {g.id for g in gate_instances} if gate_instances else None):
                         continue
 
-                    if gate_instance:
-                        if not self._is_clear_of_spawn(
-                            gate_instance.position, spawn_positions
-                        ):
-                            continue
-                        if self._collides_with_existing(
-                            gate_instance,
-                            ignore_ids={wall.id},
-                        ):
-                            continue
+                    # Check all gates for collisions
+                    if not all(self._check_placement(g, spawn_positions, {wall.id}) for g in gate_instances):
+                        continue
 
-                if gate_instance:
+                # Add all gates first, then wall
+                for gate_instance in gate_instances:
                     self.config.add_obstacle(gate_instance)
                 self.config.add_obstacle(wall)
                 placed = True
@@ -288,20 +227,16 @@ class EnvironmentBuilder:
 
     def _build_gate_instance(
         self,
-        template: GateSpec,
+        gate_spec: GateSpec,
         gate_id: str,
         wall_position: Tuple[float, float, float],
         wall_orientation: Tuple[float, float, float],
         wall_thickness: float,
     ) -> Gate:
-        """Create a gate instance anchored to its parent wall."""
-        position = _resolve_partial_vector(template.position, wall_position)
-        orientation = _resolve_partial_vector(
-            template.orientation,
-            wall_orientation,
-        )
-        width = _resolve_scalar(template.width)
-        height = _resolve_scalar(template.height)
+        position = _resolve_partial_vector(gate_spec.position, wall_position)
+        orientation = wall_orientation
+        width = _resolve_scalar(gate_spec.width)
+        height = _resolve_scalar(gate_spec.height)
 
         return Gate(
             id=gate_id,
@@ -313,32 +248,21 @@ class EnvironmentBuilder:
             thickness=wall_thickness,
         )
 
-    @staticmethod
-    def _gate_instance_id(gate_template_id: str, wall_id: str) -> str:
-        """Derive a unique gate instance identifier for a wall."""
-        return _instance_id(gate_template_id, f"_{wall_id}")
-
     def _process_clutter_spec(
         self,
         spec: ClutterSpec,
         spawn_positions: List[Tuple[float, float, float]],
     ) -> None:
-        """Instantiate clutter obstacles from a template."""
         total = spec.count if spec.random else 1
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
         for index in range(total):
-            suffix = _instance_suffix(index, total)
-            clutter_id = _instance_id(spec.id, suffix)
+            clutter_id = _instance_id(spec.id, index, total)
             placed = False
 
             for _ in range(attempts):
                 position = _resolve_vector(spec.position)
-                orientation = (
-                    _resolve_vector(spec.orientation)
-                    if spec.orientation is not None
-                    else (0.0, 0.0, 0.0)
-                )
+                orientation = _resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
                 length = _resolve_scalar(spec.length)
                 width = _resolve_scalar(spec.width)
                 height = _resolve_scalar(spec.height)
@@ -354,11 +278,8 @@ class EnvironmentBuilder:
                     height=height,
                 )
 
-                if spec.random:
-                    if not self._is_clear_of_spawn(clutter.position, spawn_positions):
-                        continue
-                    if self._collides_with_existing(clutter):
-                        continue
+                if spec.random and not self._check_placement(clutter, spawn_positions):
+                    continue
 
                 self.config.add_obstacle(clutter)
                 placed = True
@@ -375,26 +296,28 @@ class EnvironmentBuilder:
         position: Tuple[float, float, float],
         spawn_positions: List[Tuple[float, float, float]],
     ) -> bool:
-        """Ensure candidate position stays a safe distance from spawn points."""
-        if not spawn_positions:
-            return True
+        return not spawn_positions or all(
+            hypot(position[0] - spawn[0], position[1] - spawn[1]) >= SPAWN_CLEARANCE_METERS
+            for spawn in spawn_positions
+        )
 
-        x, y = position[0], position[1]
-        for spawn in spawn_positions:
-            if hypot(x - spawn[0], y - spawn[1]) < SPAWN_CLEARANCE_METERS:
-                return False
-        return True
+    def _check_placement(
+        self,
+        obstacle: Obstacle,
+        spawn_positions: List[Tuple[float, float, float]],
+        ignore_ids: Optional[Set[str]] = None,
+    ) -> bool:
+        """Return True if obstacle placement is valid (clear of spawn and no collisions), False otherwise."""
+        return (self._is_clear_of_spawn(obstacle.position, spawn_positions) and
+                not self._collides_with_existing(obstacle, ignore_ids))
 
     def _collides_with_existing(
         self,
         candidate: Obstacle,
         ignore_ids: Optional[Set[str]] = None,
     ) -> bool:
-        """Return True if candidate overlaps any already placed obstacle."""
-        ignore_ids = ignore_ids or set()
-
         for existing in self.config.obstacles:
-            if existing.id in ignore_ids:
+            if ignore_ids and existing.id in ignore_ids:
                 continue
             if isinstance(candidate, Wall) and candidate.gate_id == existing.id:
                 continue
@@ -407,13 +330,7 @@ class EnvironmentBuilder:
 
 
     def _random_position_in_bounds(self, bounds: Bounds) -> Tuple[float, float, float]:
-        """Generate random (x, y, z) position within given bounds."""
-        x_min, x_max, y_min, y_max, z_min, z_max = bounds
-        return (
-            random.uniform(x_min, x_max),
-            random.uniform(y_min, y_max),
-            random.uniform(z_min, z_max)
-        )
+        return tuple(random.uniform(bounds[i], bounds[i+1]) for i in range(0, 6, 2))
 
     def build(self) -> Environment:
         return self.config

@@ -1,14 +1,7 @@
-"""Environment validation helpers for geometry, collisions, and gate embedding.
-
-Note: Collision detection uses conservative AABB approximation (see check_overlap).
-"""
-
 from __future__ import annotations
-
 from typing import List, Tuple, Optional
 from itertools import combinations
 import math
-
 from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, RectangularPrism
 
 
@@ -16,41 +9,31 @@ class ValidationResult:
     """Result of environment validation."""
 
     def __init__(self):
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
+        self.errors = []
+        self.warnings = []
 
     def add_error(self, message: str) -> None:
-        """Add an error message."""
         self.errors.append(message)
 
     def add_warning(self, message: str) -> None:
-        """Add a warning message."""
         self.warnings.append(message)
 
     def is_valid(self) -> bool:
-        """Check if validation passed (no errors)."""
-        return len(self.errors) == 0
+        return not self.errors
 
     def __str__(self) -> str:
-        """String representation of validation results."""
         if self.is_valid():
-            msg = "Validation passed"
-            if self.warnings:
-                msg += f" ({len(self.warnings)} warnings)"
-            return msg
+            return f"Validation passed{f' ({len(self.warnings)} warnings)' if self.warnings else ''}"
 
         parts = [f"Validation failed with {len(self.errors)} errors:"]
         parts.extend(f"  - {error}" for error in self.errors)
-
         if self.warnings:
-            parts.append(f"\nWarnings ({len(self.warnings)}):")
-            parts.extend(f"  - {warning}" for warning in self.warnings)
-
+            parts.extend([f"\nWarnings ({len(self.warnings)}):",
+                         *(f"  - {warning}" for warning in self.warnings)])
         return "\n".join(parts)
 
 
 def _extend_result(target: ValidationResult, source: ValidationResult) -> None:
-    """Append errors and warnings from source into target."""
     target.errors.extend(source.errors)
     target.warnings.extend(source.warnings)
 
@@ -61,7 +44,6 @@ def _validate_positive_dimensions(
     obstacle_type: str,
     dimensions: List[Tuple[str, float]]
 ) -> None:
-    """Check all dimensions are positive, add errors if not."""
     for name, value in dimensions:
         if value <= 0:
             result.add_error(f"{obstacle_type} {obstacle_id} has non-positive {name}: {value}")
@@ -116,9 +98,8 @@ def _axis_aligned_size(
 ) -> Tuple[float, float, float]:
     """Compute axis-aligned bounding box size accounting for yaw rotation."""
     yaw = 0.0
-    if (orient := getattr(obs, "orientation", None)) and len(orient) >= 3 and orient[2] is not None:
+    if (orient := getattr(obs, "orientation", None)) and len(orient) >= 3 and orient[2]:
         yaw = orient[2]
-
     cos_yaw, sin_yaw = abs(math.cos(yaw)), abs(math.sin(yaw))
     return (dim_x * cos_yaw + dim_y * sin_yaw,
             dim_x * sin_yaw + dim_y * cos_yaw,
@@ -126,7 +107,6 @@ def _axis_aligned_size(
 
 
 def _get_dims(obs: Obstacle) -> Tuple[float, float, float]:
-    """Return local axis dimensions (length, width, height) for an obstacle."""
     match obs:
         case Wall():
             return obs.length, obs.thickness, obs.height
@@ -142,46 +122,28 @@ def check_overlap(obs1: Obstacle, obs2: Obstacle) -> bool:
 
     Returns True if AABBs overlap, False if no collision (only considers yaw rotation).
     """
-    # Get positions
     x1, y1, z1 = obs1.position
     x2, y2, z2 = obs2.position
 
-    # Get approximate sizes (conservative estimate)
-    dims1 = _get_dims(obs1)
-    dims2 = _get_dims(obs2)
+    size1 = _axis_aligned_size(obs1, *_get_dims(obs1))
+    size2 = _axis_aligned_size(obs2, *_get_dims(obs2))
 
-    size1 = _axis_aligned_size(obs1, *dims1)
-    size2 = _axis_aligned_size(obs2, *dims2)
-
-    # Check overlap using axis-aligned bounding box test
     # Overlap occurs if distance between centers is less than sum of half-sizes in all dimensions
-    deltas = (abs(x2 - x1), abs(y2 - y1), abs(z2 - z1))
-    half_sum_sizes = ((size1[i] + size2[i]) / 2 for i in range(3))
-
-    return all(d < hs for d, hs in zip(deltas, half_sum_sizes))
+    return all(abs(c2 - c1) < (s1 + s2) / 2
+               for c1, c2, s1, s2 in zip((x1, y1, z1), (x2, y2, z2), size1, size2))
 
 
 def _point_inside_obstacle(point: Tuple[float, float, float], obs: Obstacle) -> bool:
-    """Check if a point is inside an obstacle's AABB."""
-    x, y, z = point
-    ox, oy, oz = obs.position
-    dims = _get_dims(obs)
-    size = _axis_aligned_size(obs, *dims)
-
-    half_size_x, half_size_y, half_size_z = size[0] / 2, size[1] / 2, size[2] / 2
-    return (abs(x - ox) < half_size_x and
-            abs(y - oy) < half_size_y and
-            abs(z - oz) < half_size_z)
+    size = _axis_aligned_size(obs, *_get_dims(obs))
+    return all(abs(p - o) < s / 2 for p, o, s in zip(point, obs.position, size))
 
 
 def _is_gate_wall_pair(obs1: Obstacle, obs2: Obstacle) -> bool:
-    """Check if obstacles are a gate-wall pair (allowed to overlap)."""
     return ((isinstance(obs1, Wall) and obs1.gate_id == obs2.id) or
             (isinstance(obs2, Wall) and obs2.gate_id == obs1.id))
 
 
 def validate_no_overlaps(obstacles: List[Obstacle]) -> ValidationResult:
-    """Check obstacles don't overlap (excludes gate-wall pairs)."""
     result = ValidationResult()
 
     for obs1, obs2 in combinations(obstacles, 2):
@@ -196,10 +158,7 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
     result = ValidationResult()
     obs_map = {obs.id: obs for obs in obstacles}
 
-    for obs in obstacles:
-        if not isinstance(obs, Wall) or obs.gate_id is None:
-            continue
-
+    for obs in (o for o in obstacles if isinstance(o, Wall) and o.gate_id):
         if obs.gate_id not in obs_map:
             result.add_error(f"Wall {obs.id} references non-existent gate {obs.gate_id}")
         elif not isinstance(gate := obs_map[obs.gate_id], Gate):
@@ -221,14 +180,10 @@ def validate_spawn_positions(
     result = ValidationResult()
 
     for position, name in [(start_position, "Start"), (goal_position, "Goal")]:
-        if position is None:
-            continue
-
-        for obs in obstacles:
-            if isinstance(obs, Gate):
-                continue  # Gates are passable
-            if _point_inside_obstacle(position, obs):
-                result.add_error(f"{name} position {position} is inside obstacle {obs.id}")
+        if position:
+            for obs in (o for o in obstacles if not isinstance(o, Gate)):
+                if _point_inside_obstacle(position, obs):
+                    result.add_error(f"{name} position {position} is inside obstacle {obs.id}")
 
     return result
 

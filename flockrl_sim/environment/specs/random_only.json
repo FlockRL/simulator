@@ -8,137 +8,69 @@
       "id": "wall1",
       "type": "wall",
       "random": true,
-      "position": [
-        0.0,
-        {
-          "uniform": [-8.0, 8.0]
-        },
-        0.0
-      ],
+      "position": [0.0, {"uniform": [-8.0, 8.0]}, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
-      "gate_id": "gate1"
+      "gates": [
+        {
+          "position": [{"uniform": [-6.0, 6.0]}, null, {"uniform": [-3.0, 3.0]}],
+          "width": 2.0,
+          "height": 2.0
+        }
+      ]
     },
     {
       "id": "wall2",
       "type": "wall",
       "random": true,
-      "position": [
-        0.0,
-        {
-          "uniform": [-8.0, 8.0]
-        },
-        0.0
-      ],
+      "position": [0.0, {"uniform": [-8.0, 8.0]}, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
-      "gate_id": "gate2"
+      "gates": [
+        {
+          "position": [{"uniform": [-6.0, 6.0]}, null, {"uniform": [-3.0, 3.0]}],
+          "width": 2.0,
+          "height": 2.0
+        }
+      ]
     },
     {
       "id": "wall3",
       "type": "wall",
       "random": true,
-      "position": [
-        0.0,
-        {
-          "uniform": [-8.0, 8.0]
-        },
-        0.0
-      ],
+      "position": [0.0, {"uniform": [-8.0, 8.0]}, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
-      "gate_id": "gate3"
+      "gates": [
+        {
+          "position": [{"uniform": [-6.0, 6.0]}, null, {"uniform": [-3.0, 3.0]}],
+          "width": 2.0,
+          "height": 2.0
+        }
+      ]
     },
     {
       "id": "wall4",
       "type": "wall",
       "random": true,
-      "position": [
-        0.0,
-        {
-          "uniform": [-8.0, 8.0]
-        },
-        0.0
-      ],
+      "position": [0.0, {"uniform": [-8.0, 8.0]}, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "length": 16.0,
       "height": 8.0,
       "thickness": 0.1,
-      "gate_id": "gate4"
-    },
-    {
-      "id": "gate1",
-      "type": "gate",
-      "random": true,
-      "position": [
+      "gates": [
         {
-          "uniform": [-6.0, 6.0]
-        },
-        null,
-        {
-          "uniform": [-3.0, 3.0]
+          "position": [{"uniform": [-6.0, 6.0]}, null, {"uniform": [-3.0, 3.0]}],
+          "width": 2.0,
+          "height": 2.0
         }
-      ],
-      "orientation": [0.0, 0.0, 0.0],
-      "width": 2.0,
-      "height": 2.0
-    },
-    {
-      "id": "gate2",
-      "type": "gate",
-      "random": true,
-      "position": [
-        {
-          "uniform": [-6.0, 6.0]
-        },
-        null,
-        {
-          "uniform": [-3.0, 3.0]
-        }
-      ],
-      "orientation": [0.0, 0.0, 0.0],
-      "width": 2.0,
-      "height": 2.0
-    },
-    {
-      "id": "gate3",
-      "type": "gate",
-      "random": true,
-      "position": [
-        {
-          "uniform": [-6.0, 6.0]
-        },
-        null,
-        {
-          "uniform": [-3.0, 3.0]
-        }
-      ],
-      "orientation": [0.0, 0.0, 0.0],
-      "width": 2.0,
-      "height": 2.0
-    },
-    {
-      "id": "gate4",
-      "type": "gate",
-      "random": true,
-      "position": [
-        {
-          "uniform": [-6.0, 6.0]
-        },
-        null,
-        {
-          "uniform": [-3.0, 3.0]
-        }
-      ],
-      "orientation": [0.0, 0.0, 0.0],
-      "width": 2.0,
-      "height": 2.0
+      ]
     },
     {
       "id": "random_clutter",
@@ -146,25 +78,15 @@
       "random": true,
       "count": 8,
       "position": [
-        {
-          "uniform": [-8.0, 8.0]
-        },
-        {
-          "uniform": [-8.0, 8.0]
-        },
+        {"uniform": [-8.0, 8.0]},
+        {"uniform": [-8.0, 8.0]},
         0.0
       ],
       "orientation": [0.0, 0.0, 0.0],
       "subtype": "rectangular_prism",
-      "length": {
-        "uniform": [0.3, 1.0]
-      },
-      "width": {
-        "uniform": [0.3, 1.0]
-      },
-      "height": {
-        "uniform": [0.3, 1.2]
-      }
+      "length": {"uniform": [0.3, 1.0]},
+      "width": {"uniform": [0.3, 1.0]},
+      "height": {"uniform": [0.3, 1.2]}
     }
   ],
   "spawn_zones": {

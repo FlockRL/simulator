@@ -12,15 +12,13 @@
       "length": 10.0,
       "height": 8.0,
       "thickness": 0.1,
-      "gate_id": "gate1"
-    },
-    {
-      "id": "gate1",
-      "type": "gate",
-      "position": [0.0, -1.5, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "width": 2.0,
-      "height": 2.0
+      "gates": [
+        {
+          "position": [0.0, -1.5, 0.0],
+          "width": 2.0,
+          "height": 2.0
+        }
+      ]
     },
     {
       "id": "wall2",
@@ -30,41 +28,25 @@
       "length": 10.0,
       "height": 8.0,
       "thickness": 0.1,
-      "gate_id": "gate2"
-    },
-    {
-      "id": "gate2",
-      "type": "gate",
-      "position": [0.0, 1.5, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "width": 2.0,
-      "height": 2.0
+      "gates": [
+        {
+          "position": [0.0, 1.5, 0.0],
+          "width": 2.0,
+          "height": 2.0
+        }
+      ]
     },
     {
       "id": "simple_clutter",
       "type": "clutter",
       "random": true,
       "count": 3,
-      "position": [
-        {
-          "uniform": [-4.5, 4.5]
-        },
-        {
-          "uniform": [-4.5, 4.5]
-        },
-        0.0
-      ],
+      "position": [{"uniform": [-4.5, 4.5]}, {"uniform": [-4.5, 4.5]}, 0.0],
       "orientation": [0.0, 0.0, 0.0],
       "subtype": "rectangular_prism",
-      "length": {
-        "uniform": [0.2, 0.5]
-      },
-      "width": {
-        "uniform": [0.2, 0.5]
-      },
-      "height": {
-        "uniform": [0.2, 0.5]
-      }
+      "length": {"uniform": [0.2, 0.5]},
+      "width": {"uniform": [0.2, 0.5]},
+      "height": {"uniform": [0.2, 0.5]}
     }
   ],
   "spawn_zones": {

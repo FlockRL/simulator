@@ -11,20 +11,19 @@
       "length": 12.0,
       "height": 8.0,
       "thickness": 0.1,
-      "gate_id": "gate1"
-    },
-    {
-      "id": "gate1",
-      "type": "gate",
-      "position": [0.0, 0.0, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "width": 1.2,
-      "height": 1.5
+      "gates": [
+        {
+          "position": [0.0, 0.0, 0.0],
+          "width": 1.2,
+          "height": 1.5
+        }
+      ]
     },
     {
       "id": "clutter1",
       "type": "clutter",
       "position": [-3.0, 2.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
       "subtype": "rectangular_prism",
       "length": 0.5,
       "width": 0.5,
@@ -34,6 +33,7 @@
       "id": "clutter2",
       "type": "clutter",
       "position": [4.0, -2.5, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
       "subtype": "rectangular_prism",
       "length": 0.7,
       "width": 0.4,
@@ -43,6 +43,7 @@
       "id": "clutter3",
       "type": "clutter",
       "position": [-1.5, -3.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
       "subtype": "rectangular_prism",
       "length": 0.6,
       "width": 0.6,

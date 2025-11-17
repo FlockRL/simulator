@@ -7,7 +7,7 @@ import pytest
 
 from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
-from flockrl_sim.environment.spec_models.obstacles import WallSpec, GateSpec, ClutterSpec
+from flockrl_sim.environment.spec_models.obstacles import WallSpec, ClutterSpec, GateSpec
 from flockrl_sim.environment.spec_models.random_values import UniformRandomConfig
 from flockrl_sim.environment.obstacles_types import Gate, Wall, RectangularPrism
 from flockrl_sim.environment.obstacles import SPAWN_CLEARANCE_METERS
@@ -31,29 +31,33 @@ class TestEnvironmentSpec:
                 WallSpec(
                     id="wall1",
                     position=(1.0, 0.0, 0.0),
+                    orientation=(0.0, 0.0, 0.0),
                     length=5.0,
                     height=3.0,
-                    gate_id="gate1",
-                ),
-                GateSpec(
-                    id="gate1",
-                    position=(1.0, 0.0, 1.0),
-                    width=1.5,
-                    height=1.5,
+                    thickness=0.1,
+                    gates=[
+                        GateSpec(
+                            position=(1.0, 0.0, 1.0),
+                            width=1.5,
+                            height=1.5,
+                        )
+                    ],
                 ),
                 ClutterSpec(
                     id="clutter1",
                     position=(2.0, 2.0, 0.0),
+                    orientation=(0.0, 0.0, 0.0),
+                    subtype="rectangular_prism",
                     length=0.5,
                     width=0.5,
                     height=0.8,
                 ),
             ],
         )
-        assert len(spec.obstacles) == 3
+        assert len(spec.obstacles) == 2
         assert isinstance(spec.obstacles[0], WallSpec)
-        assert isinstance(spec.obstacles[1], GateSpec)
-        assert isinstance(spec.obstacles[2], ClutterSpec)
+        assert isinstance(spec.obstacles[1], ClutterSpec)
+        assert len(spec.obstacles[0].gates) == 1
 
     def test_invalid_bounds(self):
         with pytest.raises(ValueError, match="x_min.*must be less than x_max"):
@@ -67,52 +71,24 @@ class TestEnvironmentSpec:
             EnvironmentSpec(
                 name="duplicate_ids",
                 obstacles=[
-                    WallSpec(id="wall1", position=(0, 0, 0), length=1, height=1),
-                    WallSpec(id="wall1", position=(1, 0, 0), length=1, height=1),
+                    WallSpec(id="wall1", position=(0, 0, 0), orientation=(0, 0, 0), length=1, height=1, thickness=0.1),
+                    WallSpec(id="wall1", position=(1, 0, 0), orientation=(0, 0, 0), length=1, height=1, thickness=0.1),
                 ],
             )
 
-    def test_invalid_gate_reference(self):
-        with pytest.raises(ValueError, match="references non-existent gate"):
-            EnvironmentSpec(
-                name="bad_gate",
-                obstacles=[
-                    WallSpec(
-                        id="wall1",
-                        position=(0.0, 0.0, 0.0),
-                        length=5.0,
-                        height=3.0,
-                        gate_id="missing_gate",
-                    )
-                ],
-            )
+    # Removed: test_invalid_gate_reference - gates are now inline, can't reference missing gates
 
-    def test_unused_gate_template(self):
-        with pytest.raises(ValueError, match="Gate templates unused"):
-            EnvironmentSpec(
-                name="unused_gate",
-                obstacles=[
-                    GateSpec(
-                        id="gate_template",
-                        width=1.0,
-                        height=1.0,
-                    ),
-                    WallSpec(
-                        id="wall1",
-                        position=(0.0, 0.0, 0.0),
-                        length=2.0,
-                        height=1.0,
-                    ),
-                ],
-            )
+    # Removed: test_unused_gate_template - gates are now inline, can't be unused
 
     def test_random_flag_requires_matching_count(self):
         with pytest.raises(ValueError, match="count == 1"):
             WallSpec(
                 id="wall_random",
                 position=(0.0, 0.0, 0.0),
+                orientation=(0.0, 0.0, 0.0),
                 length=2.0,
                 height=1.0,
+                thickness=0.1,
                 random=False,
                 count=2,
             )
@@ -122,19 +98,13 @@ class TestEnvironmentSpec:
             WallSpec(
                 id="wall_uniform",
                 position=(UniformRandomConfig(uniform=(0.0, 1.0)), 0.0, 0.0),
+                orientation=(0.0, 0.0, 0.0),
                 length=2.0,
                 height=1.0,
+                thickness=0.1,
             )
 
-    def test_gate_template_forces_single_count(self):
-        with pytest.raises(ValueError, match="Gate specs must have count == 1"):
-            GateSpec(
-                id="gate_template",
-                random=True,
-                count=2,
-                width=1.0,
-                height=1.0,
-            )
+    # Removed: test_gate_template_forces_single_count - gates are now inline, no separate gate specs
 
 
 class TestEnvironmentSpecLoader:
@@ -226,6 +196,7 @@ class TestEnvironmentSpecLoader:
                     "id": "wall1",
                     "type": "wall",
                     "position": [0, 0, 0],
+                    "orientation": [0, 0, 0],
                     "length": 5,
                     "height": 3,
                     "thickness": 0.1,
@@ -271,9 +242,9 @@ class TestEnvironmentBuilder:
         obstacle_ids = {obs.id for obs in env.obstacles}
         assert "wall1" in obstacle_ids
 
-        gate_template_id = next(obs.id for obs in spec.obstacles if isinstance(obs, GateSpec))
         wall = next(obs for obs in env.obstacles if isinstance(obs, Wall))
-        expected_gate_id = f"{gate_template_id}_{wall.id}"
+        # Gate ID format: {wall_id}_gate_{index}
+        expected_gate_id = f"{wall.id}_gate_0"
         assert wall.gate_id is not None
         assert wall.gate_id == expected_gate_id
         assert wall.gate_id in obstacle_ids
@@ -297,11 +268,12 @@ class TestEnvironmentBuilder:
 
         env = EnvironmentBuilder.from_spec(spec).build()
 
-        spawn_positions = []
-        if spec.spawn_zones:
-            for pos in (spec.spawn_zones.start_position, spec.spawn_zones.goal_position):
-                if pos:
-                    spawn_positions.append(pos)
+        spawn_positions = [
+            pos for pos in (
+                spec.spawn_zones.start_position if spec.spawn_zones else None,
+                spec.spawn_zones.goal_position if spec.spawn_zones else None
+            ) if pos
+        ] if spec.spawn_zones else []
 
         for obs in env.obstacles:
             for spawn in spawn_positions:
@@ -310,9 +282,9 @@ class TestEnvironmentBuilder:
 
         for i, obs1 in enumerate(env.obstacles):
             for obs2 in env.obstacles[i + 1 :]:
-                if isinstance(obs1, Wall) and obs1.gate_id == obs2.id:
-                    continue
-                if isinstance(obs2, Wall) and obs2.gate_id == obs1.id:
+                # Skip if one is the other's gate
+                if (isinstance(obs1, Wall) and obs1.gate_id == obs2.id) or \
+                   (isinstance(obs2, Wall) and obs2.gate_id == obs1.id):
                     continue
                 assert not check_overlap(obs1, obs2)
 
@@ -322,12 +294,6 @@ class TestEnvironmentBuilder:
             random_seed=2024,
             bounds=(-5.0, 5.0, -5.0, 5.0, 0.0, 5.0),
             obstacles=[
-                GateSpec(
-                    id="gate_template",
-                    position=(None, 0.0, 1.0),
-                    width=1.0,
-                    height=1.0,
-                ),
                 WallSpec(
                     id="wall_template",
                     random=True,
@@ -337,10 +303,17 @@ class TestEnvironmentBuilder:
                         UniformRandomConfig(uniform=(-1.5, 1.5)),
                         0.0,
                     ),
+                    orientation=(0.0, 0.0, 0.0),
                     length=4.0,
                     height=2.5,
                     thickness=0.2,
-                    gate_id="gate_template",
+                    gates=[
+                        GateSpec(
+                            position=(None, 0.0, 1.0),
+                            width=1.0,
+                            height=1.0,
+                        )
+                    ],
                 ),
             ],
         )
@@ -350,7 +323,7 @@ class TestEnvironmentBuilder:
         assert len(walls) == 2
 
         for wall in sorted(walls, key=lambda w: w.id):
-            expected_gate_id = f"gate_template_{wall.id}"
+            expected_gate_id = f"{wall.id}_gate_0"
             assert wall.gate_id == expected_gate_id
             gate = env.get_obstacle_by_id(expected_gate_id)
             assert gate is not None
@@ -358,16 +331,11 @@ class TestEnvironmentBuilder:
             assert isinstance(gate, Gate)
             assert gate.thickness == pytest.approx(wall.thickness)
 
-    def test_manual_walls_reusing_gate_template_get_unique_gates(self):
+    def test_manual_walls_with_gates_get_unique_gate_ids(self):
+        """Test that multiple walls with the same gate spec get unique gate IDs."""
         spec = EnvironmentSpec(
-            name="shared_gate_template",
+            name="shared_gate_spec",
             obstacles=[
-                GateSpec(
-                    id="shared_gate",
-                    position=(None, None, 1.0),
-                    width=1.0,
-                    height=1.5,
-                ),
                 WallSpec(
                     id="wall_a",
                     position=(-2.0, 0.0, 0.0),
@@ -375,7 +343,13 @@ class TestEnvironmentBuilder:
                     length=3.0,
                     height=2.0,
                     thickness=0.2,
-                    gate_id="shared_gate",
+                    gates=[
+                        GateSpec(
+                            position=(None, None, 1.0),
+                            width=1.0,
+                            height=1.5,
+                        )
+                    ],
                 ),
                 WallSpec(
                     id="wall_b",
@@ -384,7 +358,13 @@ class TestEnvironmentBuilder:
                     length=3.0,
                     height=2.0,
                     thickness=0.2,
-                    gate_id="shared_gate",
+                    gates=[
+                        GateSpec(
+                            position=(None, None, 1.0),
+                            width=1.0,
+                            height=1.5,
+                        )
+                    ],
                 ),
             ],
         )
@@ -394,10 +374,10 @@ class TestEnvironmentBuilder:
         assert len(walls) == 2
 
         gate_ids = {wall.gate_id for wall in walls}
-        assert len(gate_ids) == len(walls)
+        assert len(gate_ids) == len(walls), "Each wall should have a unique gate ID"
 
         for wall in walls:
-            expected_gate_id = f"shared_gate_{wall.id}"
+            expected_gate_id = f"{wall.id}_gate_0"
             assert wall.gate_id == expected_gate_id
             gate = env.get_obstacle_by_id(expected_gate_id)
             assert gate is not None
@@ -418,6 +398,8 @@ class TestEnvironmentBuilder:
                         UniformRandomConfig(uniform=(-5.0, 5.0)),
                         0.0,
                     ),
+                    orientation=(0.0, 0.0, 0.0),
+                    subtype="rectangular_prism",
                     length=UniformRandomConfig(uniform=(0.5, 1.0)),
                     width=UniformRandomConfig(uniform=(0.5, 1.0)),
                     height=UniformRandomConfig(uniform=(0.5, 1.0)),

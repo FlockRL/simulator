@@ -11,11 +11,10 @@ class EnvironmentSpecLoader:
             raise FileNotFoundError(f"Specs directory not found at {self.specs_dir}")
 
     def load_preset(self, name: str) -> EnvironmentSpec:
-        name = f"{name}.json" if not name.endswith(".json") else name
+        name = name if name.endswith(".json") else f"{name}.json"
         preset_path = self.specs_dir / name
         if not preset_path.exists():
-            available = ', '.join(self.list_presets())
-            raise FileNotFoundError(f"Preset '{name}' not found. Available: {available}")
+            raise FileNotFoundError(f"Preset '{name}' not found. Available: {', '.join(self.list_presets())}")
         return self._load_from_file(preset_path)
 
     def load_from_path(self, path: Union[str, Path]) -> EnvironmentSpec:
@@ -29,24 +28,19 @@ class EnvironmentSpecLoader:
 
         Automatically detects whether input is a preset or path based on structure.
         """
-        if isinstance(name_or_path, str):
-            path = Path(name_or_path)
+        path = Path(name_or_path) if isinstance(name_or_path, str) else Path(name_or_path)
 
-            # Only bare names qualify as presets
-            if len(path.parts) == 1 and not path.suffix:
-                if path.name in set(self.list_presets()):
-                    return self.load_preset(path.name)
+        # Only bare names without suffixes qualify as presets
+        if len(path.parts) == 1 and not path.suffix and path.name in set(self.list_presets()):
+            return self.load_preset(path.name)
 
-            return self.load_from_path(path)
-
-        # Paths and other inputs are treated as explicit filesystem references
-        return self.load_from_path(Path(name_or_path))
+        return self.load_from_path(path)
 
     def list_presets(self) -> list[str]:
         if not self.specs_dir.exists():
             return []
-        return sorted([f.stem for f in self.specs_dir.glob("*.json")
-                      if f.stem not in ["README", "schema"]])
+        return sorted(f.stem for f in self.specs_dir.glob("*.json")
+                     if f.stem not in ["README", "schema"])
 
     def _load_from_file(self, path: Path) -> EnvironmentSpec:
         try:
