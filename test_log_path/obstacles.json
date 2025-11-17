@@ -1,0 +1,68 @@
+{
+  "obstacles": [
+    {
+      "width": 2.5,
+      "height": 3.0,
+      "depth": 1.5,
+      "posx": 10.0,
+      "posy": 5.0,
+      "posz": 0.0
+    },
+    {
+      "width": 1.0,
+      "height": 4.5,
+      "depth": 1.0,
+      "posx": -5.0,
+      "posy": 8.0,
+      "posz": 0.0
+    },
+    {
+      "width": 3.0,
+      "height": 2.0,
+      "depth": 3.0,
+      "posx": 0.0,
+      "posy": -10.0,
+      "posz": 0.0
+    },
+    {
+      "width": 1.5,
+      "height": 5.0,
+      "depth": 2.0,
+      "posx": 15.0,
+      "posy": -3.0,
+      "posz": 0.0
+    },
+    {
+      "width": 4.0,
+      "height": 1.5,
+      "depth": 4.0,
+      "posx": -8.0,
+      "posy": -6.0,
+      "posz": 0.0
+    },
+    {
+      "width": 2.0,
+      "height": 3.5,
+      "depth": 1.0,
+      "posx": 3.0,
+      "posy": 12.0,
+      "posz": 0.0
+    },
+    {
+      "width": 1.2,
+      "height": 6.0,
+      "depth": 1.2,
+      "posx": -12.0,
+      "posy": 2.0,
+      "posz": 0.0
+    },
+    {
+      "width": 5.0,
+      "height": 2.5,
+      "depth": 2.5,
+      "posx": 7.0,
+      "posy": -8.0,
+      "posz": 0.0
+    }
+  ]
+}
