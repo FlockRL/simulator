@@ -36,11 +36,12 @@ class CollisionInfo:
 class CollisionSystem:
     """
     Collision system that will handle collision detection and response for drone swarms in the simulation environment.
-    
+
     """
 
     environment: Environment
     drone_radius: float = 1.0  # Hardcoded value for drone radius (can change)
+    restitution: float = 0.8  # Coefficient of restitution for collisions (1.0 = elastic, 0.0 = inelastic)
 
     def __call__(self, state: SwarmState) -> tuple[SwarmState, dict]:
         """
@@ -115,7 +116,7 @@ class CollisionSystem:
                                         np.clip(y, y_min, y_max),
                                         np.clip(z, z_min, z_max)])
                 new_pos = pos + pen * normal
-                rebound_vel = self.apply_rebound(state.vel[i], normal, restitution=0.8)
+                rebound_vel = self.apply_rebound(state.vel[i], normal, restitution=self.restitution)
                 collisions.append(CollisionInfo(
                     drone_id=drone_id,
                     collision_type="bounds",
@@ -133,8 +134,9 @@ class CollisionSystem:
         Check for collisions with static walls.
         """
         collisions = []
-        walls = [obs for obs in obstacles if obs.type == "wall"]
 
+        walls = [obs for obs in obstacles if getattr(obs, "type", None) == "wall"]
+        
         for i, pos in enumerate(state.pos):
             drone_id = state.ids[i]
             drone_vel = state.vel[i]
@@ -163,9 +165,10 @@ class CollisionSystem:
 
     def check_clutter_collision(self, state: SwarmState, obstacles: List[Any]) -> List[CollisionInfo]:
         """
-        Check for collisions with clutter objects (spheres, boxes, etc.).
+        Check for collisions with clutter objects (rectangular prisms, spheres, etc.).
 
-        Unneeded for now, but can be used for future physics simulation
+        Detects collisions between drones and obstacle objects, computing contact points,
+        penetration depths, and rebound velocities for each collision.
         """
         collisions: List[CollisionInfo] = []
         prisms = [obs for obs in obstacles if getattr(obs, "type", None) == "RectangularPrism"]
@@ -220,7 +223,7 @@ class CollisionSystem:
                     contact_point = center + sphere_r * normal
                     penetration = (r + sphere_r) - dist
                     new_pos = pos + penetration * normal
-                    rebound_vel = self.apply_rebound(drone_vel, normal, restitution=0.8)
+                    rebound_vel = self.apply_rebound(drone_vel, normal, restitution=self.restitution)
 
                     collisions.append(CollisionInfo(
                         drone_id=drone_id,
