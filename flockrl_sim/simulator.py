@@ -307,11 +307,11 @@ class CoreSimulator:
                     # Convert CollisionInfo objects to dicts
                     serialized[key] = [
                         {
-                            "drone_id": c.drone_id,
+                            "drone_id": int(c.drone_id),  # Convert numpy int to Python int
                             "collision_type": c.collision_type,
                             "normal_vector": c.normal_vector.tolist(),
                             "contact_point": c.contact_point.tolist(),
-                            "penetration_depth": c.penetration_depth,
+                            "penetration_depth": float(c.penetration_depth),
                             "rebound_velocity": c.rebound_velocity.tolist(),
                             "new_position": c.new_position.tolist(),
                         }
