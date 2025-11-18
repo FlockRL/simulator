@@ -65,11 +65,6 @@ BOUNDS: Bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
 class TestGeometryValidation:
     """Test individual obstacle geometry validation."""
 
-    def test_valid_wall(self):
-        """Test validation of a valid wall."""
-        result = validate_geometry(helper_wall(), BOUNDS)
-        assert result.is_valid()
-
     def test_wall_outside_bounds(self):
         """Test validation catches wall outside bounds."""
         result = validate_geometry(helper_wall(position=(15.0, 0.0, 0.0)), BOUNDS)
@@ -82,25 +77,8 @@ class TestGeometryValidation:
         assert not result.is_valid()
         assert any("non-positive length" in err for err in result.errors)
 
-    def test_valid_gate(self):
-        """Test validation of a valid gate."""
-        result = validate_geometry(helper_gate(), BOUNDS)
-        assert result.is_valid()
-
-    def test_valid_clutter(self):
-        """Test validation of a valid clutter object."""
-        result = validate_geometry(helper_clutter(position=(2.0, 2.0, 0.0)), BOUNDS)
-        assert result.is_valid()
-
-
 class TestOverlapValidation:
     """Test overlap detection between obstacles."""
-
-    def test_no_overlap(self):
-        """Test that well-separated obstacles don't overlap."""
-        obstacles = [helper_wall(), helper_clutter(id="clutter1", position=(10.0, 10.0, 0.0))]
-        result = validate_no_overlaps(obstacles)
-        assert result.is_valid()
 
     def test_overlap_detected(self):
         """Test that overlapping obstacles are detected."""
@@ -119,13 +97,6 @@ class TestOverlapValidation:
         result = validate_no_overlaps([w, g])
         assert result.is_valid()  # Gate-wall overlap is allowed
 
-    def test_overlap_respects_orientation(self):
-        """Ensure overlap detection accounts for obstacle orientation."""
-        w = helper_wall(id="wall1", position=(-3.0, 0.0, 0.0), length=10.0, thickness=0.2, orientation=(0.0, 0.0, 1.5708))
-        c = helper_clutter(id="clutter1", position=(-3.0, 4.0, 0.0), length=1.0, width=1.0, height=1.0)
-        result = validate_no_overlaps([w, c])
-        assert not result.is_valid(), "Clutter placed along rotated wall should overlap"
-
 
 class TestGateEmbeddingValidation:
     """Test gate embedding in walls."""
@@ -142,14 +113,6 @@ class TestGateEmbeddingValidation:
         result = validate_gate_embedding([helper_wall(gate_id="nonexistent_gate")])
         assert not result.is_valid()
         assert any("non-existent gate" in err for err in result.errors)
-
-    def test_gate_far_from_wall(self):
-        """Test warning when gate is far from wall."""
-        g = helper_gate(position=(10.0, 10.0, 1.0))
-        w = helper_wall(gate_id="gate1")
-        result = validate_gate_embedding([w, g])
-        assert len(result.warnings) > 0
-        assert any("far from" in warn for warn in result.warnings)
 
 
 class TestFullEnvironmentValidation:

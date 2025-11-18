@@ -16,11 +16,6 @@ MAX_PLACEMENT_ATTEMPTS = 50
 SPAWN_CLEARANCE_METERS = 2.0
 
 
-class EnvironmentValidationError(Exception):
-    """Raised when environment validation fails with errors."""
-    pass
-
-
 def _instance_id(base_id: str, index: int, total: int) -> str:
     """Generate instance ID with suffix if total > 1."""
     return f"{base_id}_{index}" if total > 1 else base_id
@@ -78,14 +73,9 @@ class EnvironmentBuilder:
 
     @classmethod
     def from_spec(cls, spec: EnvironmentSpec) -> "EnvironmentBuilder":
-        """
-        Build environment from EnvironmentSpec (manual, random, or hybrid).
-
-        Validates the environment and raises EnvironmentValidationError if invalid.
-        """
+        """Builds environment and validates it from EnvironmentSpec (manual, random, or hybrid)"""
         env = Environment(bounds=spec.bounds, obstacles=[], seed=spec.random_seed)
-        if env.seed is not None:
-            random.seed(env.seed)
+        random.seed(env.seed)
 
         builder = cls(config=env)
 
@@ -104,20 +94,14 @@ class EnvironmentBuilder:
         validation_result = validate_environment(builder.config.obstacles, builder.config.bounds, start_pos, goal_pos) # Validate the environment
 
         if not validation_result.is_valid():
-            raise EnvironmentValidationError(
-                f"Environment validation failed:\n{validation_result}"
-            )
+            raise ValueError(f"Environment validation failed:\n{validation_result}")
 
         if validation_result.warnings:
             logger.warning(f"Environment validation warnings:\n{validation_result}")
 
         return builder
 
-    def _process_wall_spec(
-        self,
-        spec: WallSpec,
-        spawn_positions: List[Tuple[float, float, float]],
-    ) -> None:
+    def _process_wall_spec(self, spec: WallSpec, spawn_positions: List[Tuple[float, float, float]]) -> None:
         total = spec.count if spec.random else 1
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
@@ -127,7 +111,7 @@ class EnvironmentBuilder:
 
             for _ in range(attempts):
                 position = resolve_vector(spec.position)
-                orientation = resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
+                orientation = resolve_vector(spec.orientation)
                 length = resolve_scalar(spec.length)
                 height = resolve_scalar(spec.height)
                 thickness = resolve_scalar(spec.thickness)
@@ -202,11 +186,7 @@ class EnvironmentBuilder:
             thickness=wall_thickness,
         )
 
-    def _process_clutter_spec(
-        self,
-        spec: ClutterSpec,
-        spawn_positions: List[Tuple[float, float, float]],
-    ) -> None:
+    def _process_clutter_spec(self, spec: ClutterSpec, spawn_positions: List[Tuple[float, float, float]]) -> None:
         total = spec.count if spec.random else 1
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
@@ -216,7 +196,7 @@ class EnvironmentBuilder:
 
             for _ in range(attempts):
                 position = resolve_vector(spec.position)
-                orientation = resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
+                orientation = resolve_vector(spec.orientation)
                 length = resolve_scalar(spec.length)
                 width = resolve_scalar(spec.width)
                 height = resolve_scalar(spec.height)
@@ -245,31 +225,19 @@ class EnvironmentBuilder:
                     f"without collisions after {MAX_PLACEMENT_ATTEMPTS} attempts"
                 )
 
-    def _is_clear_of_spawn(
-        self,
-        position: Tuple[float, float, float],
-        spawn_positions: List[Tuple[float, float, float]],
-    ) -> bool:
+    def _is_clear_of_spawn(self, position, spawn_positions) -> bool:
         return not spawn_positions or all(
             hypot(position[0] - spawn[0], position[1] - spawn[1]) >= SPAWN_CLEARANCE_METERS
             for spawn in spawn_positions
         )
 
-    def _check_placement(
-        self,
-        obstacle: Obstacle,
-        spawn_positions: List[Tuple[float, float, float]],
-        ignore_ids: Optional[Set[str]] = None,
-    ) -> bool:
+    def _check_placement(self, obstacle: Obstacle, spawn_positions: List[Tuple[float, float, float]], ignore_ids: Optional[Set[str]] = None) -> bool:
         """Return True if obstacle placement is valid (clear of spawn and no collisions), False otherwise."""
         return (self._is_clear_of_spawn(obstacle.position, spawn_positions) and
                 not self._collides_with_existing(obstacle, ignore_ids))
 
-    def _collides_with_existing(
-        self,
-        candidate: Obstacle,
-        ignore_ids: Optional[Set[str]] = None,
-    ) -> bool:
+    def _collides_with_existing(self, candidate: Obstacle, ignore_ids: Optional[Set[str]] = None) -> bool:
+        """Return True if candidate collides with any existing obstacle, False otherwise."""
         for existing in self.config.obstacles:
             if ignore_ids and existing.id in ignore_ids:
                 continue
@@ -281,7 +249,6 @@ class EnvironmentBuilder:
                 return True
 
         return False
-
 
     def _random_position_in_bounds(self, bounds: Bounds) -> Tuple[float, float, float]:
         return tuple(random.uniform(bounds[i], bounds[i+1]) for i in range(0, 6, 2))

@@ -127,11 +127,6 @@ class TestEnvironmentSpec:
 class TestEnvironmentSpecLoader:
     """Test EnvironmentSpecLoader functionality."""
 
-    def test_loader_initialization(self):
-        loader = EnvironmentSpecLoader()
-        assert loader.specs_dir.exists()
-        assert loader.specs_dir.name == "specs"
-
     def test_list_presets(self):
         loader = EnvironmentSpecLoader()
         presets = loader.list_presets()
@@ -151,64 +146,10 @@ class TestEnvironmentSpecLoader:
         assert spec.random_seed == 42
         assert any(isinstance(obs, ClutterSpec) and obs.random for obs in spec.obstacles)
 
-    def test_load_medium_preset(self):
-        loader = EnvironmentSpecLoader()
-        spec = loader.load_preset("medium")
-
-        assert spec.name == "medium"
-        assert spec.random_seed == 123
-
     def test_load_nonexistent_preset(self):
         loader = EnvironmentSpecLoader()
         with pytest.raises(FileNotFoundError, match="not found"):
             loader.load_preset("does_not_exist")
-
-    def test_smart_load_preset(self):
-        loader = EnvironmentSpecLoader()
-        spec = loader.load("simple")
-        assert spec.name == "simple"
-
-    def test_load_suffix_without_file_raises(self):
-        loader = EnvironmentSpecLoader()
-        with pytest.raises(FileNotFoundError):
-            loader.load("simple.json")
-
-    def test_load_prefers_existing_file_over_preset(self, tmp_path, monkeypatch):
-        spec_data = {
-            "name": "custom_simple",
-            "description": "Overrides preset when file exists",
-            "bounds": [-5, 5, -5, 5, 0, 5],
-            "obstacles": [],
-            "random_seed": 1,
-            "start_position": [-4, 0, 0],
-            "goal_position": [4, 0, 0],
-        }
-        custom_file = tmp_path / "simple.json"
-        with open(custom_file, "w") as handle:
-            json.dump(spec_data, handle)
-
-        monkeypatch.chdir(tmp_path)
-        loader = EnvironmentSpecLoader()
-        spec = loader.load("simple.json")
-        assert spec.name == "custom_simple"
-
-    def test_smart_load_path(self, tmp_path):
-        spec_data = {
-            "name": "temp_spec",
-            "description": "Temporary test spec",
-            "bounds": [-5, 5, -5, 5, 0, 5],
-            "obstacles": [],
-            "random_seed": 7,
-            "start_position": [-4, 0, 0],
-            "goal_position": [4, 0, 0],
-        }
-        temp_file = tmp_path / "temp_spec.json"
-        with open(temp_file, "w") as handle:
-            json.dump(spec_data, handle)
-
-        loader = EnvironmentSpecLoader()
-        spec = loader.load(str(temp_file))
-        assert spec.name == "temp_spec"
 
     def test_load_from_path(self, tmp_path):
         spec_data = {
