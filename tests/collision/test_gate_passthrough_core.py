@@ -60,6 +60,7 @@ class TestBasicGatePassThrough:
     def test_drone_inside_gate_no_collision(self, collision_system):
         """Drone centered in gate should not collide with wall."""
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.0, 0.0, 0.0]]),
             vel=np.array([[1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -76,6 +77,7 @@ class TestBasicGatePassThrough:
     def test_drone_outside_gate_does_collide(self, collision_system):
         """Drone outside gate volume should collide with wall."""
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[2.0, 0.0, 0.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -97,6 +99,7 @@ class TestGateBoundaries:
     def test_drone_near_gate_edge_no_collision(self, collision_system):
         """Drone near gate edge but still inside should not collide."""
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.9, 0.0, 0.9]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -113,6 +116,7 @@ class TestGateBoundaries:
     def test_drone_above_gate_does_collide(self, collision_system):
         """Drone above gate height should collide with wall."""
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.0, 0.0, 2.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -129,6 +133,7 @@ class TestGateBoundaries:
     def test_drone_below_gate_does_collide(self, collision_system):
         """Drone below gate height should collide with wall."""
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.0, 0.0, -2.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -149,6 +154,7 @@ class TestMultipleDrones:
     def test_multiple_drones_mixed_positions(self, collision_system):
         """Test multiple drones, some inside gate, some outside."""
         state = SwarmState(
+            goals=np.zeros((4, 3)),
             pos=np.array([
                 [0.0, 0.0, 0.0],    # Inside gate
                 [3.0, 0.0, 0.0],    # Outside gate, colliding
@@ -202,6 +208,7 @@ class TestWallWithoutGate:
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
 
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.0, 0.0, 0.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),

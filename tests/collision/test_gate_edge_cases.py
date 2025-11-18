@@ -59,6 +59,7 @@ class TestMultipleGatesInWall:
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
 
         state = SwarmState(
+            goals=np.zeros((3, 3)),
             pos=np.array([
                 [-2.0, 0.0, 0.0],   # Inside gate1
                 [2.0, 0.0, 0.0],    # Inside gate2
@@ -122,6 +123,7 @@ class TestRotatedGates:
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
 
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.0, 0.0, 0.0]]),
             vel=np.array([[1.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -174,6 +176,7 @@ class TestDroneRadiusConsideration:
 
         # Drone center at gate edge
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.5, 0.0, 0.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -215,6 +218,7 @@ class TestErrorHandling:
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
 
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.0, 0.0, 0.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -252,6 +256,7 @@ class TestErrorHandling:
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
 
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[0.0, 0.0, 0.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),

@@ -16,7 +16,8 @@ def generate_sample_state(num_drones: int = 5, bounds: tuple = (-5.0, 5.0, -5.0,
         np.random.uniform(z_min, z_max, num_drones)
     ])
     return SwarmState(pos=positions, vel=np.full((num_drones, 3), -1.0),
-                     acc=np.full((num_drones, 3), -1.0))
+                     acc=np.full((num_drones, 3), -1.0),
+                     goals=np.zeros((num_drones, 3)))
 
 
 def generate_circular_trajectory(num_drones: int, num_frames: int, duration: float,
@@ -78,7 +79,8 @@ def generate_circular_trajectory(num_drones: int, num_frames: int, duration: flo
             for i in range(num_drones)
         ])
         state = SwarmState(pos=positions, vel=np.full((num_drones, 3), -1.0),
-                          acc=np.full((num_drones, 3), -1.0))
+                          acc=np.full((num_drones, 3), -1.0),
+                          goals=np.zeros((num_drones, 3)))
         frames.append(SimulationFrame(state=state, info={"timestamp": t}))
 
     return SimulationRun(
