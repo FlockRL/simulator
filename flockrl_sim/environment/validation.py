@@ -146,8 +146,8 @@ def _point_inside_obstacle(point: Tuple[float, float, float], obs: Obstacle) -> 
 
 
 def _is_gate_wall_pair(obs1: Obstacle, obs2: Obstacle) -> bool:
-    return ((isinstance(obs1, Wall) and obs1.gate_id == obs2.id) or
-            (isinstance(obs2, Wall) and obs2.gate_id == obs1.id))
+    return ((isinstance(obs1, Wall) and obs2.id in obs1.linked_gate_ids()) or
+            (isinstance(obs2, Wall) and obs1.id in obs2.linked_gate_ids()))
 
 
 def validate_no_overlaps(obstacles: List[Obstacle]) -> ValidationResult:
@@ -165,25 +165,30 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
     result = ValidationResult()
     obs_map = {obs.id: obs for obs in obstacles}
 
-    for obs in (o for o in obstacles if isinstance(o, Wall) and o.gate_id):
-        if obs.gate_id not in obs_map:
-            result.add_error(f"Wall {obs.id} references non-existent gate {obs.gate_id}")
-        elif not isinstance(gate := obs_map[obs.gate_id], Gate):
-            result.add_error(f"Wall {obs.id} references {obs.gate_id} which is not a gate")
-        else:
-            wall_half_length = obs.length / 2
+    for wall in (o for o in obstacles if isinstance(o, Wall)):
+        for gate_id in wall.linked_gate_ids():
+            if gate_id not in obs_map:
+                result.add_error(f"Wall {wall.id} references non-existent gate {gate_id}")
+                continue
+
+            gate = obs_map[gate_id]
+            if not isinstance(gate, Gate):
+                result.add_error(f"Wall {wall.id} references {gate_id} which is not a gate")
+                continue
+
+            wall_half_length = wall.length / 2
             gate_half_width = gate.width / 2
-            offset = math.hypot(gate.position[0] - obs.position[0], gate.position[1] - obs.position[1])
+            offset = math.hypot(gate.position[0] - wall.position[0], gate.position[1] - wall.position[1])
 
             if offset + gate_half_width > wall_half_length:
                 result.add_error(
-                    f"Gate {gate.id} extends beyond wall {obs.id} boundary "
+                    f"Gate {gate.id} extends beyond wall {wall.id} boundary "
                     f"(offset: {offset:.2f}m + half-width: {gate_half_width:.2f}m "
                     f"> wall half-length: {wall_half_length:.2f}m)"
                 )
 
-            if gate.height > obs.height:
-                result.add_error(f"Gate {gate.id} height ({gate.height:.2f}m) exceeds parent wall {obs.id} height ({obs.height:.2f}m)")
+            if gate.height > wall.height:
+                result.add_error(f"Gate {gate.id} height ({gate.height:.2f}m) exceeds parent wall {wall.id} height ({wall.height:.2f}m)")
 
     return result
 

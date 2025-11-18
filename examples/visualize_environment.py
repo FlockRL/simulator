@@ -2,8 +2,7 @@ import sys
 import matplotlib.pyplot as plt
 from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
 from collections import Counter
-from examples.visualization_utils import get_obstacle_props, draw_spawn_markers, draw_3d_box, draw_bounds, draw_top_face
-
+from visualization_utils import get_obstacle_props, draw_spawn_markers, draw_3d_box, draw_bounds, draw_top_face
 
 def draw_topdown_view(ax, env, spec):
     x_min, x_max, y_min, y_max, *_ = env.bounds

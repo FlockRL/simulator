@@ -266,7 +266,7 @@ class TestEnvironmentBuilder:
                     position=(
                         UniformRandomConfig(uniform=(-2.0, 2.0)),
                         UniformRandomConfig(uniform=(-1.5, 1.5)),
-                        1.25,
+                        0.0,
                     ),
                     orientation=(0.0, 0.0, 0.0),
                     length=4.0,
@@ -274,7 +274,7 @@ class TestEnvironmentBuilder:
                     thickness=0.2,
                     gates=[
                         GateSpec(
-                            position=(None, 0.0, 1.25),
+                            position=(None, 0.0, 1.0),
                             width=1.0,
                             height=1.0,
                         )
@@ -303,14 +303,14 @@ class TestEnvironmentBuilder:
             obstacles=[
                 WallSpec(
                     id="wall_a",
-                    position=(-2.0, 0.0, 1.0),
+                    position=(-2.0, 0.0, 0.0),
                     orientation=(0.0, 0.0, 0.0),
                     length=3.0,
                     height=2.0,
                     thickness=0.2,
                     gates=[
                         GateSpec(
-                            position=(None, None, None),
+                            position=(None, None, 1.0),
                             width=1.0,
                             height=1.5,
                         )
@@ -318,14 +318,14 @@ class TestEnvironmentBuilder:
                 ),
                 WallSpec(
                     id="wall_b",
-                    position=(2.0, 0.0, 1.0),
+                    position=(2.0, 0.0, 0.0),
                     orientation=(0.0, 0.0, 0.0),
                     length=3.0,
                     height=2.0,
                     thickness=0.2,
                     gates=[
                         GateSpec(
-                            position=(None, None, None),
+                            position=(None, None, 1.0),
                             width=1.0,
                             height=1.5,
                         )
@@ -361,7 +361,7 @@ class TestEnvironmentBuilder:
                     position=(
                         UniformRandomConfig(uniform=(-5.0, 5.0)),
                         UniformRandomConfig(uniform=(-5.0, 5.0)),
-                        UniformRandomConfig(uniform=(0.5, 3.5)),
+                        0.0,
                     ),
                     orientation=(0.0, 0.0, 0.0),
                     subtype="rectangular_prism",
