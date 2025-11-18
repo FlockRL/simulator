@@ -1,0 +1,69 @@
+from __future__ import annotations
+import json
+from pathlib import Path
+from typing import Union
+from pydantic import ValidationError
+from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
+
+class EnvironmentSpecLoader:
+    def __init__(self):
+        self.specs_dir = Path(__file__).parent / "specs"
+        if not self.specs_dir.exists():
+            raise FileNotFoundError(f"Specs directory not found at {self.specs_dir}")
+
+    def load_preset(self, name: str) -> EnvironmentSpec:
+        name = name if name.endswith(".json") else f"{name}.json"
+        preset_path = self.specs_dir / name
+        if not preset_path.exists():
+            raise FileNotFoundError(f"Preset '{name}' not found. Available: {', '.join(self.list_presets())}")
+        return self._load_from_file(preset_path)
+
+    def load_from_path(self, path: Union[str, Path]) -> EnvironmentSpec:
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Environment spec file not found: {path}")
+        return self._load_from_file(path)
+
+    def load(self, name_or_path: Union[str, Path]) -> EnvironmentSpec:
+        """Load environment spec from preset name (e.g., 'simple') or file path.
+
+        Automatically detects whether input is a preset or path based on structure.
+        """
+        path = Path(name_or_path)
+
+        if len(path.parts) == 1:
+            # Treat bare names or "<name>.json" as presets
+            preset_name = path.stem if path.suffix else path.name
+            if preset_name in set(self.list_presets()):
+                return self.load_preset(preset_name)
+
+        return self.load_from_path(path)
+
+    def list_presets(self) -> list[str]:
+        if not self.specs_dir.exists():
+            return []
+        return sorted(f.stem for f in self.specs_dir.glob("*.json"))
+
+    def _load_from_file(self, path: Path) -> EnvironmentSpec:
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            return EnvironmentSpec(**data)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in {path}:\n"
+                f"  Error: {e.msg}\n"
+                f"  Line {e.lineno}, Column {e.colno}"
+            )
+        except ValidationError as e:
+            # Preserve Pydantic's detailed field-level validation errors
+            raise ValueError(
+                f"Validation failed for {path}:\n"
+                f"{e}"
+            )
+        except FileNotFoundError:
+            # Re-raise file errors without wrapping
+            raise
+        except OSError as e:
+            # Handle other file I/O errors
+            raise ValueError(f"Failed to read file {path}: {e}")
