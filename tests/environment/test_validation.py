@@ -1,5 +1,5 @@
 from flockrl_sim.environment.obstacles_types import Wall, Gate, RectangularPrism, Bounds
-from flockrl_sim.environment.validation import validate_geometry, validate_no_overlaps, validate_gate_embedding, validate_environment
+from flockrl_sim.environment.validation import validate_geometry, validate_no_overlaps, validate_gate_embedding, validate_environment, validate_spawn_positions
 
 # Helper functions that use default values to make obstacle creation less verbose
 def helper_wall(
@@ -137,3 +137,34 @@ class TestFullEnvironmentValidation:
         result = validate_environment(obstacles, BOUNDS)
         assert not result.is_valid()
         assert len(result.errors) >= 2  # Multiple errors detected
+
+
+class TestSpawnPositionValidation:
+    """Test spawn position validation."""
+
+    def test_valid_spawn_positions(self):
+        """Test validation passes for spawn positions within bounds."""
+        obstacles = [helper_wall()]
+        start = (5.0, 5.0, 5.0)
+        goal = (-5.0, -5.0, 5.0)
+        result = validate_spawn_positions(obstacles, start, goal, BOUNDS)
+        assert result.is_valid()
+
+    def test_position_outside_bounds(self):
+        """Test validation catches positions outside bounds."""
+        result = validate_spawn_positions([], (15.0, 0.0, 5.0), None, BOUNDS)
+        assert not result.is_valid()
+        assert any("outside bounds" in err for err in result.errors)
+
+    def test_position_inside_obstacle(self):
+        """Test validation catches spawn position inside obstacle."""
+        obstacles = [helper_clutter(position=(0.0, 0.0, 0.5), length=2.0, width=2.0, height=2.0)]
+        result = validate_spawn_positions(obstacles, (0.0, 0.0, 0.5), None, BOUNDS)
+        assert not result.is_valid()
+        assert any("inside obstacle" in err for err in result.errors)
+
+    def test_position_inside_gate_allowed(self):
+        """Test that spawn positions inside gates are allowed (gates don't block)."""
+        obstacles = [helper_gate(position=(0.0, 0.0, 1.0))]
+        result = validate_spawn_positions(obstacles, (0.0, 0.0, 1.0), None, BOUNDS)
+        assert result.is_valid()

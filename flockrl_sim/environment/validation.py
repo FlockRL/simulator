@@ -174,16 +174,31 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
 def validate_spawn_positions(
     obstacles: List[Obstacle],
     start_position: Optional[Tuple[float, float, float]],
-    goal_position: Optional[Tuple[float, float, float]]
+    goal_position: Optional[Tuple[float, float, float]],
+    bounds: Tuple[float, float, float, float, float, float]
 ) -> ValidationResult:
-    """Check start and goal positions are not inside obstacles."""
+    """Check start and goal positions are within bounds and not inside obstacles."""
     result = ValidationResult()
+    x_min, x_max, y_min, y_max, z_min, z_max = bounds
 
     for position, name in [(start_position, "Start"), (goal_position, "Goal")]:
-        if position:
-            for obs in (o for o in obstacles if not isinstance(o, Gate)):
-                if _point_inside_obstacle(position, obs):
-                    result.add_error(f"{name} position {position} is inside obstacle {obs.id}")
+        if position is None:
+            continue
+
+        # Check if position is within bounds
+        x, y, z = position
+
+        if not (x_min <= x <= x_max):
+            result.add_error(f"{name} position x-coordinate {x} is outside bounds [{x_min}, {x_max}]")
+        if not (y_min <= y <= y_max):
+            result.add_error(f"{name} position y-coordinate {y} is outside bounds [{y_min}, {y_max}]")
+        if not (z_min <= z <= z_max):
+            result.add_error(f"{name} position z-coordinate {z} is outside bounds [{z_min}, {z_max}]")
+
+        # Check if position is inside any obstacle (excluding gates)
+        for obs in (o for o in obstacles if not isinstance(o, Gate)):
+            if _point_inside_obstacle(position, obs):
+                result.add_error(f"{name} position {position} is inside obstacle {obs.id}")
 
     return result
 
@@ -203,6 +218,6 @@ def validate_environment(
     for validator in (validate_no_overlaps, validate_gate_embedding):
         _extend_result(combined, validator(obstacles))
 
-    _extend_result(combined, validate_spawn_positions(obstacles, start_position, goal_position))
+    _extend_result(combined, validate_spawn_positions(obstacles, start_position, goal_position, bounds))
 
     return combined
