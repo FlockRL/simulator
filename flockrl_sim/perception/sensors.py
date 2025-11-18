@@ -115,7 +115,8 @@ class PerceptionSystem:
 
         # for each drone, calculate relative position/velocity of other drones in the swarm
         neighbor_pos = state.pos[None, :, :] - state.pos[:, None, :]
-        neighbor_vel = state.vel[None, :, :] - state.vel[:, None, :]
+        vel = state.vel if state.vel is not None else np.zeros_like(state.pos)
+        neighbor_vel = vel[None, :, :] - vel[:, None, :]
 
         # for each drone, calculate relative distance of other drones in the swarm
         neighbor_dist = np.linalg.norm(neighbor_pos, axis=-1)
@@ -151,7 +152,7 @@ class PerceptionSystem:
                 SensorReading(
                     ray_dists,
                     ray_hits,
-                    np.concat(
+                    np.concatenate(
                         (neighbor_pos[i, mask[i]], neighbor_vel[i, mask[i]]), axis=1
                     ),
                 )

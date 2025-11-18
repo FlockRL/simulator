@@ -11,13 +11,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-#from ..environment.obstacles import Obstacle
-
-import sys
-import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-Obstacle = "Obstacle"
+from ..environment.obstacles import Obstacle
 
 RayHit = Tuple[float, np.ndarray, Obstacle]
 """Ray casting result: (distance, hit_point, obstacle)"""
@@ -49,7 +43,7 @@ def raycast(
     min_distance = max_distance
 
     for obstacle in obstacles:
-        hit = obstacle.ray_intersect(origin, direction)
+        hit = obstacle.ray_intersect(origin, direction, max_distance)
         if hit is not None:
             distance, hit_point, normal = hit
             if 0 < distance < min_distance:
@@ -82,9 +76,6 @@ def raycast_batch(
     
     N = origins.shape[0]
     distances = np.full((N,), max_distance)
-
-    print("obstacles:", obstacles)
-    print("num obstacles:", len(obstacles))
 
     for obstacle in obstacles:
         hit_distances = obstacle.ray_intersect_batch(origins, directions)
