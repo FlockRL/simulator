@@ -49,8 +49,6 @@
       "height": {"uniform": [0.2, 0.5]}
     }
   ],
-  "spawn_zones": {
-    "start_position": [-4.0, -3.0, 0.0],
-    "goal_position": [4.0, 3.0, 0.0]
-  }
+  "start_position": [-4.0, -3.0, 0.0],
+  "goal_position": [4.0, 3.0, 0.0]
 }

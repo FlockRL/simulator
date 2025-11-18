@@ -16,7 +16,6 @@ class GateSpec(BaseModel):
         self.height = validate_positive_scalar(self.height, "Gate height")
         return self
 
-
 class ObstacleSpec(BaseModel):
     """Base obstacle specification that supports optional randomization."""
 
@@ -43,7 +42,6 @@ class ObstacleSpec(BaseModel):
         
         return self
 
-
 class WallSpec(ObstacleSpec):
     """Specification for a wall obstacle."""
 
@@ -68,7 +66,6 @@ class WallSpec(ObstacleSpec):
         ]
         return [c for c in all_components if contains_random_value(c)]
 
-
 class ClutterSpec(ObstacleSpec):
     """Specification for clutter geometry."""
 
@@ -89,7 +86,6 @@ class ClutterSpec(ObstacleSpec):
         """Return fields that actually contain random configs (uniform or discrete)."""
         all_components = [self.position, self.orientation, self.length, self.width, self.height]
         return [c for c in all_components if contains_random_value(c)]
-
 
 __all__ = [
     "ObstacleSpec",

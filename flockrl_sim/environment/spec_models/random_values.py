@@ -1,10 +1,9 @@
 from __future__ import annotations
 from typing import Annotated, Any, List, Optional, Tuple, Union
+import random
 from pydantic import BaseModel, BeforeValidator, field_validator
 
 class UniformRandomConfig(BaseModel):
-    """Uniformly distributed scalar value."""
-
     uniform: Tuple[float, float]
 
     @field_validator("uniform")
@@ -16,7 +15,6 @@ class UniformRandomConfig(BaseModel):
         return value
 
 class DiscreteRandomConfig(BaseModel):
-    """Discrete set of scalar choices."""
     discrete: List[float]
 
     @field_validator("discrete")
@@ -43,7 +41,6 @@ def contains_random_value(value: Any) -> bool:
         return any(contains_random_value(v) for v in value)
     return False
 
-
 def validate_positive_scalar(value: ScalarValue, field_name: str) -> ScalarValue:
     """Ensure scalar (or random config) represents positive values."""
     if isinstance(value, float):
@@ -58,6 +55,29 @@ def validate_positive_scalar(value: ScalarValue, field_name: str) -> ScalarValue
 
     return value
 
+def resolve_scalar(value: ScalarValue) -> float:
+    """Resolve a scalar value, sampling from random configs if needed."""
+    if isinstance(value, UniformRandomConfig):
+        return random.uniform(*value.uniform)
+    if isinstance(value, DiscreteRandomConfig):
+        return random.choice(value.discrete)
+    return value
+
+def resolve_vector(vector: Vector3Value) -> Tuple[float, float, float]:
+    """Resolve a 3D vector with potential random components."""
+    return tuple(resolve_scalar(vector[i]) for i in range(3))
+
+def resolve_partial_vector(
+    vector: Optional[PartialVector3Value], 
+    fallback: Tuple[float, float, float]
+) -> Tuple[float, float, float]:
+    """Resolve a partial 3D vector, None values in vector are replaced with fallback values (usually parent's values)."""
+    if vector is None:
+        return fallback
+    return tuple(
+        fallback[i] if comp is None else resolve_scalar(comp)
+        for i, comp in enumerate(vector)
+    )
 
 __all__ = [
     "UniformRandomConfig",
@@ -67,4 +87,7 @@ __all__ = [
     "PartialVector3Value",
     "contains_random_value",
     "validate_positive_scalar",
+    "resolve_scalar",
+    "resolve_vector",
+    "resolve_partial_vector",
 ]

@@ -13,7 +13,8 @@ Top-level keys:
   "bounds": [x_min, x_max, y_min, y_max, z_min, z_max],
   "random_seed": 123,
   "obstacles": [],
-  "spawn_zones": {}
+  "start_position": [x, y, z],
+  "goal_position": [x, y, z]
 }
 ```
 
@@ -22,8 +23,9 @@ number, `{"uniform": [min, max]}`, or `{"discrete": [a, b, c]}`. Set
 `"random": true` and `"count": N` to sample multiple instances deterministically
 when a `random_seed` is provided.
 
-Spawn zones can pin exact coordinates (`start_position`, `goal_position`) or
-define bounds (`start_zone_bounds`, `goal_zone_bounds`) for random placement.
+Spawn zones require `start_position` and `goal_position`, which can be exact
+coordinates or use the same random scalar system as obstacles (e.g.,
+`[{"uniform": [-4.0, 4.0]}, {"uniform": [-4.0, 4.0]}, 0.0]`).
 
 ## Loading
 

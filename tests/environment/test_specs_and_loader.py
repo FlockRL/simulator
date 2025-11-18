@@ -13,19 +13,36 @@ from flockrl_sim.environment.obstacles_types import Gate, Wall, RectangularPrism
 from flockrl_sim.environment.obstacles import SPAWN_CLEARANCE_METERS
 from flockrl_sim.environment.validation import check_overlap
 
+DEFAULT_SPEC_KWARGS = {
+    "description": "Unit test environment",
+    "bounds": (-5.0, 5.0, -5.0, 5.0, 0.0, 5.0),
+    "random_seed": 123,
+    "start_position": (-4.0, 0.0, 0.0),
+    "goal_position": (4.0, 0.0, 0.0),
+}
+
+
+def spec_kwargs(**overrides):
+    """Return base EnvironmentSpec kwargs with overrides."""
+    data = dict(DEFAULT_SPEC_KWARGS)
+    data.update(overrides)
+    return data
+
 
 class TestEnvironmentSpec:
     """Test EnvironmentSpec Pydantic model."""
 
     def test_minimal_spec(self):
-        spec = EnvironmentSpec(name="test", description="Test environment")
+        spec = EnvironmentSpec(**spec_kwargs(name="test"))
         assert spec.name == "test"
-        assert spec.bounds == (-5.0, 5.0, -5.0, 5.0, 0.0, 5.0)
-        assert spec.random_seed is None
+        assert spec.bounds == DEFAULT_SPEC_KWARGS["bounds"]
+        assert spec.random_seed == DEFAULT_SPEC_KWARGS["random_seed"]
+        assert spec.start_position == DEFAULT_SPEC_KWARGS["start_position"]
+        assert spec.goal_position == DEFAULT_SPEC_KWARGS["goal_position"]
         assert len(spec.obstacles) == 0
 
     def test_spec_with_obstacles(self):
-        spec = EnvironmentSpec(
+        spec = EnvironmentSpec(**spec_kwargs(
             name="test_manual",
             obstacles=[
                 WallSpec(
@@ -53,28 +70,28 @@ class TestEnvironmentSpec:
                     height=0.8,
                 ),
             ],
-        )
+        ))
         assert len(spec.obstacles) == 2
         assert isinstance(spec.obstacles[0], WallSpec)
         assert isinstance(spec.obstacles[1], ClutterSpec)
         assert len(spec.obstacles[0].gates) == 1
 
     def test_invalid_bounds(self):
-        with pytest.raises(ValueError, match="x_min.*must be less than x_max"):
-            EnvironmentSpec(
+        with pytest.raises(ValueError, match="must have min < max"):
+            EnvironmentSpec(**spec_kwargs(
                 name="invalid",
                 bounds=(5.0, -5.0, -5.0, 5.0, 0.0, 5.0),
-            )
+            ))
 
     def test_duplicate_obstacle_ids(self):
         with pytest.raises(ValueError, match="Obstacle template IDs must be unique"):
-            EnvironmentSpec(
+            EnvironmentSpec(**spec_kwargs(
                 name="duplicate_ids",
                 obstacles=[
                     WallSpec(id="wall1", position=(0, 0, 0), orientation=(0, 0, 0), length=1, height=1, thickness=0.1),
                     WallSpec(id="wall1", position=(1, 0, 0), orientation=(0, 0, 0), length=1, height=1, thickness=0.1),
                 ],
-            )
+            ))
 
     # Removed: test_invalid_gate_reference - gates are now inline, can't reference missing gates
 
@@ -162,6 +179,9 @@ class TestEnvironmentSpecLoader:
             "description": "Overrides preset when file exists",
             "bounds": [-5, 5, -5, 5, 0, 5],
             "obstacles": [],
+            "random_seed": 1,
+            "start_position": [-4, 0, 0],
+            "goal_position": [4, 0, 0],
         }
         custom_file = tmp_path / "simple.json"
         with open(custom_file, "w") as handle:
@@ -178,6 +198,9 @@ class TestEnvironmentSpecLoader:
             "description": "Temporary test spec",
             "bounds": [-5, 5, -5, 5, 0, 5],
             "obstacles": [],
+            "random_seed": 7,
+            "start_position": [-4, 0, 0],
+            "goal_position": [4, 0, 0],
         }
         temp_file = tmp_path / "temp_spec.json"
         with open(temp_file, "w") as handle:
@@ -190,6 +213,7 @@ class TestEnvironmentSpecLoader:
     def test_load_from_path(self, tmp_path):
         spec_data = {
             "name": "custom",
+            "description": "Custom spec loaded from arbitrary path",
             "bounds": [-10, 10, -10, 10, 0, 10],
             "obstacles": [
                 {
@@ -202,6 +226,9 @@ class TestEnvironmentSpecLoader:
                     "thickness": 0.1,
                 }
             ],
+            "random_seed": 99,
+            "start_position": [-8, 0, 0],
+            "goal_position": [8, 0, 0],
         }
         custom_file = tmp_path / "custom.json"
         with open(custom_file, "w") as handle:
@@ -269,11 +296,8 @@ class TestEnvironmentBuilder:
         env = EnvironmentBuilder.from_spec(spec).build()
 
         spawn_positions = [
-            pos for pos in (
-                spec.spawn_zones.start_position if spec.spawn_zones else None,
-                spec.spawn_zones.goal_position if spec.spawn_zones else None
-            ) if pos
-        ] if spec.spawn_zones else []
+            pos for pos in (spec.start_position, spec.goal_position) if pos
+        ]
 
         for obs in env.obstacles:
             for spawn in spawn_positions:
@@ -289,7 +313,7 @@ class TestEnvironmentBuilder:
                 assert not check_overlap(obs1, obs2)
 
     def test_random_wall_gate_suffixes_and_inheritance(self):
-        spec = EnvironmentSpec(
+        spec = EnvironmentSpec(**spec_kwargs(
             name="suffix_demo",
             random_seed=2024,
             bounds=(-5.0, 5.0, -5.0, 5.0, 0.0, 5.0),
@@ -316,7 +340,7 @@ class TestEnvironmentBuilder:
                     ],
                 ),
             ],
-        )
+        ))
 
         env = EnvironmentBuilder.from_spec(spec).build()
         walls = [obs for obs in env.obstacles if isinstance(obs, Wall)]
@@ -333,7 +357,7 @@ class TestEnvironmentBuilder:
 
     def test_manual_walls_with_gates_get_unique_gate_ids(self):
         """Test that multiple walls with the same gate spec get unique gate IDs."""
-        spec = EnvironmentSpec(
+        spec = EnvironmentSpec(**spec_kwargs(
             name="shared_gate_spec",
             obstacles=[
                 WallSpec(
@@ -367,7 +391,7 @@ class TestEnvironmentBuilder:
                     ],
                 ),
             ],
-        )
+        ))
 
         env = EnvironmentBuilder.from_spec(spec).build()
         walls = sorted([obs for obs in env.obstacles if isinstance(obs, Wall)], key=lambda w: w.id)
@@ -384,7 +408,7 @@ class TestEnvironmentBuilder:
             assert gate.thickness == pytest.approx(wall.thickness)
 
     def test_random_clutter_generation_count(self):
-        spec = EnvironmentSpec(
+        spec = EnvironmentSpec(**spec_kwargs(
             name="clutter_demo",
             random_seed=7,
             bounds=(-6.0, 6.0, -6.0, 6.0, 0.0, 4.0),
@@ -405,7 +429,7 @@ class TestEnvironmentBuilder:
                     height=UniformRandomConfig(uniform=(0.5, 1.0)),
                 )
             ],
-        )
+        ))
 
         env = EnvironmentBuilder.from_spec(spec).build()
         clutters = [obs for obs in env.obstacles if isinstance(obs, RectangularPrism)]

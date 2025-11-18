@@ -2,9 +2,8 @@
   "name": "empty",
   "description": "Empty environment with no obstacles - useful for testing basic drone behavior",
   "bounds": [-5.0, 5.0, -5.0, 5.0, -4.0, 4.0],
+  "random_seed": 0,
   "obstacles": [],
-  "spawn_zones": {
-    "start_position": [-4.0, 0.0, 0.0],
-    "goal_position": [4.0, 0.0, 0.0]
-  }
+  "start_position": [-4.0, 0.0, 0.0],
+  "goal_position": [4.0, 0.0, 0.0]
 }

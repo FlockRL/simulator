@@ -1,13 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 import random
 from math import hypot
 from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, RectangularPrism
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
 from flockrl_sim.environment.spec_models.obstacles import WallSpec, ClutterSpec, GateSpec
-from flockrl_sim.environment.spec_models.random_values import UniformRandomConfig, DiscreteRandomConfig
-from flockrl_sim.environment.validation import check_overlap
+from flockrl_sim.environment.spec_models.random_values import resolve_scalar, resolve_vector, resolve_partial_vector
+from flockrl_sim.environment.validation import check_overlap, validate_environment
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,28 +20,6 @@ SPAWN_CLEARANCE_METERS = 2.0
 class EnvironmentValidationError(Exception):
     """Raised when environment validation fails with errors."""
     pass
-
-def _resolve_scalar(value) -> float:
-    if isinstance(value, UniformRandomConfig):
-        return random.uniform(*value.uniform)
-    if isinstance(value, DiscreteRandomConfig):
-        return random.choice(value.discrete)
-    return value
-
-
-def _resolve_vector(vector) -> Tuple[float, float, float]:
-    """Resolve a 3D vector with potential random components."""
-    return tuple(_resolve_scalar(vector[i]) for i in range(3))
-
-
-def _resolve_partial_vector(vector, fallback: Tuple[float, float, float]) -> Tuple[float, float, float]:
-    """Resolve a partial 3D vector, None values in vector are replaced with fallback values (usually parent's values)."""
-    if vector is None:
-        return fallback
-    return tuple(
-        fallback[i] if comp is None else _resolve_scalar(comp)
-        for i, comp in enumerate(vector)
-    )
 
 
 def _instance_id(base_id: str, index: int, total: int) -> str:
@@ -103,12 +81,11 @@ class EnvironmentBuilder:
 
     @classmethod
     def from_spec(cls, spec: EnvironmentSpec) -> "EnvironmentBuilder":
-        """Build environment from EnvironmentSpec (manual, random, or hybrid).
-
-        Validates obstacles and raises EnvironmentValidationError if invalid.
         """
-        from flockrl_sim.environment.validation import validate_environment
+        Build environment from EnvironmentSpec (manual, random, or hybrid).
 
+        Validates the environment and raises EnvironmentValidationError if invalid.
+        """
         env = Environment(bounds=spec.bounds)
         if spec.random_seed is not None:
             env.seed = spec.random_seed
@@ -116,22 +93,9 @@ class EnvironmentBuilder:
 
         builder = cls(config=env)
 
-        spawn_zones = spec.spawn_zones
-        start_pos = goal_pos = None
-        spawn_positions = []
-
-        if spawn_zones:
-            start_pos = (
-                spawn_zones.start_position if spawn_zones.start_position is not None
-                else builder._random_position_in_bounds(spawn_zones.start_zone_bounds) if spawn_zones.start_zone_bounds
-                else None
-            )
-            goal_pos = (
-                spawn_zones.goal_position if spawn_zones.goal_position is not None
-                else builder._random_position_in_bounds(spawn_zones.goal_zone_bounds) if spawn_zones.goal_zone_bounds
-                else None
-            )
-            spawn_positions = [pos for pos in (start_pos, goal_pos) if pos]
+        start_pos = resolve_vector(spec.start_position)
+        goal_pos = resolve_vector(spec.goal_position)
+        spawn_positions = [start_pos, goal_pos]
 
         for obs_spec in spec.obstacles:
             if isinstance(obs_spec, WallSpec):
@@ -141,13 +105,7 @@ class EnvironmentBuilder:
             else:
                 raise TypeError(f"Unsupported obstacle spec type: {type(obs_spec)}")
 
-        # Run validation
-        validation_result = validate_environment(
-            builder.config.obstacles,
-            builder.config.bounds,
-            start_pos,
-            goal_pos
-        )
+        validation_result = validate_environment(builder.config.obstacles, builder.config.bounds, start_pos, goal_pos) # Validate the environment
 
         if not validation_result.is_valid():
             raise EnvironmentValidationError(
@@ -172,11 +130,11 @@ class EnvironmentBuilder:
             placed = False
 
             for _ in range(attempts):
-                position = _resolve_vector(spec.position)
-                orientation = _resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
-                length = _resolve_scalar(spec.length)
-                height = _resolve_scalar(spec.height)
-                thickness = _resolve_scalar(spec.thickness)
+                position = resolve_vector(spec.position)
+                orientation = resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
+                length = resolve_scalar(spec.length)
+                height = resolve_scalar(spec.height)
+                thickness = resolve_scalar(spec.thickness)
 
                 # Build inline gates
                 gate_instances = [
@@ -233,10 +191,10 @@ class EnvironmentBuilder:
         wall_orientation: Tuple[float, float, float],
         wall_thickness: float,
     ) -> Gate:
-        position = _resolve_partial_vector(gate_spec.position, wall_position)
+        position = resolve_partial_vector(gate_spec.position, wall_position)
         orientation = wall_orientation
-        width = _resolve_scalar(gate_spec.width)
-        height = _resolve_scalar(gate_spec.height)
+        width = resolve_scalar(gate_spec.width)
+        height = resolve_scalar(gate_spec.height)
 
         return Gate(
             id=gate_id,
@@ -261,11 +219,11 @@ class EnvironmentBuilder:
             placed = False
 
             for _ in range(attempts):
-                position = _resolve_vector(spec.position)
-                orientation = _resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
-                length = _resolve_scalar(spec.length)
-                width = _resolve_scalar(spec.width)
-                height = _resolve_scalar(spec.height)
+                position = resolve_vector(spec.position)
+                orientation = resolve_vector(spec.orientation) if spec.orientation else (0.0, 0.0, 0.0)
+                length = resolve_scalar(spec.length)
+                width = resolve_scalar(spec.width)
+                height = resolve_scalar(spec.height)
 
                 clutter = RectangularPrism(
                     id=clutter_id,

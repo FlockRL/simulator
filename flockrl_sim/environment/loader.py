@@ -39,16 +39,14 @@ class EnvironmentSpecLoader:
     def list_presets(self) -> list[str]:
         if not self.specs_dir.exists():
             return []
-        return sorted(f.stem for f in self.specs_dir.glob("*.json")
-                     if f.stem not in ["README", "schema"])
+        return sorted(f.stem for f in self.specs_dir.glob("*.json"))
 
     def _load_from_file(self, path: Path) -> EnvironmentSpec:
         try:
             with open(path, 'r') as f:
                 data = json.load(f)
+            return EnvironmentSpec(**data)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in {path}: {e}")
-        try:
-            return EnvironmentSpec(**data)
         except Exception as e:
             raise ValueError(f"Validation failed for {path}: {e}")
