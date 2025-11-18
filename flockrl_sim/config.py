@@ -6,6 +6,9 @@ from pydantic import BaseModel, Field
 class SimulationConfig(BaseModel):
     delta_t: float = Field(default=1.0 / 240.0, gt=0.0, description="Time step in seconds")
     max_steps: int = Field(default=1000, gt=0, description="Maximum simulation steps")
+    goal_threshold: float = Field(default=0.5, gt=0.0, description="Distance threshold for goal success (meters)")
+    max_acceleration: Optional[float] = Field(default=None, description="Maximum allowed acceleration magnitude (m/s^2), None for no limit")
+    terminate_on_collision: bool = Field(default=True, description="Whether to terminate episode immediately on collision")
 
 class EnvironmentConfig(BaseModel):
     spec: Optional[str] = Field(default=None, description="Environment spec name or path to JSON file")

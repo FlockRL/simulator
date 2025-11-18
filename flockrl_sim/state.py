@@ -17,13 +17,14 @@ import numpy as np
 class SwarmState:
     """
     Canonical drone state bag-of-data.
-    
+
     As specified in the design documents:
     - t: Simulation time [s]
     - pos: Position array, shape (N, 3) [m]
     - vel: Velocity array, shape (N, 3) [m/s]
     - acc: Acceleration array, shape (N, 3) [m/s^2]
     - ids: Drone ID array, shape (N,) [int]
+    - goals: Goal positions array, shape (N, 3) [m] - required for RL
     - metadata: Optional additional data (collision events, etc.)
     """
 
@@ -32,44 +33,51 @@ class SwarmState:
     vel: np.ndarray | None = None  # shape (N, 3) [m/s]
     acc: np.ndarray | None = None  # shape (N, 3) [m/s^2]
     ids: np.ndarray | None = None  # shape (N,) [int]
+    goals: np.ndarray | None = None  # shape (N, 3) [m] - target positions for each drone
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_initial_positions(cls, positions: np.ndarray, ids: np.ndarray) -> SwarmState:
+    def from_initial_positions(cls, positions: np.ndarray, ids: np.ndarray, goals: np.ndarray) -> SwarmState:
         """
         Create a SwarmState from initial positions with zero velocities and accelerations.
-        
+
         Args:
             positions: Initial positions, shape (N, 3)
             ids: Drone IDs, shape (N,)
-        
+            goals: Goal positions, shape (N, 3)
+
         Returns:
             Initialized SwarmState with zero velocities and accelerations
         """
         # Copy inputs
         positions = np.array(positions, copy=True)
         ids = np.array(ids, copy=True)
+        goals = np.array(goals, copy=True)
 
         N = positions.shape[0]
         if ids.shape[0] != N:
             raise ValueError("Positions and IDs must have the same number of drones (N).")
-        
+
+        if goals.shape != (N, 3):
+            raise ValueError(f"Goals must have shape (N, 3), got {goals.shape}")
+
         # Initialize velocities and acceleration to zero:
         velocities = np.zeros_like(positions)
         accelerations = np.zeros_like(positions)
-        
+
         return cls(
             t=0.0,
-            pos=positions, 
-            vel=velocities, 
-            acc=accelerations, 
+            pos=positions,
+            vel=velocities,
+            acc=accelerations,
             ids=ids,
+            goals=goals,
             metadata={})
 
     def clone(self) -> SwarmState:
         """
         Create a deep copy of this SwarmState.
-        
+
         Useful for collision detection (testing proposed states) and logging.
         """
         # Returning the copy:
@@ -79,5 +87,6 @@ class SwarmState:
             vel=self.vel.copy() if self.vel is not None else None,
             acc=self.acc.copy() if self.acc is not None else None,
             ids=self.ids.copy() if self.ids is not None else None,
+            goals=self.goals.copy(),  # Goals are always required
             metadata=self.metadata.copy()
         )
