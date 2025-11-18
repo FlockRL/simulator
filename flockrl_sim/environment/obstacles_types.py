@@ -108,7 +108,7 @@ class Wall(Obstacle, OBBMixin):
         return self._obb_intersect(origin, direction, max_distance, half)
 
 @dataclass
-class Gate(Obstacle):
+class Gate(Obstacle, OBBMixin):
     width: float
     height: float
     thickness: float
@@ -119,7 +119,7 @@ class Gate(Obstacle):
         direction: np.ndarray,   # shape=(3,), normalized
         max_distance: float
     ) -> Optional[Tuple[float, np.ndarray, np.ndarray]]:
-        half = np.array([self.width/2, self.frame_thickness/2, self.height/2])
+        half = np.array([self.width/2, self.thickness/2, self.height/2])
         return self._obb_intersect(origin, direction, max_distance, half)
 
 @dataclass
