@@ -50,6 +50,7 @@ class TestCompoundRotations:
 
         # Drone at box center should collide
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[5.0, 5.0, 5.0]]),
             vel=np.array([[1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -96,6 +97,7 @@ class TestMultipleObstacles:
 
         # Drone colliding with wall1 but not wall2
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[-3.0, -0.5, 0.0]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -130,6 +132,7 @@ class TestMultipleObstacles:
 
         # Drone passing through without hitting any
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[1.5, 2.0, 0.0]]),
             vel=np.array([[1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -163,6 +166,7 @@ class TestEdgeCases:
         collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
 
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[1.4, 0.0, 0.0]]),
             vel=np.array([[-1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
@@ -193,6 +197,7 @@ class TestEdgeCases:
         collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
 
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[1.4, 0.0, 0.0]]),
             vel=np.array([[-1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),

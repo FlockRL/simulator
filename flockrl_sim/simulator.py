@@ -64,7 +64,7 @@ class CoreSimulator:
             )
         self.environment = environment
         self.config = config or SimulationConfig(delta_t=delta_t)
-        self.state = SwarmState()
+        self.state: Optional[SwarmState] = None  # Set by start_run()
         self.current_run: Optional[SimulationRun] = None
 
         # Episode management
@@ -171,8 +171,8 @@ class CoreSimulator:
         Returns:
             Tuple of (updated SwarmState, info dict with collision events, termination status, etc.)
         """
-        if self.state.pos is None:
-            raise RuntimeError("Simulator state is not initialized. Did you forget to call start_run?")
+        if self.state is None or self.state.pos is None:
+            raise RuntimeError("Simulator state is not initialized. Call start_run() first.")
 
         # Check if episode is already terminated
         if self._episode_terminated:

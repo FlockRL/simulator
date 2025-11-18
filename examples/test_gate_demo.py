@@ -110,6 +110,7 @@ def run_demo():
             vel=np.array([[0.0, 1.0, 0.0]] * num_drones),
             acc=np.zeros((num_drones, 3)),
             ids=np.array(range(num_drones)),
+            goals=np.zeros((num_drones, 3)),  # Goals always required
             t=0.0
         )
 

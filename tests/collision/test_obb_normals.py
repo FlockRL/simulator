@@ -57,6 +57,7 @@ class TestAxisAlignedNormals:
 
         for pos, expected_normal in test_cases:
             state = SwarmState(
+                goals=np.zeros((1, 3)),
                 pos=np.array([pos]),
                 vel=np.array([[0.0, 0.0, 0.0]]),
                 acc=np.array([[0.0, 0.0, 0.0]]),
@@ -96,6 +97,7 @@ class TestRotatedNormals:
 
         # Drone approaching from +X (which is local Y after rotation)
         state = SwarmState(
+            goals=np.zeros((1, 3)),
             pos=np.array([[1.0, 0.0, 0.0]]),
             vel=np.array([[-1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),

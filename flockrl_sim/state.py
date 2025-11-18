@@ -19,21 +19,21 @@ class SwarmState:
     Canonical drone state bag-of-data.
 
     As specified in the design documents:
+    - goals: Goal positions array, shape (N, 3) [m] - REQUIRED for all states
     - t: Simulation time [s]
     - pos: Position array, shape (N, 3) [m]
     - vel: Velocity array, shape (N, 3) [m/s]
     - acc: Acceleration array, shape (N, 3) [m/s^2]
     - ids: Drone ID array, shape (N,) [int]
-    - goals: Goal positions array, shape (N, 3) [m] - required for RL
     - metadata: Optional additional data (collision events, etc.)
     """
 
+    goals: np.ndarray  # shape (N, 3) [m] - REQUIRED, must come first (before defaults)
     t: float = 0.0
     pos: np.ndarray | None = None  # shape (N, 3) [m]
     vel: np.ndarray | None = None  # shape (N, 3) [m/s]
     acc: np.ndarray | None = None  # shape (N, 3) [m/s^2]
     ids: np.ndarray | None = None  # shape (N,) [int]
-    goals: np.ndarray | None = None  # shape (N, 3) [m] - target positions for each drone
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -80,13 +80,12 @@ class SwarmState:
 
         Useful for collision detection (testing proposed states) and logging.
         """
-        # Returning the copy:
         return SwarmState(
             t = self.t,
             pos=self.pos.copy() if self.pos is not None else None,
             vel=self.vel.copy() if self.vel is not None else None,
             acc=self.acc.copy() if self.acc is not None else None,
             ids=self.ids.copy() if self.ids is not None else None,
-            goals=self.goals.copy(),  # Goals are always required
+            goals=self.goals.copy(),  # Always required, never None
             metadata=self.metadata.copy()
         )
