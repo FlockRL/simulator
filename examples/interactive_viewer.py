@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import numpy as np
 from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
@@ -9,8 +10,6 @@ try:
     HAS_TERM_MENU = True
 except ImportError:
     HAS_TERM_MENU = False
-
-matplotlib.use('TkAgg')
 
 VIEW_MODES = ['unified', '2d', '3d']
 VIEW_OPTIONS = ["2D + 3D (Unified)", "2D Only", "3D Only"]

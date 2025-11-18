@@ -24,11 +24,47 @@ def generate_circular_trajectory(num_drones: int, num_frames: int, duration: flo
     np.random.seed(seed)
     x_min, x_max, y_min, y_max, z_min, z_max = bounds
 
-    radii = np.random.uniform(1.0, 3.0, num_drones)
+    x_span = x_max - x_min
+    y_span = y_max - y_min
+    z_span = z_max - z_min
+    if x_span <= 0 or y_span <= 0:
+        raise ValueError("Environment bounds must have positive XY span for circular trajectories")
+
+    x_margin = min(3.0, x_span / 4)
+    y_margin = min(3.0, y_span / 4)
+    z_margin = min(1.0, z_span / 4)
+
+    max_radius = min(3.0, x_margin, y_margin)
+    if max_radius <= 0:
+        raise ValueError("Environment bounds are too tight for circular trajectories")
+    min_radius = 1.0 if max_radius >= 1.0 else max(0.1, max_radius * 0.5)
+    if min_radius > max_radius:
+        min_radius = max_radius * 0.5
+
+    if np.isclose(max_radius, min_radius):
+        radii = np.full(num_drones, max_radius)
+    else:
+        radii = np.random.uniform(min_radius, max_radius, num_drones)
+
+    def sample_axis(low_vals, high_vals):
+        lows = np.asarray(low_vals)
+        highs = np.asarray(high_vals)
+        centers = np.empty_like(lows)
+        for idx, (low, high) in enumerate(zip(lows, highs)):
+            centers[idx] = (low + high) / 2.0 if high <= low else np.random.uniform(low, high)
+        return centers
+
+    center_x = sample_axis(x_min + radii, x_max - radii)
+    center_y = sample_axis(y_min + radii, y_max - radii)
+
+    z_low = z_min + z_margin
+    z_high = z_max - z_margin
+    if z_high <= z_low:
+        center_z = np.full(num_drones, (z_low + z_high) / 2.0)
+    else:
+        center_z = np.random.uniform(z_low, z_high, num_drones)
+
     angular_speeds = np.random.uniform(0.5, 2.0, num_drones)
-    center_x = np.random.uniform(x_min + 3, x_max - 3, num_drones)
-    center_y = np.random.uniform(y_min + 3, y_max - 3, num_drones)
-    center_z = np.random.uniform(z_min + 1, z_max - 1, num_drones)
     phase_offsets = np.random.uniform(0, 2 * np.pi, num_drones)
     dt = duration / num_frames
 
@@ -87,17 +123,15 @@ def save_simulation_run(run: SimulationRun, output_path: Path) -> None:
 def generate(num_drones, num_frames, duration, output, seed, trajectory, environment):
     try:
         spec = EnvironmentSpecLoader().load(environment)
-        bounds = spec.bounds
-        click.echo(f"Using environment: {spec.name}")
-        click.echo(f"Bounds: {bounds}")
-    except Exception as e:
-        click.echo(f"Warning: Could not load environment '{environment}': {e}", err=True)
-        click.echo("Using default bounds: (-5.0, 5.0, -5.0, 5.0, -4.0, 4.0)")
-        bounds = (-5.0, 5.0, -5.0, 5.0, -4.0, 4.0)
+    except Exception as exc:
+        raise click.ClickException(f"Failed to load environment '{environment}': {exc}") from exc
+
+    bounds = spec.bounds
+    click.echo(f"Using environment: {spec.name}")
+    click.echo(f"Bounds: {bounds}")
 
     run = generate_circular_trajectory(num_drones, num_frames, duration, bounds, seed)
     output_path = (Path(output).with_suffix('.json') if Path(output).suffix.lower() != '.json'
                   else Path(output))
     save_simulation_run(run, output_path)
     click.echo(f"✓ Generated {len(run.frames)} frames → {output_path}")
-
