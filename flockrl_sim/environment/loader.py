@@ -29,11 +29,13 @@ class EnvironmentSpecLoader:
 
         Automatically detects whether input is a preset or path based on structure.
         """
-        path = Path(name_or_path) if isinstance(name_or_path, str) else Path(name_or_path)
+        path = Path(name_or_path)
 
-        # Only bare names without suffixes qualify as presets
-        if len(path.parts) == 1 and not path.suffix and path.name in set(self.list_presets()):
-            return self.load_preset(path.name)
+        if len(path.parts) == 1:
+            # Treat bare names or "<name>.json" as presets
+            preset_name = path.stem if path.suffix else path.name
+            if preset_name in set(self.list_presets()):
+                return self.load_preset(preset_name)
 
         return self.load_from_path(path)
 

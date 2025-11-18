@@ -147,12 +147,13 @@ class EnvironmentBuilder:
                     gate_ids=tuple(g.id for g in gate_instances),
                 )
 
-                geometry_errors = any(validate_geometry(obj, self.config.bounds).errors for obj in [wall, *gate_instances])
-                gate_errors = not wall or validate_gate_embedding([wall, *gate_instances]).errors
+                geometry_checks = [validate_geometry(obj, self.config.bounds) for obj in [wall, *gate_instances]]
+                geometry_errors = [error for result in geometry_checks for error in result.errors]
+                gate_errors = validate_gate_embedding([wall, *gate_instances]).errors
                 
                 if geometry_errors or gate_errors:
                     if not spec.random:
-                        raise ValueError(f"Invalid geometry for wall '{wall_id}'. Ensure gates fit and bounds are respected.")
+                        raise ValueError(f"Invalid geometry for wall '{wall_id}': {'; '.join(geometry_errors + gate_errors)}")
                     continue
 
                 if spec.random:
@@ -226,6 +227,12 @@ class EnvironmentBuilder:
                     height=height,
                 )
 
+                geometry_result = validate_geometry(clutter, self.config.bounds)
+                if geometry_result.errors:
+                    if not spec.random:
+                        raise ValueError(f"Invalid geometry for clutter '{clutter_id}': {'; '.join(geometry_result.errors)}")
+                    continue
+
                 if spec.random and not self._check_placement(clutter, spawn_positions):
                     continue
 
@@ -243,7 +250,7 @@ class EnvironmentBuilder:
 
     def _is_clear_of_spawn(self, position, spawn_positions) -> bool:
         return not spawn_positions or all(
-            hypot(position[0] - spawn[0], position[1] - spawn[1]) >= SPAWN_CLEARANCE_METERS
+            ((position[0] - spawn[0])**2 + (position[1] - spawn[1])**2 + (position[2] - spawn[2])**2)**0.5 >= SPAWN_CLEARANCE_METERS
             for spawn in spawn_positions
         )
 

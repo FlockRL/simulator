@@ -182,15 +182,33 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
 
             wall_half_length = wall.length / 2
             wall_half_height = wall.height / 2
+            wall_half_thickness = wall.thickness / 2
             gate_half_width = gate.width / 2
             gate_half_height = gate.height / 2
-            offset = math.hypot(gate.position[0] - wall.position[0], gate.position[1] - wall.position[1])
+            gate_half_thickness = gate.thickness / 2
 
-            if offset + gate_half_width > wall_half_length:
+            yaw = 0.0
+            if (orient := getattr(wall, "orientation", None)) and len(orient) >= 3:
+                yaw = orient[2]
+            cos_yaw = math.cos(yaw)
+            sin_yaw = math.sin(yaw)
+            dx = gate.position[0] - wall.position[0]
+            dy = gate.position[1] - wall.position[1]
+            longitudinal_offset = abs(cos_yaw * dx + sin_yaw * dy)
+            perpendicular_offset = abs(-sin_yaw * dx + cos_yaw * dy)
+
+            if longitudinal_offset + gate_half_width > wall_half_length:
                 result.add_error(
                     f"Gate {gate.id} extends beyond wall {wall.id} boundary "
-                    f"(offset: {offset:.2f}m + half-width: {gate_half_width:.2f}m "
+                    f"(longitudinal offset: {longitudinal_offset:.2f}m + half-width: {gate_half_width:.2f}m "
                     f"> wall half-length: {wall_half_length:.2f}m)"
+                )
+
+            if perpendicular_offset + gate_half_thickness > wall_half_thickness:
+                result.add_error(
+                    f"Gate {gate.id} sits outside wall {wall.id} thickness plane "
+                    f"(perpendicular offset: {perpendicular_offset:.2f}m + half-thickness: {gate_half_thickness:.2f}m "
+                    f"> wall half-thickness: {wall_half_thickness:.2f}m)"
                 )
 
             vertical_offset = abs(gate.position[2] - wall.position[2])

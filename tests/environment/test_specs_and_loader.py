@@ -2,6 +2,7 @@
 
 import json
 from math import hypot
+from pathlib import Path
 
 import pytest
 
@@ -150,6 +151,15 @@ class TestEnvironmentSpecLoader:
         loader = EnvironmentSpecLoader()
         with pytest.raises(FileNotFoundError, match="not found"):
             loader.load_preset("does_not_exist")
+
+    def test_load_accepts_suffix_and_path(self):
+        loader = EnvironmentSpecLoader()
+
+        spec_with_suffix = loader.load("simple.json")
+        assert spec_with_suffix.name == "simple"
+
+        spec_from_path = loader.load(Path("medium.json"))
+        assert spec_from_path.name == "medium"
 
     def test_load_from_path(self, tmp_path):
         spec_data = {
@@ -443,6 +453,44 @@ class TestEnvironmentBuilder:
         env = EnvironmentBuilder.from_spec(spec).build()
         clutters = [obs for obs in env.obstacles if isinstance(obs, RectangularPrism)]
         assert len(clutters) == 4
+
+    def test_random_clutter_resamples_when_out_of_bounds(self):
+        """Random clutter should retry sampling if geometry violates bounds."""
+        spec = EnvironmentSpec(**spec_kwargs(
+            name="clutter_resample",
+            random_seed=42,
+            bounds=(-5.0, 5.0, -5.0, 5.0, 0.0, 0.5),
+            start_position=(-4.0, 0.0, 0.25),
+            goal_position=(4.0, 0.0, 0.25),
+            obstacles=[
+                ClutterSpec(
+                    id="clutter_template",
+                    random=True,
+                    count=1,
+                    position=(
+                        UniformRandomConfig(uniform=(-1.0, 2.0)),
+                        UniformRandomConfig(uniform=(-1.0, 2.0)),
+                        UniformRandomConfig(uniform=(-1.0, 2.0)),
+                    ),
+                    orientation=(0.0, 0.0, 0.0),
+                    subtype="rectangular_prism",
+                    length=0.2,
+                    width=0.2,
+                    height=0.2,
+                ),
+            ],
+        ))
+
+        env = EnvironmentBuilder.from_spec(spec).build()
+
+        clutters = [obs for obs in env.obstacles if isinstance(obs, RectangularPrism)]
+        assert len(clutters) == 1
+        clutter = clutters[0]
+
+        # The first samples fall outside bounds; ensure the accepted placement matches the later valid draw.
+        assert clutter.position == pytest.approx(
+            (1.6765387031145362, -0.7391835021117515, 0.26576545905581117)
+        )
 
     def test_spawn_positions_persist_on_environment(self):
         """Resolved spawn positions should be exposed on the built environment."""
