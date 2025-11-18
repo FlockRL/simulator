@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Union
+from pydantic import ValidationError
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
 
 class EnvironmentSpecLoader:
@@ -47,6 +48,20 @@ class EnvironmentSpecLoader:
                 data = json.load(f)
             return EnvironmentSpec(**data)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in {path}: {e}")
-        except Exception as e:
-            raise ValueError(f"Validation failed for {path}: {e}")
+            raise ValueError(
+                f"Invalid JSON in {path}:\n"
+                f"  Error: {e.msg}\n"
+                f"  Line {e.lineno}, Column {e.colno}"
+            )
+        except ValidationError as e:
+            # Preserve Pydantic's detailed field-level validation errors
+            raise ValueError(
+                f"Validation failed for {path}:\n"
+                f"{e}"
+            )
+        except FileNotFoundError:
+            # Re-raise file errors without wrapping
+            raise
+        except OSError as e:
+            # Handle other file I/O errors
+            raise ValueError(f"Failed to read file {path}: {e}")

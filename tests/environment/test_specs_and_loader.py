@@ -54,7 +54,7 @@ class TestEnvironmentSpec:
                     thickness=0.1,
                     gates=[
                         GateSpec(
-                            position=(1.0, 0.0, 1.0),
+                            position=(1.0, 0.0, 0.5),
                             width=1.5,
                             height=1.5,
                         )
@@ -190,6 +190,26 @@ class TestEnvironmentSpecLoader:
         with pytest.raises(ValueError, match="Invalid JSON"):
             loader.load_from_path(invalid_file)
 
+    def test_load_validation_error_preserves_details(self, tmp_path):
+        """Test that Pydantic validation errors are preserved with field-level details."""
+        invalid_spec = tmp_path / "invalid_spec.json"
+        # Missing required fields: random_seed, start_position, goal_position
+        invalid_spec.write_text(json.dumps({
+            "name": "invalid",
+            "description": "Missing required fields",
+            "bounds": [-5, 5, -5, 5, 0, 5],
+            # Missing: random_seed, start_position, goal_position
+        }))
+
+        loader = EnvironmentSpecLoader()
+        with pytest.raises(ValueError) as exc_info:
+            loader.load_from_path(invalid_spec)
+
+        error_msg = str(exc_info.value)
+        assert "Validation failed" in error_msg
+        # Pydantic error should mention the missing fields
+        assert "Field required" in error_msg or "required" in error_msg.lower()
+
 
 class TestEnvironmentBuilder:
     """Test EnvironmentBuilder with specs."""
@@ -213,10 +233,10 @@ class TestEnvironmentBuilder:
         wall = next(obs for obs in env.obstacles if isinstance(obs, Wall))
         # Gate ID format: {wall_id}_gate_{index}
         expected_gate_id = f"{wall.id}_gate_0"
-        assert wall.gate_id is not None
-        assert wall.gate_id == expected_gate_id
-        assert wall.gate_id in obstacle_ids
-        assert env.get_obstacle_by_id(wall.gate_id) is not None
+        assert len(wall.gate_ids) == 1
+        assert wall.gate_ids[0] == expected_gate_id
+        assert wall.gate_ids[0] in obstacle_ids
+        assert env.get_obstacle_by_id(wall.gate_ids[0]) is not None
 
     def test_build_from_random_spec_reproducibility(self):
         loader = EnvironmentSpecLoader()
@@ -248,8 +268,8 @@ class TestEnvironmentBuilder:
         for i, obs1 in enumerate(env.obstacles):
             for obs2 in env.obstacles[i + 1 :]:
                 # Skip if one is the other's gate
-                if (isinstance(obs1, Wall) and obs1.gate_id == obs2.id) or \
-                   (isinstance(obs2, Wall) and obs2.gate_id == obs1.id):
+                if (isinstance(obs1, Wall) and obs2.id in obs1.linked_gate_ids()) or \
+                   (isinstance(obs2, Wall) and obs1.id in obs2.linked_gate_ids()):
                     continue
                 assert not check_overlap(obs1, obs2)
 
@@ -266,7 +286,7 @@ class TestEnvironmentBuilder:
                     position=(
                         UniformRandomConfig(uniform=(-2.0, 2.0)),
                         UniformRandomConfig(uniform=(-1.5, 1.5)),
-                        0.0,
+                        1.25,
                     ),
                     orientation=(0.0, 0.0, 0.0),
                     length=4.0,
@@ -274,7 +294,7 @@ class TestEnvironmentBuilder:
                     thickness=0.2,
                     gates=[
                         GateSpec(
-                            position=(None, 0.0, 1.0),
+                            position=(None, None, 1.25),
                             width=1.0,
                             height=1.0,
                         )
@@ -289,7 +309,8 @@ class TestEnvironmentBuilder:
 
         for wall in sorted(walls, key=lambda w: w.id):
             expected_gate_id = f"{wall.id}_gate_0"
-            assert wall.gate_id == expected_gate_id
+            assert len(wall.gate_ids) == 1
+            assert wall.gate_ids[0] == expected_gate_id
             gate = env.get_obstacle_by_id(expected_gate_id)
             assert gate is not None
             assert gate.position[0] == pytest.approx(wall.position[0])
@@ -303,14 +324,14 @@ class TestEnvironmentBuilder:
             obstacles=[
                 WallSpec(
                     id="wall_a",
-                    position=(-2.0, 0.0, 0.0),
+                    position=(-2.0, 0.0, 1.0),
                     orientation=(0.0, 0.0, 0.0),
                     length=3.0,
                     height=2.0,
                     thickness=0.2,
                     gates=[
                         GateSpec(
-                            position=(None, None, 1.0),
+                            position=(None, None, None),
                             width=1.0,
                             height=1.5,
                         )
@@ -318,14 +339,14 @@ class TestEnvironmentBuilder:
                 ),
                 WallSpec(
                     id="wall_b",
-                    position=(2.0, 0.0, 0.0),
+                    position=(2.0, 0.0, 1.0),
                     orientation=(0.0, 0.0, 0.0),
                     length=3.0,
                     height=2.0,
                     thickness=0.2,
                     gates=[
                         GateSpec(
-                            position=(None, None, 1.0),
+                            position=(None, None, None),
                             width=1.0,
                             height=1.5,
                         )
@@ -338,15 +359,62 @@ class TestEnvironmentBuilder:
         walls = sorted([obs for obs in env.obstacles if isinstance(obs, Wall)], key=lambda w: w.id)
         assert len(walls) == 2
 
-        gate_ids = {wall.gate_id for wall in walls}
+        assert all(wall.gate_ids for wall in walls)
+        gate_ids = {wall.gate_ids[0] for wall in walls}
         assert len(gate_ids) == len(walls), "Each wall should have a unique gate ID"
 
         for wall in walls:
             expected_gate_id = f"{wall.id}_gate_0"
-            assert wall.gate_id == expected_gate_id
+            assert len(wall.gate_ids) == 1
+            assert wall.gate_ids[0] == expected_gate_id
             gate = env.get_obstacle_by_id(expected_gate_id)
             assert gate is not None
             assert gate.thickness == pytest.approx(wall.thickness)
+
+    def test_wall_with_multiple_inline_gates_links_all_gate_ids(self):
+        """Ensure each inline gate is linked back to its parent wall."""
+        spec = EnvironmentSpec(**spec_kwargs(
+            name="multi_gate_wall",
+            obstacles=[
+                WallSpec(
+                    id="wall_multi",
+                    position=(0.0, 0.0, 1.25),
+                    orientation=(0.0, 0.0, 0.0),
+                    length=4.0,
+                    height=2.5,
+                    thickness=0.2,
+                    gates=[
+                        GateSpec(
+                            position=(None, 0.0, None),
+                            width=1.0,
+                            height=1.5,
+                        ),
+                        GateSpec(
+                            position=(1.0, 0.0, None),
+                            width=1.0,
+                            height=1.5,
+                        ),
+                    ],
+                ),
+            ],
+        ))
+
+        env = EnvironmentBuilder.from_spec(spec).build()
+        walls = [obs for obs in env.obstacles if isinstance(obs, Wall)]
+        gates = [obs for obs in env.obstacles if isinstance(obs, Gate)]
+
+        assert len(walls) == 1
+        wall = walls[0]
+        assert len(wall.gate_ids) == 2
+        assert wall.gate_ids == (f"{wall.id}_gate_0", f"{wall.id}_gate_1")
+        assert wall.linked_gate_ids() == wall.gate_ids
+
+        assert len(gates) == 2
+        assert {gate.id for gate in gates} == set(wall.gate_ids)
+        for gate in gates:
+            assert gate.thickness == pytest.approx(wall.thickness)
+            assert gate.orientation == wall.orientation
+            assert env.get_obstacle_by_id(gate.id) is gate
 
     def test_random_clutter_generation_count(self):
         spec = EnvironmentSpec(**spec_kwargs(
@@ -361,7 +429,7 @@ class TestEnvironmentBuilder:
                     position=(
                         UniformRandomConfig(uniform=(-5.0, 5.0)),
                         UniformRandomConfig(uniform=(-5.0, 5.0)),
-                        0.0,
+                        UniformRandomConfig(uniform=(0.5, 3.5)),
                     ),
                     orientation=(0.0, 0.0, 0.0),
                     subtype="rectangular_prism",
@@ -375,3 +443,43 @@ class TestEnvironmentBuilder:
         env = EnvironmentBuilder.from_spec(spec).build()
         clutters = [obs for obs in env.obstacles if isinstance(obs, RectangularPrism)]
         assert len(clutters) == 4
+
+    def test_spawn_positions_persist_on_environment(self):
+        """Resolved spawn positions should be exposed on the built environment."""
+        spec = EnvironmentSpec(**spec_kwargs(name="spawn_persist"))
+
+        env = EnvironmentBuilder.from_spec(spec).build()
+
+        assert env.start_position == spec.start_position
+        assert env.goal_position == spec.goal_position
+
+    def test_placement_failure_raises_error(self):
+        """Test that placement failures raise ValueError instead of silently failing."""
+        spec = EnvironmentSpec(**spec_kwargs(
+            name="impossible_placement",
+            random_seed=42,
+            bounds=(-1.0, 1.0, -1.0, 1.0, 0.0, 2.0),  # Very small bounds
+            obstacles=[
+                WallSpec(
+                    id="wall_template",
+                    random=True,
+                    count=100,  # Impossible to fit 100 walls in tiny bounds
+                    position=(
+                        UniformRandomConfig(uniform=(-0.5, 0.5)),
+                        UniformRandomConfig(uniform=(-0.5, 0.5)),
+                        1.0,
+                    ),
+                    orientation=(0.0, 0.0, 0.0),
+                    length=2.0,
+                    height=2.0,
+                    thickness=0.2,
+                ),
+            ],
+        ))
+
+        with pytest.raises(ValueError) as exc_info:
+            EnvironmentBuilder.from_spec(spec).build()
+
+        assert "Unable to place wall" in str(exc_info.value)
+        assert "without collisions" in str(exc_info.value)
+        assert "attempts" in str(exc_info.value)

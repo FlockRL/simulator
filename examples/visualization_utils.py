@@ -37,7 +37,7 @@ def create_box_vertices(center, dimensions, orientation=None):
     ])
 
     # Apply yaw rotation if orientation provided
-    if orientation and len(orientation) >= 3 and orientation[2]:
+    if orientation and len(orientation) >= 3 and orientation[2] != 0.0:
         yaw = orientation[2]
         rotation = np.array([
             [np.cos(yaw), -np.sin(yaw), 0],

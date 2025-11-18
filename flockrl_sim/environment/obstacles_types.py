@@ -15,16 +15,11 @@ class Wall(Obstacle):
     length: float
     height: float
     thickness: float
-    gate_id: Optional[str] = None  # ID of first gate for backward compatibility
     gate_ids: Tuple[str, ...] = ()
 
     def linked_gate_ids(self) -> Tuple[str, ...]:
         """Return all gate IDs associated with this wall."""
-        if self.gate_ids:
-            if self.gate_id and self.gate_id not in self.gate_ids:
-                return self.gate_ids + (self.gate_id,)
-            return self.gate_ids
-        return (self.gate_id,) if self.gate_id else tuple()
+        return self.gate_ids
 
 @dataclass
 class Gate(Obstacle):

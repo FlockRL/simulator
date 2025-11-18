@@ -55,27 +55,28 @@ def validate_positive_scalar(value: ScalarValue, field_name: str) -> ScalarValue
 
     return value
 
-def resolve_scalar(value: ScalarValue) -> float:
-    """Resolve a scalar value, sampling from random configs if needed."""
+def resolve_scalar(value: ScalarValue, rng: random.Random) -> float:
+    """Resolve a scalar value, sampling from random configs if needed"""
     if isinstance(value, UniformRandomConfig):
-        return random.uniform(*value.uniform)
+        return rng.uniform(*value.uniform)
     if isinstance(value, DiscreteRandomConfig):
-        return random.choice(value.discrete)
+        return rng.choice(value.discrete)
     return value
 
-def resolve_vector(vector: Vector3Value) -> Tuple[float, float, float]:
-    """Resolve a 3D vector with potential random components."""
-    return tuple(resolve_scalar(vector[i]) for i in range(3))
+def resolve_vector(vector: Vector3Value, rng: random.Random) -> Tuple[float, float, float]:
+    """Resolve a 3D vector with potential random components"""
+    return tuple(resolve_scalar(vector[i], rng) for i in range(3))
 
 def resolve_partial_vector(
-    vector: Optional[PartialVector3Value], 
-    fallback: Tuple[float, float, float]
+    vector: Optional[PartialVector3Value],
+    fallback: Tuple[float, float, float],
+    rng: random.Random
 ) -> Tuple[float, float, float]:
-    """Resolve a partial 3D vector, None values in vector are replaced with fallback values (usually parent's values)."""
+    """Resolve a partial 3D vector, None values in vector are replaced with fallback values (usually parent's values)"""
     if vector is None:
         return fallback
     return tuple(
-        fallback[i] if comp is None else resolve_scalar(comp)
+        fallback[i] if comp is None else resolve_scalar(comp, rng)
         for i, comp in enumerate(vector)
     )
 

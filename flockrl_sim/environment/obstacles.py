@@ -25,7 +25,9 @@ def _instance_id(base_id: str, index: int, total: int) -> str:
 class Environment:
     bounds: Bounds
     obstacles: List[Obstacle]
-    seed: Optional[int]
+    start_position: Tuple[float, float, float]
+    goal_position: Tuple[float, float, float]
+    seed: int
 
     def set_bounds(self, bounds: Bounds) -> None:
         self.bounds = bounds
@@ -47,26 +49,26 @@ class Environment:
         logger.debug(f"Bounds: {self.bounds}")
         logger.debug(f"Seed: {self.seed}")
         logger.debug(f"Number of obstacles: {len(self.obstacles)}")
-        return (
-            f"Environment bounds: {self.bounds}\n"
-            f"Seed: {self.seed}\n"
-            f"Number of obstacles: {len(self.obstacles)}"
-        )
+        summary_lines = [
+            f"Environment bounds: {self.bounds}",
+            f"Seed: {self.seed}",
+            f"Number of obstacles: {len(self.obstacles)}",
+            f"Start position: {self.start_position}",
+            f"Goal position: {self.goal_position}",
+        ]
+        return "\n".join(summary_lines)
 
 
 class EnvironmentBuilder:
-    def __init__(self, config: Environment) -> None:
+    def __init__(self, config: Environment, rng: random.Random) -> None:
         self.config = config
-
+        self.rng = rng
 
     def add_random_obstacles(self, n: int = 5) -> "EnvironmentBuilder":
-        if self.config.seed is not None:
-            random.seed(self.config.seed)
-
         for i in range(n):
-            x = random.uniform(self.config.bounds[0], self.config.bounds[1])
-            y = random.uniform(self.config.bounds[2], self.config.bounds[3])
-            z = random.uniform(self.config.bounds[4], self.config.bounds[5])
+            x = self.rng.uniform(self.config.bounds[0], self.config.bounds[1])
+            y = self.rng.uniform(self.config.bounds[2], self.config.bounds[3])
+            z = self.rng.uniform(self.config.bounds[4], self.config.bounds[5])
             obstacle = Obstacle(id=str(i), type="wall", position=(x, y, z), orientation=(0.0, 0.0, 0.0))
             self.config.add_obstacle(obstacle)
         return self
@@ -74,13 +76,19 @@ class EnvironmentBuilder:
     @classmethod
     def from_spec(cls, spec: EnvironmentSpec) -> "EnvironmentBuilder":
         """Builds environment and validates it from EnvironmentSpec (manual, random, or hybrid)"""
-        env = Environment(bounds=spec.bounds, obstacles=[], seed=spec.random_seed)
-        random.seed(env.seed)
+        rng = random.Random(spec.random_seed)
+        start_pos = resolve_vector(spec.start_position, rng)
+        goal_pos = resolve_vector(spec.goal_position, rng)
+        env = Environment(
+            bounds=spec.bounds,
+            obstacles=[],
+            seed=spec.random_seed,
+            start_position=start_pos,
+            goal_position=goal_pos,
+        )
 
-        builder = cls(config=env)
+        builder = cls(config=env, rng=rng)
 
-        start_pos = resolve_vector(spec.start_position)
-        goal_pos = resolve_vector(spec.goal_position)
         spawn_positions = [start_pos, goal_pos]
 
         for obs_spec in spec.obstacles:
@@ -110,11 +118,11 @@ class EnvironmentBuilder:
             placed = False
 
             for _ in range(attempts):
-                position = resolve_vector(spec.position)
-                orientation = resolve_vector(spec.orientation)
-                length = resolve_scalar(spec.length)
-                height = resolve_scalar(spec.height)
-                thickness = resolve_scalar(spec.thickness)
+                position = resolve_vector(spec.position, self.rng)
+                orientation = resolve_vector(spec.orientation, self.rng)
+                length = resolve_scalar(spec.length, self.rng)
+                height = resolve_scalar(spec.height, self.rng)
+                thickness = resolve_scalar(spec.thickness, self.rng)
 
                 # Build inline gates
                 gate_instances = [
@@ -128,9 +136,6 @@ class EnvironmentBuilder:
                     for gate_idx, gate_spec in enumerate(spec.gates)
                 ]
 
-                # Wall stores ID of first gate for backward compatibility
-                first_gate_id = gate_instances[0].id if gate_instances else None
-
                 wall = Wall(
                     id=wall_id,
                     type="wall",
@@ -139,7 +144,7 @@ class EnvironmentBuilder:
                     length=length,
                     height=height,
                     thickness=thickness,
-                    gate_id=first_gate_id,
+                    gate_ids=tuple(g.id for g in gate_instances),
                 )
 
                 if spec.random:
@@ -158,9 +163,11 @@ class EnvironmentBuilder:
                 break
 
             if not placed:
-                logger.warning(
-                    f"Unable to place wall '{wall_id}' "
-                    f"without collisions after {MAX_PLACEMENT_ATTEMPTS} attempts"
+                raise ValueError(
+                    f"Unable to place wall '{wall_id}' without collisions after "
+                    f"{MAX_PLACEMENT_ATTEMPTS} attempts. The environment may be too constrained "
+                    f"(small bounds, large obstacles, or too many obstacles). "
+                    f"Try: reducing obstacle count, increasing bounds, or decreasing obstacle size."
                 )
 
     def _build_gate_instance(
@@ -171,10 +178,10 @@ class EnvironmentBuilder:
         wall_orientation: Tuple[float, float, float],
         wall_thickness: float,
     ) -> Gate:
-        position = resolve_partial_vector(gate_spec.position, wall_position)
+        position = resolve_partial_vector(gate_spec.position, wall_position, self.rng)
         orientation = wall_orientation
-        width = resolve_scalar(gate_spec.width)
-        height = resolve_scalar(gate_spec.height)
+        width = resolve_scalar(gate_spec.width, self.rng)
+        height = resolve_scalar(gate_spec.height, self.rng)
 
         return Gate(
             id=gate_id,
@@ -195,11 +202,11 @@ class EnvironmentBuilder:
             placed = False
 
             for _ in range(attempts):
-                position = resolve_vector(spec.position)
-                orientation = resolve_vector(spec.orientation)
-                length = resolve_scalar(spec.length)
-                width = resolve_scalar(spec.width)
-                height = resolve_scalar(spec.height)
+                position = resolve_vector(spec.position, self.rng)
+                orientation = resolve_vector(spec.orientation, self.rng)
+                length = resolve_scalar(spec.length, self.rng)
+                width = resolve_scalar(spec.width, self.rng)
+                height = resolve_scalar(spec.height, self.rng)
 
                 clutter = RectangularPrism(
                     id=clutter_id,
@@ -220,9 +227,11 @@ class EnvironmentBuilder:
                 break
 
             if not placed:
-                logger.warning(
-                    f"Unable to place clutter '{clutter_id}' "
-                    f"without collisions after {MAX_PLACEMENT_ATTEMPTS} attempts"
+                raise ValueError(
+                    f"Unable to place clutter '{clutter_id}' without collisions after "
+                    f"{MAX_PLACEMENT_ATTEMPTS} attempts. The environment may be too constrained "
+                    f"(small bounds, large obstacles, or too many obstacles). "
+                    f"Try: reducing obstacle count, increasing bounds, or decreasing obstacle size."
                 )
 
     def _is_clear_of_spawn(self, position, spawn_positions) -> bool:
@@ -241,17 +250,14 @@ class EnvironmentBuilder:
         for existing in self.config.obstacles:
             if ignore_ids and existing.id in ignore_ids:
                 continue
-            if isinstance(candidate, Wall) and candidate.gate_id == existing.id:
+            if isinstance(candidate, Wall) and existing.id in candidate.linked_gate_ids():
                 continue
-            if isinstance(existing, Wall) and existing.gate_id == candidate.id:
+            if isinstance(existing, Wall) and candidate.id in existing.linked_gate_ids():
                 continue
             if check_overlap(candidate, existing):
                 return True
 
         return False
-
-    def _random_position_in_bounds(self, bounds: Bounds) -> Tuple[float, float, float]:
-        return tuple(random.uniform(bounds[i], bounds[i+1]) for i in range(0, 6, 2))
 
     def build(self) -> Environment:
         return self.config

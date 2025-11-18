@@ -47,7 +47,7 @@ method.
 All specs are validated on load:
 - Bounds must be valid (min < max)
 - Obstacle IDs must be unique
-- Wall gate_id references must exist
+- Wall gate_ids must reference existing gates
 - Dimensions must be positive
 - Ranges must have min < max
 

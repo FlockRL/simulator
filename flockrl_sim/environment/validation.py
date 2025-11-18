@@ -57,6 +57,10 @@ def validate_geometry(
     result = ValidationResult()
     x, y, z = obstacle.position
     x_min, x_max, y_min, y_max, z_min, z_max = bounds
+    orientation = obstacle.orientation
+
+    if abs(orientation[0]) > 1e-6 or abs(orientation[1]) > 1e-6:
+        result.add_warning(f"Obstacle {obstacle.id} has roll/pitch rotations but validator currently only considers yaw when computing bounding boxes")
 
     dims = _get_dims(obstacle)
     aabb_size = _axis_aligned_size(obstacle, *dims)
@@ -105,7 +109,7 @@ def _axis_aligned_size(
 ) -> Tuple[float, float, float]:
     """Compute axis-aligned bounding box size accounting for yaw rotation."""
     yaw = 0.0
-    if (orient := getattr(obs, "orientation", None)) and len(orient) >= 3 and orient[2]:
+    if (orient := getattr(obs, "orientation", None)) and len(orient) >= 3 and orient[2] != 0.0:
         yaw = orient[2]
     cos_yaw, sin_yaw = abs(math.cos(yaw)), abs(math.sin(yaw))
     return (dim_x * cos_yaw + dim_y * sin_yaw,
@@ -177,7 +181,9 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
                 continue
 
             wall_half_length = wall.length / 2
+            wall_half_height = wall.height / 2
             gate_half_width = gate.width / 2
+            gate_half_height = gate.height / 2
             offset = math.hypot(gate.position[0] - wall.position[0], gate.position[1] - wall.position[1])
 
             if offset + gate_half_width > wall_half_length:
@@ -185,6 +191,14 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
                     f"Gate {gate.id} extends beyond wall {wall.id} boundary "
                     f"(offset: {offset:.2f}m + half-width: {gate_half_width:.2f}m "
                     f"> wall half-length: {wall_half_length:.2f}m)"
+                )
+
+            vertical_offset = abs(gate.position[2] - wall.position[2])
+            if vertical_offset + gate_half_height > wall_half_height:
+                result.add_error(
+                    f"Gate {gate.id} sits outside wall {wall.id} vertical span "
+                    f"(offset: {vertical_offset:.2f}m + half-height: {gate_half_height:.2f}m "
+                    f"> wall half-height: {wall_half_height:.2f}m)"
                 )
 
             if gate.height > wall.height:

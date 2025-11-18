@@ -1,3 +1,4 @@
+import random
 from flockrl_sim.environment.obstacles import Environment, EnvironmentBuilder
 from flockrl_sim.environment.obstacles_types import Bounds, Obstacle
 
@@ -27,13 +28,16 @@ found = env.get_obstacle_by_id("wall_1")
 print("\nRetrieved obstacle:", found)
 
 # Build environment using builder
-builder = EnvironmentBuilder(Environment(
-    bounds=DEFAULT_BOUNDS,
-    obstacles=[],
-    seed=123,
-    start_position=DEFAULT_START,
-    goal_position=DEFAULT_GOAL,
-))
+builder = EnvironmentBuilder(
+    Environment(
+        bounds=DEFAULT_BOUNDS,
+        obstacles=[],
+        seed=123,
+        start_position=DEFAULT_START,
+        goal_position=DEFAULT_GOAL,
+    ),
+    rng=random.Random(123)
+)
 builder.add_random_obstacles(n=3)
 built_env = builder.build()
 
