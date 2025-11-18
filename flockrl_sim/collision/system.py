@@ -312,7 +312,7 @@ class CollisionSystem:
                 penetration = r
                 new_pos = pos + penetration * normal
 
-            rebound_vel = self.apply_rebound(drone_vel, normal, restitution=0.8)
+            rebound_vel = self.apply_rebound(drone_vel, normal, restitution=self.restitution)
 
             return CollisionInfo(
                 drone_id=drone_id,
