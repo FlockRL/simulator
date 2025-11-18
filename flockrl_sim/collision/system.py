@@ -6,6 +6,7 @@ from typing import Any, List
 import numpy as np
 
 from ..environment import Environment
+from ..geometry import OBB, sphere_intersect_obb, point_in_obb
 from ..state import SwarmState
 
 
@@ -132,16 +133,26 @@ class CollisionSystem:
     def check_wall_collision(self, state: SwarmState, obstacles: List[Any]) -> List[CollisionInfo]:
         """
         Check for collisions with static walls.
+
+        Implements gate pass-through logic: if a drone is inside a gate volume
+        that is embedded in a wall, the wall collision is ignored for that drone.
         """
         collisions = []
 
         walls = [obs for obs in obstacles if getattr(obs, "type", None) == "wall"]
-        
+        gates = [obs for obs in obstacles if getattr(obs, "type", None) == "gate"]
+
+        gate_map = {gate.id: gate for gate in gates}
+
         for i, pos in enumerate(state.pos):
             drone_id = state.ids[i]
             drone_vel = state.vel[i]
 
             for wall in walls:
+                # Check if drone is inside any of this wall's gates and skip collision with this wall if true
+                if self._is_drone_inside_any_gate(pos, wall, gate_map):
+                    continue
+
                 # Extract dimensions: Wall has (length, height, thickness)
                 # Map to (length, width, height) for the prism method
                 box_dims = (wall.length, wall.thickness, wall.height)
@@ -172,6 +183,7 @@ class CollisionSystem:
         """
         collisions: List[CollisionInfo] = []
         prisms = [obs for obs in obstacles if getattr(obs, "type", None) == "RectangularPrism"]
+        r = self.drone_radius
 
         for i, pos in enumerate(state.pos):
             drone_id = state.ids[i]
@@ -244,11 +256,14 @@ class CollisionSystem:
         drone_id: int,
         box_position: np.ndarray,
         box_dimensions: tuple[float, float, float],  # (length, width, height)
-        box_orientation: tuple[float, float, float] | None,
+        box_orientation: tuple[float, float, float],
         collision_type: str
     ) -> CollisionInfo | None:
         """
         Check collision between a single drone and a single rectangular prism.
+
+        Uses AABB collision detection for axis-aligned boxes (orientation = [0,0,0]),
+        and OBB collision detection for rotated boxes.
 
         Args:
             drone_pos: Drone position, shape (3,)
@@ -256,69 +271,109 @@ class CollisionSystem:
             drone_id: ID of the drone
             box_position: Center position of the box, shape (3,)
             box_dimensions: (length, width, height) of the box
-            box_orientation: Euler angles (roll, pitch, yaw) in radians, or None for AABB
+            box_orientation: Euler angles (roll, pitch, yaw) in radians
             collision_type: Type string for CollisionInfo ("wall" or "clutter")
 
         Returns:
             CollisionInfo if collision detected, None otherwise
         """
-        # Check if orientation is axis-aligned (only AABB supported for now)
-        if box_orientation is not None:
-            if not np.allclose(box_orientation, [0.0, 0.0, 0.0], atol=1e-9):
-                raise NotImplementedError(
-                    f"Oriented bounding boxes (OBB) are not yet supported. "
-                    f"Box has orientation {box_orientation}, but only axis-aligned boxes "
-                    f"(orientation = None or [0, 0, 0]) are currently implemented."
-                )
+        # Use AABB collision detection if orientation is zero (axis-aligned)
+        if np.allclose(box_orientation, [0.0, 0.0, 0.0], atol=1e-9):
+            return self._check_aabb_collision(
+                drone_pos=drone_pos,
+                drone_vel=drone_vel,
+                drone_id=drone_id,
+                box_position=box_position,
+                box_dimensions=box_dimensions,
+                collision_type=collision_type
+            )
+            
+        # Use OBB collision detection for all other cases
+        return self._check_obb_collision(
+            drone_pos=drone_pos,
+            drone_vel=drone_vel,
+            drone_id=drone_id,
+            box_position=box_position,
+            box_dimensions=box_dimensions,
+            box_orientation=box_orientation,
+            collision_type=collision_type
+        )
 
+    def _check_aabb_collision(
+        self,
+        drone_pos: np.ndarray,
+        drone_vel: np.ndarray,
+        drone_id: int,
+        box_position: np.ndarray,
+        box_dimensions: tuple[float, float, float],
+        collision_type: str
+    ) -> CollisionInfo | None:
+        """
+        Check collision between a drone and an axis-aligned bounding box (AABB).
+        
+        This is the original implementation for axis-aligned boxes (no rotation).
+        Deprecated: Use _check_obb_collision instead, which handles both AABB and OBB.
+        This function is kept for reference or future AABB-only optimizations.
+        """
         r = self.drone_radius
-        pos = drone_pos
         length, width, height = box_dimensions
-        half = np.array([length * 0.5, width * 0.5, height * 0.5], dtype=float)
-        center = np.array(box_position, dtype=float)
-        pmin = center - half
-        pmax = center + half
+        half_extents = np.array([length * 0.5, width * 0.5, height * 0.5], dtype=float)
+        box_center = np.array(box_position, dtype=float)
 
-        closest = np.maximum(pmin, np.minimum(pos, pmax))
-        diff = pos - closest
-        dist_sq = float(np.dot(diff, diff))
+        # Transform drone position to box's local coordinate system (which is just world space for AABB)
+        pos_local = drone_pos - box_center
 
-        if dist_sq < r * r:
+        # Find closest point on the box (in local space) to the drone
+        closest_local = np.clip(pos_local, -half_extents, half_extents)
+
+        # Vector from closest point to drone center (in local space)
+        diff_local = pos_local - closest_local
+        dist_sq = float(np.dot(diff_local, diff_local))
+
+        # Check if drone sphere intersects the box
+        if dist_sq <= r * r:
             dist = np.sqrt(dist_sq)
 
             if dist > 1e-12:
-                normal = diff / dist
-                contact_point = closest
+                # Normal case: drone center is outside the box
+                normal_local = diff_local / dist
+                contact_local = closest_local
                 penetration = r - dist
-                new_pos = pos + penetration * normal
             else:
-                dx_min = (pos[0] - pmin[0])
-                dx_max = (pmax[0] - pos[0])
-                dy_min = (pos[1] - pmin[1])
-                dy_max = (pmax[1] - pos[1])
-                dz_min = (pos[2] - pmin[2])
-                dz_max = (pmax[2] - pos[2])
+                # Special case: drone center is inside the box
+                # Find the closest face and push out along that axis
+                dx_min = half_extents[0] + pos_local[0]  # Distance to -X face
+                dx_max = half_extents[0] - pos_local[0]  # Distance to +X face
+                dy_min = half_extents[1] + pos_local[1]  # Distance to -Y face
+                dy_max = half_extents[1] - pos_local[1]  # Distance to +Y face
+                dz_min = half_extents[2] + pos_local[2]  # Distance to -Z face
+                dz_max = half_extents[2] - pos_local[2]  # Distance to +Z face
 
                 candidates = [
-                    (dx_min, np.array([-1.0,  0.0,  0.0]), np.array([pmin[0], pos[1], pos[2]])),
-                    (dx_max, np.array([ 1.0,  0.0,  0.0]), np.array([pmax[0], pos[1], pos[2]])),
-                    (dy_min, np.array([ 0.0, -1.0,  0.0]), np.array([pos[0], pmin[1], pos[2]])),
-                    (dy_max, np.array([ 0.0,  1.0,  0.0]), np.array([pos[0], pmax[1], pos[2]])),
-                    (dz_min, np.array([ 0.0,  0.0, -1.0]), np.array([pos[0], pos[1], pmin[2]])),
-                    (dz_max, np.array([ 0.0,  0.0,  1.0]), np.array([pos[0], pos[1], pmax[2]])),
+                    (dx_min, np.array([-1.0,  0.0,  0.0]), np.array([-half_extents[0], pos_local[1], pos_local[2]])),
+                    (dx_max, np.array([ 1.0,  0.0,  0.0]), np.array([ half_extents[0], pos_local[1], pos_local[2]])),
+                    (dy_min, np.array([ 0.0, -1.0,  0.0]), np.array([pos_local[0], -half_extents[1], pos_local[2]])),
+                    (dy_max, np.array([ 0.0,  1.0,  0.0]), np.array([pos_local[0],  half_extents[1], pos_local[2]])),
+                    (dz_min, np.array([ 0.0,  0.0, -1.0]), np.array([pos_local[0], pos_local[1], -half_extents[2]])),
+                    (dz_max, np.array([ 0.0,  0.0,  1.0]), np.array([pos_local[0], pos_local[1],  half_extents[2]])),
                 ]
-                face_dist, normal, contact_point = min(candidates, key=lambda t: t[0])
 
-                penetration = r
-                new_pos = pos + penetration * normal
+                face_dist, normal_local, contact_local = min(candidates, key=lambda t: t[0])
+                penetration = r + face_dist
 
-            rebound_vel = self.apply_rebound(drone_vel, normal, restitution=self.restitution)
+            # For AABB, local space is the same as world space (no rotation)
+            normal_world = normal_local
+            contact_world = box_center + contact_local
+            new_pos = drone_pos + penetration * normal_world
+
+            # Compute rebound velocity
+            rebound_vel = self.apply_rebound(drone_vel, normal_world, restitution=self.restitution)
 
             return CollisionInfo(
                 drone_id=drone_id,
                 collision_type=collision_type,
-                normal_vector=normal.astype(float),
-                contact_point=contact_point.astype(float),
+                normal_vector=normal_world.astype(float),
+                contact_point=contact_world.astype(float),
                 penetration_depth=float(penetration),
                 rebound_velocity=rebound_vel.astype(float),
                 new_position=new_pos.astype(float),
@@ -327,15 +382,60 @@ class CollisionSystem:
         # No collision
         return None
 
+    def _check_obb_collision(
+        self,
+        drone_pos: np.ndarray,
+        drone_vel: np.ndarray,
+        drone_id: int,
+        box_position: np.ndarray,
+        box_dimensions: tuple[float, float, float],
+        box_orientation: tuple[float, float, float] | None,
+        collision_type: str
+    ) -> CollisionInfo | None:
+        """
+        Check collision between a drone and an oriented bounding box (OBB).
+        
+        Delegates to geometry module.
+        """
+        length, width, height = box_dimensions
+        half_extents = np.array([length * 0.5, width * 0.5, height * 0.5], dtype=float)
+        
+        obb = OBB(
+            center=np.array(box_position, dtype=float),
+            half_extents=half_extents,
+            orientation=box_orientation
+        )
+
+        result = sphere_intersect_obb(drone_pos, self.drone_radius, obb)
+
+        if result is None:
+            return None
+            
+        penetration, contact_point, normal = result
+        
+        new_pos = drone_pos + penetration * normal
+        rebound_vel = self.apply_rebound(drone_vel, normal, restitution=self.restitution)
+
+        return CollisionInfo(
+            drone_id=drone_id,
+            collision_type=collision_type,
+            normal_vector=normal.astype(float),
+            contact_point=contact_point.astype(float),
+            penetration_depth=float(penetration),
+            rebound_velocity=rebound_vel.astype(float),
+            new_position=new_pos.astype(float),
+        )
+
+
     def apply_rebound(self, velocity: np.ndarray, normal: np.ndarray, restitution: float) -> np.ndarray:
         """
         Compute reflected velocity after collision.
-        
+
         Args:
             velocity: Current velocity vector, shape (3,)
             normal: Surface normal at collision point, shape (3,)
             restitution: Coefficient of restitution (1.0 = elastic, 0.0 = inelastic)
-        
+
         Returns:
             Updated velocity vector after rebound, shape (3,)
         """
@@ -343,3 +443,57 @@ class CollisionSystem:
         v_n = np.dot(velocity, n) * n
         v_t = velocity - v_n
         return v_t - restitution * v_n
+
+    def _is_drone_inside_any_gate(self, drone_pos: np.ndarray, wall: Any, gate_map: dict) -> bool:
+        """
+        Check if a drone is inside any of the gates embedded in a wall.
+
+        Args:
+            drone_pos: Drone position, shape (3,)
+            wall: Wall obstacle with gate_ids attribute
+            gate_map: Dictionary mapping gate IDs to gate objects
+
+        Returns:
+            True if drone is inside any gate volume, False otherwise
+        """
+        gate_ids = getattr(wall, "gate_ids", ())
+        if not gate_ids:
+            return False
+
+        for gate_id in gate_ids:
+            gate = gate_map.get(gate_id)
+            if gate is None:
+                continue
+
+            if self._is_point_inside_gate(drone_pos, gate):
+                return True
+
+        return False
+
+
+    def _is_point_inside_gate(self, point: np.ndarray, gate: Any) -> bool:
+        """
+        Check if a point is inside a gate's bounding volume.
+
+        Gates are rectangular volumes defined by (width, thickness, height).
+        For axis-aligned gates, this is a simple AABB test.
+
+        Args:
+            point: 3D point to test, shape (3,)
+            gate: Gate obstacle with position, width, height, thickness, orientation
+
+        Returns:
+            True if point is inside gate volume, False otherwise
+        """
+        gate_pos = np.array(gate.position, dtype=float)
+        
+        # Gate dimensions: (width, thickness, height) map to (x, y, z) half-extents
+        half_extents = np.array([gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float)
+        
+        obb = OBB(
+            center=gate_pos,
+            half_extents=half_extents,
+            orientation=gate.orientation
+        )
+        
+        return point_in_obb(point, obb)
