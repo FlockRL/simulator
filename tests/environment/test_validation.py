@@ -69,13 +69,29 @@ class TestGeometryValidation:
         """Test validation catches wall outside bounds."""
         result = validate_geometry(helper_wall(position=(15.0, 0.0, 0.0)), BOUNDS)
         assert not result.is_valid()
-        assert any("outside bounds" in err for err in result.errors)
+        assert any("extends outside" in err for err in result.errors)
 
     def test_wall_negative_dimensions(self):
         """Test validation catches negative dimensions."""
         result = validate_geometry(helper_wall(length=-5.0), BOUNDS)
         assert not result.is_valid()
         assert any("non-positive length" in err for err in result.errors)
+
+    def test_obstacle_extent_outside_bounds(self):
+        """Test validation catches obstacle that extends beyond bounds even when center is inside."""
+        result = validate_geometry(helper_wall(position=(8.0, 0.0, 0.0), length=10.0), BOUNDS)
+        assert not result.is_valid()
+        assert any("extends outside x bounds" in err for err in result.errors)
+
+    def test_rotated_obstacle_extent_outside_bounds(self):
+        """Test validation catches rotated obstacle extent."""
+        import math
+        result = validate_geometry(
+            helper_wall(position=(8.0, 0.0, 0.0), length=4.0, orientation=(0.0, 0.0, math.pi/4)),
+            BOUNDS
+        )
+        assert not result.is_valid()
+        assert any("extends outside" in err for err in result.errors)
 
 class TestOverlapValidation:
     """Test overlap detection between obstacles."""
@@ -121,9 +137,9 @@ class TestFullEnvironmentValidation:
     def test_valid_environment(self):
         """Test validation of a valid environment."""
         obstacles = [
-            helper_wall(id="wall1", length=8.0, gate_id="gate1"),
-            helper_gate(id="gate1"),
-            helper_clutter(id="clutter1", position=(5.0, 5.0, 0.0)),
+            helper_wall(id="wall1", position=(0.0, 0.0, 1.5), length=8.0, gate_id="gate1"),
+            helper_gate(id="gate1", position=(0.0, 0.0, 1.5)),
+            helper_clutter(id="clutter1", position=(5.0, 5.0, 0.4)),
         ]
         result = validate_environment(obstacles, BOUNDS, (-8.0, 0.0, 1.0), (8.0, 0.0, 1.0))
         assert result.is_valid()  # May have warnings but should not have errors

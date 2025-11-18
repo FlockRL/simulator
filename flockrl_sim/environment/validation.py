@@ -53,24 +53,31 @@ def validate_geometry(
     obstacle: Obstacle,
     bounds: Tuple[float, float, float, float, float, float]
 ) -> ValidationResult:
-    """Validate obstacle has positive dimensions and is within bounds."""
+    """Validate obstacle has positive dimensions and full extent is within bounds."""
     result = ValidationResult()
     x, y, z = obstacle.position
-
-    # Check position is within bounds
     x_min, x_max, y_min, y_max, z_min, z_max = bounds
 
-    for axis, coord, lower, upper in (
-        ("x", x, x_min, x_max),
-        ("y", y, y_min, y_max),
-        ("z", z, z_min, z_max),
-    ):
-        if not lower <= coord <= upper:
-            result.add_error(
-                f"Obstacle {obstacle.id} {axis} position {coord} outside bounds [{lower}, {upper}]"
-            )
+    dims = _get_dims(obstacle)
+    aabb_size = _axis_aligned_size(obstacle, *dims)
+    half_x, half_y, half_z = aabb_size[0] / 2, aabb_size[1] / 2, aabb_size[2] / 2
 
-    # Check type-specific dimensions
+    if x - half_x < x_min or x + half_x > x_max:
+        result.add_error(
+            f"Obstacle {obstacle.id} extends outside x bounds "
+            f"[{x - half_x:.2f}, {x + half_x:.2f}] not within [{x_min}, {x_max}]"
+        )
+    if y - half_y < y_min or y + half_y > y_max:
+        result.add_error(
+            f"Obstacle {obstacle.id} extends outside y bounds "
+            f"[{y - half_y:.2f}, {y + half_y:.2f}] not within [{y_min}, {y_max}]"
+        )
+    if z - half_z < z_min or z + half_z > z_max:
+        result.add_error(
+            f"Obstacle {obstacle.id} extends outside z bounds "
+            f"[{z - half_z:.2f}, {z + half_z:.2f}] not within [{z_min}, {z_max}]"
+        )
+
     if isinstance(obstacle, Wall):
         _validate_positive_dimensions(
             result, obstacle.id, "Wall",
