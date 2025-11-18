@@ -54,7 +54,7 @@ def draw_2d_slice(ax, env, spec, z_level):
         if obs_z_min <= z_level <= obs_z_max:
             draw_top_face(ax, obs, dims, color, alpha)
 
-    draw_spawn_markers(ax, spec)
+    draw_spawn_markers(ax, env)
     ax.set_xlabel('X (m)')
     ax.set_ylabel('Y (m)')
     ax.set_title(f'{spec.name} - 2D Slice at Z = {z_level:.1f}m', fontweight='bold')
@@ -73,7 +73,7 @@ def draw_3d_scene(ax, env, spec):
         color, alpha, dims = get_obstacle_props(obs)
         draw_3d_box(ax, obs.position, dims, obs.orientation, color, alpha)
 
-    draw_spawn_markers(ax, spec, is_3d=True)
+    draw_spawn_markers(ax, env, is_3d=True)
     ax.set_xlabel('X (m)')
     ax.set_ylabel('Y (m)')
     ax.set_zlabel('Z (m)')

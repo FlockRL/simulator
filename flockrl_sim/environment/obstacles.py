@@ -7,7 +7,7 @@ from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, Rectan
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
 from flockrl_sim.environment.spec_models.obstacles import WallSpec, ClutterSpec, GateSpec
 from flockrl_sim.environment.spec_models.random_values import resolve_scalar, resolve_vector, resolve_partial_vector
-from flockrl_sim.environment.validation import check_overlap, validate_environment
+from flockrl_sim.environment.validation import check_overlap, validate_environment, validate_gate_embedding, validate_geometry
 import logging
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ class EnvironmentBuilder:
         return builder
 
     def _process_wall_spec(self, spec: WallSpec, spawn_positions: List[Tuple[float, float, float]]) -> None:
-        total = spec.count if spec.random else 1
+        total = spec.count
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
         for index in range(total):
@@ -147,6 +147,14 @@ class EnvironmentBuilder:
                     gate_ids=tuple(g.id for g in gate_instances),
                 )
 
+                geometry_errors = any(validate_geometry(obj, self.config.bounds).errors for obj in [wall, *gate_instances])
+                gate_errors = not wall or validate_gate_embedding([wall, *gate_instances]).errors
+                
+                if geometry_errors or gate_errors:
+                    if not spec.random:
+                        raise ValueError(f"Invalid geometry for wall '{wall_id}'. Ensure gates fit and bounds are respected.")
+                    continue
+
                 if spec.random:
                     if not self._check_placement(wall, spawn_positions, {g.id for g in gate_instances} if gate_instances else None):
                         continue
@@ -179,7 +187,6 @@ class EnvironmentBuilder:
         wall_thickness: float,
     ) -> Gate:
         position = resolve_partial_vector(gate_spec.position, wall_position, self.rng)
-        orientation = wall_orientation
         width = resolve_scalar(gate_spec.width, self.rng)
         height = resolve_scalar(gate_spec.height, self.rng)
 
@@ -187,14 +194,14 @@ class EnvironmentBuilder:
             id=gate_id,
             type="gate",
             position=position,
-            orientation=orientation,
+            orientation=wall_orientation,
             width=width,
             height=height,
             thickness=wall_thickness,
         )
 
     def _process_clutter_spec(self, spec: ClutterSpec, spawn_positions: List[Tuple[float, float, float]]) -> None:
-        total = spec.count if spec.random else 1
+        total = spec.count
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
         for index in range(total):
@@ -242,8 +249,7 @@ class EnvironmentBuilder:
 
     def _check_placement(self, obstacle: Obstacle, spawn_positions: List[Tuple[float, float, float]], ignore_ids: Optional[Set[str]] = None) -> bool:
         """Return True if obstacle placement is valid (clear of spawn and no collisions), False otherwise."""
-        return (self._is_clear_of_spawn(obstacle.position, spawn_positions) and
-                not self._collides_with_existing(obstacle, ignore_ids))
+        return self._is_clear_of_spawn(obstacle.position, spawn_positions) and not self._collides_with_existing(obstacle, ignore_ids)
 
     def _collides_with_existing(self, candidate: Obstacle, ignore_ids: Optional[Set[str]] = None) -> bool:
         """Return True if candidate collides with any existing obstacle, False otherwise."""

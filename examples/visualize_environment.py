@@ -16,7 +16,7 @@ def draw_topdown_view(ax, env, spec):
         color, alpha, dims = get_obstacle_props(obs)
         draw_top_face(ax, obs, dims, color, alpha)
 
-    draw_spawn_markers(ax, spec, is_3d=False)
+    draw_spawn_markers(ax, env, is_3d=False)
     ax.set_xlabel('X (m)', fontsize=12)
     ax.set_ylabel('Y (m)', fontsize=12)
     ax.set_title('Top-Down View', fontsize=12, fontweight='bold')
@@ -50,7 +50,7 @@ def visualize_environment(spec_name_or_path):
         color, alpha, dims = get_obstacle_props(obs)
         draw_3d_box(ax3d, obs.position, dims, obs.orientation, color, alpha)
 
-    draw_spawn_markers(ax3d, spec, is_3d=True)
+    draw_spawn_markers(ax3d, env, is_3d=True)
     ax3d.set_xlabel('X (m)', fontsize=12)
     ax3d.set_ylabel('Y (m)', fontsize=12)
     ax3d.set_zlabel('Z (m)', fontsize=12)

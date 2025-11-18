@@ -56,11 +56,11 @@ def create_box_faces(vertices):
     return [[vertices[i] for i in idx] for idx in face_indices]
 
 
-def draw_spawn_markers(ax, spec, is_3d=False):
-    """Draw start/goal markers on 2D or 3D axes."""
-    if spec:
+def draw_spawn_markers(ax, env, is_3d=False):
+    """Draw start/goal markers on 2D or 3D axes using resolved environment positions."""
+    if env:
         for attr, config in SPAWN_MARKERS.items():
-            if position := getattr(spec, attr, None):
+            if position := getattr(env, attr, None):
                 coords = position if is_3d else position[:2]
                 size = config['size_3d' if is_3d else 'size_2d']
                 ax.scatter(
@@ -72,7 +72,7 @@ def draw_spawn_markers(ax, spec, is_3d=False):
                     edgecolors='black' if not is_3d else None,
                     linewidths=2 if not is_3d else None,
                     zorder=10
-        )
+                )
 
 
 def draw_top_face(ax, obs, dims, color, alpha, **kwargs):
