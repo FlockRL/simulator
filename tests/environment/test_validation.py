@@ -1,95 +1,95 @@
-"""Unit tests for environment validation."""
+from flockrl_sim.environment.obstacles_types import Wall, Gate, RectangularPrism, Bounds
+from flockrl_sim.environment.validation import validate_geometry, validate_no_overlaps, validate_gate_embedding, validate_environment
 
-import pytest
+# Helper functions that use default values to make obstacle creation less verbose
+def helper_wall(
+    id="wall1",
+    position=(0.0, 0.0, 0.0),
+    orientation=(0.0, 0.0, 0.0),
+    length=5.0,
+    height=3.0,
+    thickness=0.1,
+    gate_id=None,
+):
+    return Wall(
+        id=id,
+        type="wall",
+        position=position,
+        orientation=orientation,
+        length=length,
+        height=height,
+        thickness=thickness,
+        gate_id=gate_id,
+    )
 
-from flockrl_sim.environment.obstacles_types import Wall, Gate, RectangularPrism
-from flockrl_sim.environment.validation import (
-    validate_geometry,
-    validate_no_overlaps,
-    validate_gate_embedding,
-    validate_environment,
-)
+def helper_gate(
+    id="gate1",
+    position=(0.0, 0.0, 1.0),
+    orientation=(0.0, 0.0, 0.0),
+    width=1.5,
+    height=1.5,
+    thickness=0.05,
+):
+    return Gate(
+        id=id,
+        type="gate",
+        position=position,
+        orientation=orientation,
+        width=width,
+        height=height,
+        thickness=thickness,
+    )
 
+def helper_clutter(
+    id="clutter1",
+    position=(0.0, 0.0, 0.0),
+    orientation=(0.0, 0.0, 0.0),
+    length=0.5,
+    width=0.5,
+    height=0.8,
+):
+    return RectangularPrism(
+        id=id,
+        type="clutter",
+        position=position,
+        orientation=orientation,
+        subtype="rectangular_prism",
+        length=length,
+        width=width,
+        height=height,
+    )
+
+# Common test constants
+BOUNDS: Bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
 
 class TestGeometryValidation:
     """Test individual obstacle geometry validation."""
 
     def test_valid_wall(self):
         """Test validation of a valid wall."""
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(0.0, 0.0, 0.0),
-            length=5.0,
-            height=3.0,
-            thickness=0.1
-        )
-        bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
-
-        result = validate_geometry(wall, bounds)
+        result = validate_geometry(helper_wall(), BOUNDS)
         assert result.is_valid()
 
     def test_wall_outside_bounds(self):
         """Test validation catches wall outside bounds."""
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(15.0, 0.0, 0.0),  # Outside bounds
-            length=5.0,
-            height=3.0,
-            thickness=0.1
-        )
-        bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
-
-        result = validate_geometry(wall, bounds)
+        result = validate_geometry(helper_wall(position=(15.0, 0.0, 0.0)), BOUNDS)
         assert not result.is_valid()
         assert any("outside bounds" in err for err in result.errors)
 
     def test_wall_negative_dimensions(self):
         """Test validation catches negative dimensions."""
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(0.0, 0.0, 0.0),
-            length=-5.0,  # Negative length
-            height=3.0,
-            thickness=0.1
-        )
-        bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
-
-        result = validate_geometry(wall, bounds)
+        result = validate_geometry(helper_wall(length=-5.0), BOUNDS)
         assert not result.is_valid()
         assert any("non-positive length" in err for err in result.errors)
 
     def test_valid_gate(self):
         """Test validation of a valid gate."""
-        gate = Gate(
-            id="gate1",
-            type="gate",
-            position=(0.0, 0.0, 1.0),
-            width=1.5,
-            height=1.5,
-            thickness=0.05
-        )
-        bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
-
-        result = validate_geometry(gate, bounds)
+        result = validate_geometry(helper_gate(), BOUNDS)
         assert result.is_valid()
 
     def test_valid_clutter(self):
         """Test validation of a valid clutter object."""
-        clutter = RectangularPrism(
-            id="clutter1",
-            type="clutter",
-            position=(2.0, 2.0, 0.0),
-            subtype="rectangular_prism",
-            length=0.5,
-            width=0.5,
-            height=0.8
-        )
-        bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
-
-        result = validate_geometry(clutter, bounds)
+        result = validate_geometry(helper_clutter(position=(2.0, 2.0, 0.0)), BOUNDS)
         assert result.is_valid()
 
 
@@ -98,104 +98,32 @@ class TestOverlapValidation:
 
     def test_no_overlap(self):
         """Test that well-separated obstacles don't overlap."""
-        obstacles = [
-            Wall(
-                id="wall1",
-                type="wall",
-                position=(0.0, 0.0, 0.0),
-                length=5.0,
-                height=3.0,
-                thickness=0.1
-            ),
-            RectangularPrism(
-                id="clutter1",
-                type="clutter",
-                position=(10.0, 10.0, 0.0),
-                subtype="rectangular_prism",
-                length=0.5,
-                width=0.5,
-                height=0.8
-            )
-        ]
-
+        obstacles = [helper_wall(), helper_clutter(id="clutter1", position=(10.0, 10.0, 0.0))]
         result = validate_no_overlaps(obstacles)
         assert result.is_valid()
 
     def test_overlap_detected(self):
         """Test that overlapping obstacles are detected."""
         obstacles = [
-            RectangularPrism(
-                id="clutter1",
-                type="clutter",
-                position=(0.0, 0.0, 0.0),
-                subtype="rectangular_prism",
-                length=1.0,
-                width=1.0,
-                height=1.0
-            ),
-            RectangularPrism(
-                id="clutter2",
-                type="clutter",
-                position=(0.2, 0.2, 0.2),  # Very close, likely overlapping
-                subtype="rectangular_prism",
-                length=1.0,
-                width=1.0,
-                height=1.0
-            )
+            helper_clutter(id="clutter1", position=(0.0, 0.0, 0.0), length=1.0, width=1.0, height=1.0),
+            helper_clutter(id="clutter2", position=(0.2, 0.2, 0.2), length=1.0, width=1.0, height=1.0),
         ]
-
         result = validate_no_overlaps(obstacles)
         assert not result.is_valid()
         assert any("may overlap" in err for err in result.errors)
 
     def test_gate_wall_overlap_ignored(self):
         """Test that gate-wall overlaps are ignored."""
-        gate = Gate(
-            id="gate1",
-            type="gate",
-            position=(0.0, 0.0, 1.0),
-            width=1.5,
-            height=1.5,
-            thickness=0.05
-        )
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(0.0, 0.0, 0.0),
-            length=5.0,
-            height=3.0,
-            thickness=0.1,
-            gate_id="gate1"
-        )
-
-        obstacles = [wall, gate]
-        result = validate_no_overlaps(obstacles)
-
-        # Should be valid because gate-wall overlap is allowed
-        assert result.is_valid()
+        g = helper_gate()
+        w = helper_wall(gate_id="gate1")
+        result = validate_no_overlaps([w, g])
+        assert result.is_valid()  # Gate-wall overlap is allowed
 
     def test_overlap_respects_orientation(self):
         """Ensure overlap detection accounts for obstacle orientation."""
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(-3.0, 0.0, 0.0),
-            length=10.0,
-            height=3.0,
-            thickness=0.2,
-            orientation=(0.0, 0.0, 1.5708),
-        )
-        clutter = RectangularPrism(
-            id="clutter1",
-            type="clutter",
-            position=(-3.0, 4.0, 0.0),  # Along wall's length axis
-            subtype="rectangular_prism",
-            length=1.0,
-            width=1.0,
-            height=1.0,
-        )
-        obstacles = [wall, clutter]
-        result = validate_no_overlaps(obstacles)
+        w = helper_wall(id="wall1", position=(-3.0, 0.0, 0.0), length=10.0, thickness=0.2, orientation=(0.0, 0.0, 1.5708))
+        c = helper_clutter(id="clutter1", position=(-3.0, 4.0, 0.0), length=1.0, width=1.0, height=1.0)
+        result = validate_no_overlaps([w, c])
         assert not result.is_valid(), "Clutter placed along rotated wall should overlap"
 
 
@@ -204,72 +132,22 @@ class TestGateEmbeddingValidation:
 
     def test_valid_gate_wall_association(self):
         """Test valid gate-wall association."""
-        gate = Gate(
-            id="gate1",
-            type="gate",
-            position=(0.0, 0.0, 1.0),
-            width=1.5,
-            height=1.5,
-            thickness=0.05
-        )
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(0.0, 0.0, 0.0),
-            length=5.0,
-            height=3.0,
-            thickness=0.1,
-            gate_id="gate1"
-        )
-
-        obstacles = [wall, gate]
-        result = validate_gate_embedding(obstacles)
-
-        # Should pass basic checks (gate exists and is at wall position)
-        assert result.is_valid()
+        g = helper_gate()
+        w = helper_wall(gate_id="gate1")
+        result = validate_gate_embedding([w, g])
+        assert result.is_valid()  # Gate exists and is at wall position
 
     def test_missing_gate_reference(self):
         """Test that referencing non-existent gate is caught."""
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(0.0, 0.0, 0.0),
-            length=5.0,
-            height=3.0,
-            thickness=0.1,
-            gate_id="nonexistent_gate"
-        )
-
-        obstacles = [wall]
-        result = validate_gate_embedding(obstacles)
-
+        result = validate_gate_embedding([helper_wall(gate_id="nonexistent_gate")])
         assert not result.is_valid()
         assert any("non-existent gate" in err for err in result.errors)
 
     def test_gate_far_from_wall(self):
         """Test warning when gate is far from wall."""
-        gate = Gate(
-            id="gate1",
-            type="gate",
-            position=(10.0, 10.0, 1.0),  # Far from wall
-            width=1.5,
-            height=1.5,
-            thickness=0.05
-        )
-        wall = Wall(
-            id="wall1",
-            type="wall",
-            position=(0.0, 0.0, 0.0),
-            length=5.0,
-            height=3.0,
-            thickness=0.1,
-            gate_id="gate1"
-        )
-
-        obstacles = [wall, gate]
-        result = validate_gate_embedding(obstacles)
-
-        # Should have a warning about distance
+        g = helper_gate(position=(10.0, 10.0, 1.0))
+        w = helper_wall(gate_id="gate1")
+        result = validate_gate_embedding([w, g])
         assert len(result.warnings) > 0
         assert any("far from" in warn for warn in result.warnings)
 
@@ -280,65 +158,19 @@ class TestFullEnvironmentValidation:
     def test_valid_environment(self):
         """Test validation of a valid environment."""
         obstacles = [
-            Wall(
-                id="wall1",
-                type="wall",
-                position=(0.0, 0.0, 0.0),
-                length=8.0,
-                height=3.0,
-                thickness=0.1,
-                gate_id="gate1"
-            ),
-            Gate(
-                id="gate1",
-                type="gate",
-                position=(0.0, 0.0, 1.0),
-                width=1.5,
-                height=1.5,
-                thickness=0.05
-            ),
-            RectangularPrism(
-                id="clutter1",
-                type="clutter",
-                position=(5.0, 5.0, 0.0),
-                subtype="rectangular_prism",
-                length=0.5,
-                width=0.5,
-                height=0.8
-            )
+            helper_wall(id="wall1", length=8.0, gate_id="gate1"),
+            helper_gate(id="gate1"),
+            helper_clutter(id="clutter1", position=(5.0, 5.0, 0.0)),
         ]
-        bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
-        start = (-8.0, 0.0, 1.0)
-        goal = (8.0, 0.0, 1.0)
-
-        result = validate_environment(obstacles, bounds, start, goal)
-        # May have warnings but should not have errors
-        assert result.is_valid()
+        result = validate_environment(obstacles, BOUNDS, (-8.0, 0.0, 1.0), (8.0, 0.0, 1.0))
+        assert result.is_valid()  # May have warnings but should not have errors
 
     def test_invalid_environment_multiple_errors(self):
         """Test environment with multiple validation errors."""
         obstacles = [
-            Wall(
-                id="wall1",
-                type="wall",
-                position=(0.0, 0.0, 0.0),
-                length=-5.0,  # Invalid: negative length
-                height=3.0,
-                thickness=0.1,
-                gate_id="nonexistent_gate"  # Invalid: gate doesn't exist
-            ),
-            RectangularPrism(
-                id="clutter1",
-                type="clutter",
-                position=(0.1, 0.1, 0.1),  # May overlap with wall
-                subtype="rectangular_prism",
-                length=1.0,
-                width=1.0,
-                height=1.0
-            )
+            helper_wall(length=-5.0, gate_id="nonexistent_gate"),  # Invalid: negative length, missing gate
+            helper_clutter(position=(0.1, 0.1, 0.1), length=1.0, width=1.0, height=1.0),  # May overlap
         ]
-        bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
-
-        result = validate_environment(obstacles, bounds)
+        result = validate_environment(obstacles, BOUNDS)
         assert not result.is_valid()
         assert len(result.errors) >= 2  # Multiple errors detected

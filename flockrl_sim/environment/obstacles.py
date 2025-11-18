@@ -1,9 +1,9 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional, Set, Tuple
 import random
 from math import hypot
-from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, RectangularPrism
+from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, RectangularPrism, Bounds
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
 from flockrl_sim.environment.spec_models.obstacles import WallSpec, ClutterSpec, GateSpec
 from flockrl_sim.environment.spec_models.random_values import resolve_scalar, resolve_vector, resolve_partial_vector
@@ -12,7 +12,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-Bounds = Tuple[float, float, float, float, float, float]  # (x_min, x_max, y_min, y_max, z_min, z_max)
 MAX_PLACEMENT_ATTEMPTS = 50
 SPAWN_CLEARANCE_METERS = 2.0
 
@@ -29,9 +28,9 @@ def _instance_id(base_id: str, index: int, total: int) -> str:
 
 @dataclass
 class Environment:
-    bounds: Bounds = (-5.0, 5.0, -5.0, 5.0, -4.0, 4.0)
-    obstacles: List[Obstacle] = field(default_factory=list)
-    seed: Optional[int] = None
+    bounds: Bounds
+    obstacles: List[Obstacle]
+    seed: Optional[int]
 
     def set_bounds(self, bounds: Bounds) -> None:
         self.bounds = bounds
@@ -61,10 +60,8 @@ class Environment:
 
 
 class EnvironmentBuilder:
-    def __init__(self, config: Optional[Environment] = None, bounds: Optional[Bounds] = None) -> None:
-        self.config = config or Environment()
-        if bounds is not None:
-            self.config.set_bounds(bounds)
+    def __init__(self, config: Environment) -> None:
+        self.config = config
 
 
     def add_random_obstacles(self, n: int = 5) -> "EnvironmentBuilder":
@@ -75,7 +72,7 @@ class EnvironmentBuilder:
             x = random.uniform(self.config.bounds[0], self.config.bounds[1])
             y = random.uniform(self.config.bounds[2], self.config.bounds[3])
             z = random.uniform(self.config.bounds[4], self.config.bounds[5])
-            obstacle = Obstacle(id=str(i), type="wall", position=(x, y, z))
+            obstacle = Obstacle(id=str(i), type="wall", position=(x, y, z), orientation=(0.0, 0.0, 0.0))
             self.config.add_obstacle(obstacle)
         return self
 
@@ -86,9 +83,8 @@ class EnvironmentBuilder:
 
         Validates the environment and raises EnvironmentValidationError if invalid.
         """
-        env = Environment(bounds=spec.bounds)
-        if spec.random_seed is not None:
-            env.seed = spec.random_seed
+        env = Environment(bounds=spec.bounds, obstacles=[], seed=spec.random_seed)
+        if env.seed is not None:
             random.seed(env.seed)
 
         builder = cls(config=env)
