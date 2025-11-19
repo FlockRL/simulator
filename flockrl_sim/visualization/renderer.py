@@ -8,11 +8,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 import pandas as pd
-import pyvista as pv
 import numpy as np
 import json
 
-#from ..simulator import SimulationRun
+try:
+    import pyvista as pv  # type: ignore[import-untyped]
+except ModuleNotFoundError:
+    print("WARNING: Rendering requires pyvista, which is not installed.")
+    pv = None  # type: ignore[assignment]
 
 
 class OfflineVisualizer:
@@ -53,6 +56,11 @@ class OfflineVisualizer:
         """
         Render the currently loaded run in a 3D view
         """
+        if pv is None:
+            raise RuntimeError(
+                "Rendering requires pyvista, which is not installed. "
+                "Install pyvista to enable visualization support."
+            )
         if self.data is None:
             raise RuntimeError("No data loaded. Please call load() before render().")
 
