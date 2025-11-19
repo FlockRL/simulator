@@ -286,13 +286,13 @@ def demo_environment_loading():
 
     # Load a preset
     spec = loader.load("simple")
-    print(f"\n✓ Loaded 'simple' preset")
+    print("\n✓ Loaded 'simple' preset")
 
     # Build environment from spec
     builder = EnvironmentBuilder.from_spec(spec)
     env = builder.config
 
-    print(f"✓ Built environment:")
+    print("✓ Built environment:")
     print(f"  - Bounds: {env.bounds}")
     print(f"  - Obstacles: {len(env.obstacles)}")
     print(f"  - Start: {env.start_position}")

@@ -2,7 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Set, Tuple
 import random
-from math import hypot
 from flockrl_sim.environment.obstacles_types import (
     Obstacle,
     Wall,

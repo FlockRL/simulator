@@ -5,7 +5,6 @@ Tests for multiple gates, rotated gates, and error handling.
 """
 
 import numpy as np
-import pytest
 from flockrl_sim.collision.system import CollisionSystem
 from flockrl_sim.environment.obstacles_types import Wall, Gate
 from flockrl_sim.environment import Environment

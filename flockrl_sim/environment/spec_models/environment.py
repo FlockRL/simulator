@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Tuple, Union
+from typing import List, Tuple, Union
 from pydantic import BaseModel, Field, field_validator
 from .obstacles import ClutterSpec, WallSpec
 from .random_values import Vector3Value

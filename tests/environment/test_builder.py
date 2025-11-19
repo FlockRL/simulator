@@ -3,7 +3,6 @@
 from math import hypot
 
 import pytest
-import numpy as np
 
 from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec

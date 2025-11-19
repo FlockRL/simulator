@@ -60,9 +60,9 @@ def run_demo():
     collision_system = CollisionSystem(environment=env, drone_radius=0.5)
 
     print("Environment setup:")
-    print(f"  Wall: 10m x 8m x 0.2m at position (0, 0, 0)")
-    print(f"  Gate: 2m x 2m x 0.2m at position (0, 0, 0)")
-    print(f"  Drone radius: 0.5m")
+    print("  Wall: 10m x 8m x 0.2m at position (0, 0, 0)")
+    print("  Gate: 2m x 2m x 0.2m at position (0, 0, 0)")
+    print("  Drone radius: 0.5m")
     print()
 
     # Test scenarios

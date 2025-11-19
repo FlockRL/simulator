@@ -6,7 +6,6 @@ including RectangularPrism, Wall, and Gate objects.
 """
 
 import numpy as np
-import pytest
 from math import isclose
 
 from flockrl_sim.environment.obstacles_types import Gate, Wall, RectangularPrism
