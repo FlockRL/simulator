@@ -50,19 +50,19 @@ def get_obstacle_props(obs):
 def create_box_vertices(center, dimensions, orientation=None):
     """Create 3D box vertices with optional rotation."""
     x, y, z = center
-    l, w, h = dimensions
+    length, width, height = dimensions
 
     # Define box vertices centered at origin
     vertices = np.array(
         [
-            [-l / 2, -w / 2, -h / 2],
-            [+l / 2, -w / 2, -h / 2],
-            [+l / 2, +w / 2, -h / 2],
-            [-l / 2, +w / 2, -h / 2],
-            [-l / 2, -w / 2, +h / 2],
-            [+l / 2, -w / 2, +h / 2],
-            [+l / 2, +w / 2, +h / 2],
-            [-l / 2, +w / 2, +h / 2],
+            [-length / 2, -width / 2, -height / 2],
+            [+length / 2, -width / 2, -height / 2],
+            [+length / 2, +width / 2, -height / 2],
+            [-length / 2, +width / 2, -height / 2],
+            [-length / 2, -width / 2, +height / 2],
+            [+length / 2, -width / 2, +height / 2],
+            [+length / 2, +width / 2, +height / 2],
+            [-length / 2, +width / 2, +height / 2],
         ]
     )
 

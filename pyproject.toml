@@ -7,7 +7,7 @@ name = "flockrl-sim"
 version = "0.1.0"
 description = "Skeleton codebase for the FlockRL drone simulator."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "click>=8.0",
     "numpy>=1.21",
