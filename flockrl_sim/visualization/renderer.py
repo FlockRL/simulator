@@ -17,8 +17,6 @@ except ModuleNotFoundError:
     print("WARNING: Rendering requires pyvista, which is not installed.")
     pv = None  # type: ignore[assignment]
 
-#from ..simulator import SimulationRun
-
 
 class OfflineVisualizer:
     """
