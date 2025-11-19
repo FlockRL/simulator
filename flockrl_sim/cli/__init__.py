@@ -3,4 +3,3 @@
 from flockrl_sim.cli.main import cli
 
 __all__ = ["cli"]
-

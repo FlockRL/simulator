@@ -7,7 +7,11 @@ import numpy as np
 
 from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
-from flockrl_sim.environment.spec_models.obstacles import WallSpec, ClutterSpec, GateSpec
+from flockrl_sim.environment.spec_models.obstacles import (
+    WallSpec,
+    ClutterSpec,
+    GateSpec,
+)
 from flockrl_sim.environment.spec_models.random_values import UniformRandomConfig
 from flockrl_sim.environment.obstacles_types import Gate, Wall, RectangularPrism
 from flockrl_sim.environment.obstacles import SPAWN_CLEARANCE_METERS
@@ -100,35 +104,38 @@ class TestRandomGeneration:
         for i, obs1 in enumerate(env.obstacles):
             for obs2 in env.obstacles[i + 1 :]:
                 # Skip if one is the other's gate
-                if (isinstance(obs1, Wall) and obs2.id in obs1.linked_gate_ids()) or \
-                   (isinstance(obs2, Wall) and obs1.id in obs2.linked_gate_ids()):
+                if (isinstance(obs1, Wall) and obs2.id in obs1.linked_gate_ids()) or (
+                    isinstance(obs2, Wall) and obs1.id in obs2.linked_gate_ids()
+                ):
                     continue
                 assert not check_overlap(obs1, obs2)
 
     def test_random_clutter_count(self):
         """Test that random clutter respects count parameter."""
-        spec = EnvironmentSpec(**spec_kwargs(
-            name="clutter_demo",
-            random_seed=7,
-            bounds=(-6.0, 6.0, -6.0, 6.0, 0.0, 4.0),
-            obstacles=[
-                ClutterSpec(
-                    id="clutter_template",
-                    random=True,
-                    count=4,
-                    position=(
-                        UniformRandomConfig(uniform=(-5.0, 5.0)),
-                        UniformRandomConfig(uniform=(-5.0, 5.0)),
-                        UniformRandomConfig(uniform=(0.5, 3.5)),
-                    ),
-                    orientation=(0.0, 0.0, 0.0),
-                    subtype="rectangular_prism",
-                    length=UniformRandomConfig(uniform=(0.5, 1.0)),
-                    width=UniformRandomConfig(uniform=(0.5, 1.0)),
-                    height=UniformRandomConfig(uniform=(0.5, 1.0)),
-                )
-            ],
-        ))
+        spec = EnvironmentSpec(
+            **spec_kwargs(
+                name="clutter_demo",
+                random_seed=7,
+                bounds=(-6.0, 6.0, -6.0, 6.0, 0.0, 4.0),
+                obstacles=[
+                    ClutterSpec(
+                        id="clutter_template",
+                        random=True,
+                        count=4,
+                        position=(
+                            UniformRandomConfig(uniform=(-5.0, 5.0)),
+                            UniformRandomConfig(uniform=(-5.0, 5.0)),
+                            UniformRandomConfig(uniform=(0.5, 3.5)),
+                        ),
+                        orientation=(0.0, 0.0, 0.0),
+                        subtype="rectangular_prism",
+                        length=UniformRandomConfig(uniform=(0.5, 1.0)),
+                        width=UniformRandomConfig(uniform=(0.5, 1.0)),
+                        height=UniformRandomConfig(uniform=(0.5, 1.0)),
+                    )
+                ],
+            )
+        )
 
         env = EnvironmentBuilder.from_spec(spec).build()
         clutters = [obs for obs in env.obstacles if isinstance(obs, RectangularPrism)]
@@ -136,30 +143,32 @@ class TestRandomGeneration:
 
     def test_random_resamples_when_out_of_bounds(self):
         """Test that random generation resamples when placement violates bounds."""
-        spec = EnvironmentSpec(**spec_kwargs(
-            name="clutter_resample",
-            random_seed=42,
-            bounds=(-5.0, 5.0, -5.0, 5.0, 0.0, 0.5),
-            start_position=(-4.0, 0.0, 0.25),
-            goal_position=(4.0, 0.0, 0.25),
-            obstacles=[
-                ClutterSpec(
-                    id="clutter_template",
-                    random=True,
-                    count=1,
-                    position=(
-                        UniformRandomConfig(uniform=(-1.0, 2.0)),
-                        UniformRandomConfig(uniform=(-1.0, 2.0)),
-                        UniformRandomConfig(uniform=(-1.0, 2.0)),
+        spec = EnvironmentSpec(
+            **spec_kwargs(
+                name="clutter_resample",
+                random_seed=42,
+                bounds=(-5.0, 5.0, -5.0, 5.0, 0.0, 0.5),
+                start_position=(-4.0, 0.0, 0.25),
+                goal_position=(4.0, 0.0, 0.25),
+                obstacles=[
+                    ClutterSpec(
+                        id="clutter_template",
+                        random=True,
+                        count=1,
+                        position=(
+                            UniformRandomConfig(uniform=(-1.0, 2.0)),
+                            UniformRandomConfig(uniform=(-1.0, 2.0)),
+                            UniformRandomConfig(uniform=(-1.0, 2.0)),
+                        ),
+                        orientation=(0.0, 0.0, 0.0),
+                        subtype="rectangular_prism",
+                        length=0.2,
+                        width=0.2,
+                        height=0.2,
                     ),
-                    orientation=(0.0, 0.0, 0.0),
-                    subtype="rectangular_prism",
-                    length=0.2,
-                    width=0.2,
-                    height=0.2,
-                ),
-            ],
-        ))
+                ],
+            )
+        )
 
         env = EnvironmentBuilder.from_spec(spec).build()
 
@@ -178,34 +187,36 @@ class TestGateGeneration:
 
     def test_random_wall_gate_inheritance(self):
         """Test that gates inherit properties from their walls."""
-        spec = EnvironmentSpec(**spec_kwargs(
-            name="suffix_demo",
-            random_seed=2024,
-            bounds=(-5.0, 5.0, -5.0, 5.0, 0.0, 5.0),
-            obstacles=[
-                WallSpec(
-                    id="wall_template",
-                    random=True,
-                    count=2,
-                    position=(
-                        UniformRandomConfig(uniform=(-2.0, 2.0)),
-                        UniformRandomConfig(uniform=(-1.5, 1.5)),
-                        1.25,
+        spec = EnvironmentSpec(
+            **spec_kwargs(
+                name="suffix_demo",
+                random_seed=2024,
+                bounds=(-5.0, 5.0, -5.0, 5.0, 0.0, 5.0),
+                obstacles=[
+                    WallSpec(
+                        id="wall_template",
+                        random=True,
+                        count=2,
+                        position=(
+                            UniformRandomConfig(uniform=(-2.0, 2.0)),
+                            UniformRandomConfig(uniform=(-1.5, 1.5)),
+                            1.25,
+                        ),
+                        orientation=(0.0, 0.0, 0.0),
+                        length=4.0,
+                        height=2.5,
+                        thickness=0.2,
+                        gates=[
+                            GateSpec(
+                                position=(None, None, 1.25),
+                                width=1.0,
+                                height=1.0,
+                            )
+                        ],
                     ),
-                    orientation=(0.0, 0.0, 0.0),
-                    length=4.0,
-                    height=2.5,
-                    thickness=0.2,
-                    gates=[
-                        GateSpec(
-                            position=(None, None, 1.25),
-                            width=1.0,
-                            height=1.0,
-                        )
-                    ],
-                ),
-            ],
-        ))
+                ],
+            )
+        )
 
         env = EnvironmentBuilder.from_spec(spec).build()
         walls = [obs for obs in env.obstacles if isinstance(obs, Wall)]
@@ -222,31 +233,33 @@ class TestGateGeneration:
 
     def test_multiple_gates_per_wall(self):
         """Test walls with multiple inline gates."""
-        spec = EnvironmentSpec(**spec_kwargs(
-            name="multi_gate_wall",
-            obstacles=[
-                WallSpec(
-                    id="wall_multi",
-                    position=(0.0, 0.0, 1.25),
-                    orientation=(0.0, 0.0, 0.0),
-                    length=4.0,
-                    height=2.5,
-                    thickness=0.2,
-                    gates=[
-                        GateSpec(
-                            position=(None, 0.0, None),
-                            width=1.0,
-                            height=1.5,
-                        ),
-                        GateSpec(
-                            position=(1.0, 0.0, None),
-                            width=1.0,
-                            height=1.5,
-                        ),
-                    ],
-                ),
-            ],
-        ))
+        spec = EnvironmentSpec(
+            **spec_kwargs(
+                name="multi_gate_wall",
+                obstacles=[
+                    WallSpec(
+                        id="wall_multi",
+                        position=(0.0, 0.0, 1.25),
+                        orientation=(0.0, 0.0, 0.0),
+                        length=4.0,
+                        height=2.5,
+                        thickness=0.2,
+                        gates=[
+                            GateSpec(
+                                position=(None, 0.0, None),
+                                width=1.0,
+                                height=1.5,
+                            ),
+                            GateSpec(
+                                position=(1.0, 0.0, None),
+                                width=1.0,
+                                height=1.5,
+                            ),
+                        ],
+                    ),
+                ],
+            )
+        )
 
         env = EnvironmentBuilder.from_spec(spec).build()
         walls = [obs for obs in env.obstacles if isinstance(obs, Wall)]
@@ -262,44 +275,48 @@ class TestGateGeneration:
 
     def test_manual_walls_get_unique_gate_ids(self):
         """Test that multiple walls with gates get unique IDs."""
-        spec = EnvironmentSpec(**spec_kwargs(
-            name="shared_gate_spec",
-            obstacles=[
-                WallSpec(
-                    id="wall_a",
-                    position=(-2.0, 0.0, 1.0),
-                    orientation=(0.0, 0.0, 0.0),
-                    length=3.0,
-                    height=2.0,
-                    thickness=0.2,
-                    gates=[
-                        GateSpec(
-                            position=(None, None, None),
-                            width=1.0,
-                            height=1.5,
-                        )
-                    ],
-                ),
-                WallSpec(
-                    id="wall_b",
-                    position=(2.0, 0.0, 1.0),
-                    orientation=(0.0, 0.0, 0.0),
-                    length=3.0,
-                    height=2.0,
-                    thickness=0.2,
-                    gates=[
-                        GateSpec(
-                            position=(None, None, None),
-                            width=1.0,
-                            height=1.5,
-                        )
-                    ],
-                ),
-            ],
-        ))
+        spec = EnvironmentSpec(
+            **spec_kwargs(
+                name="shared_gate_spec",
+                obstacles=[
+                    WallSpec(
+                        id="wall_a",
+                        position=(-2.0, 0.0, 1.0),
+                        orientation=(0.0, 0.0, 0.0),
+                        length=3.0,
+                        height=2.0,
+                        thickness=0.2,
+                        gates=[
+                            GateSpec(
+                                position=(None, None, None),
+                                width=1.0,
+                                height=1.5,
+                            )
+                        ],
+                    ),
+                    WallSpec(
+                        id="wall_b",
+                        position=(2.0, 0.0, 1.0),
+                        orientation=(0.0, 0.0, 0.0),
+                        length=3.0,
+                        height=2.0,
+                        thickness=0.2,
+                        gates=[
+                            GateSpec(
+                                position=(None, None, None),
+                                width=1.0,
+                                height=1.5,
+                            )
+                        ],
+                    ),
+                ],
+            )
+        )
 
         env = EnvironmentBuilder.from_spec(spec).build()
-        walls = sorted([obs for obs in env.obstacles if isinstance(obs, Wall)], key=lambda w: w.id)
+        walls = sorted(
+            [obs for obs in env.obstacles if isinstance(obs, Wall)], key=lambda w: w.id
+        )
         assert len(walls) == 2
 
         gate_ids = {wall.gate_ids[0] for wall in walls}
@@ -320,27 +337,29 @@ class TestBuilderEdgeCases:
 
     def test_placement_failure_raises_error(self):
         """Test that impossible placement raises error."""
-        spec = EnvironmentSpec(**spec_kwargs(
-            name="impossible_placement",
-            random_seed=42,
-            bounds=(-1.0, 1.0, -1.0, 1.0, 0.0, 2.0),
-            obstacles=[
-                WallSpec(
-                    id="wall_template",
-                    random=True,
-                    count=100,
-                    position=(
-                        UniformRandomConfig(uniform=(-0.5, 0.5)),
-                        UniformRandomConfig(uniform=(-0.5, 0.5)),
-                        1.0,
+        spec = EnvironmentSpec(
+            **spec_kwargs(
+                name="impossible_placement",
+                random_seed=42,
+                bounds=(-1.0, 1.0, -1.0, 1.0, 0.0, 2.0),
+                obstacles=[
+                    WallSpec(
+                        id="wall_template",
+                        random=True,
+                        count=100,
+                        position=(
+                            UniformRandomConfig(uniform=(-0.5, 0.5)),
+                            UniformRandomConfig(uniform=(-0.5, 0.5)),
+                            1.0,
+                        ),
+                        orientation=(0.0, 0.0, 0.0),
+                        length=2.0,
+                        height=2.0,
+                        thickness=0.2,
                     ),
-                    orientation=(0.0, 0.0, 0.0),
-                    length=2.0,
-                    height=2.0,
-                    thickness=0.2,
-                ),
-            ],
-        ))
+                ],
+            )
+        )
 
         with pytest.raises(ValueError) as exc_info:
             EnvironmentBuilder.from_spec(spec).build()

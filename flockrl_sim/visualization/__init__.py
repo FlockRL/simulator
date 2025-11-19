@@ -3,4 +3,3 @@
 from .renderer import OfflineVisualizer
 
 __all__ = ["OfflineVisualizer"]
-

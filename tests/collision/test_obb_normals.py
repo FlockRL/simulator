@@ -21,7 +21,7 @@ def basic_environment():
         obstacles=[],
         start_position=(-10.0, -10.0, 0.0),
         goal_position=(10.0, 10.0, 0.0),
-        seed=42
+        seed=42,
     )
     return env
 
@@ -39,19 +39,21 @@ class TestAxisAlignedNormals:
             length=2.0,
             height=2.0,
             thickness=2.0,
-            gate_ids=()
+            gate_ids=(),
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
+        collision_system = CollisionSystem(
+            environment=basic_environment, drone_radius=0.5
+        )
 
         # Test each face
         test_cases = [
-            (np.array([1.4, 0.0, 0.0]), np.array([1.0, 0.0, 0.0])),    # +X face
+            (np.array([1.4, 0.0, 0.0]), np.array([1.0, 0.0, 0.0])),  # +X face
             (np.array([-1.4, 0.0, 0.0]), np.array([-1.0, 0.0, 0.0])),  # -X face
-            (np.array([0.0, 1.4, 0.0]), np.array([0.0, 1.0, 0.0])),    # +Y face
+            (np.array([0.0, 1.4, 0.0]), np.array([0.0, 1.0, 0.0])),  # +Y face
             (np.array([0.0, -1.4, 0.0]), np.array([0.0, -1.0, 0.0])),  # -Y face
-            (np.array([0.0, 0.0, 1.4]), np.array([0.0, 0.0, 1.0])),    # +Z face
+            (np.array([0.0, 0.0, 1.4]), np.array([0.0, 0.0, 1.0])),  # +Z face
             (np.array([0.0, 0.0, -1.4]), np.array([0.0, 0.0, -1.0])),  # -Z face
         ]
 
@@ -62,7 +64,7 @@ class TestAxisAlignedNormals:
                 vel=np.array([[0.0, 0.0, 0.0]]),
                 acc=np.array([[0.0, 0.0, 0.0]]),
                 ids=np.array([0]),
-                t=0.0
+                t=0.0,
             )
 
             _, info = collision_system(state)
@@ -70,8 +72,9 @@ class TestAxisAlignedNormals:
 
             assert len(collisions) == 1, f"No collision at position {pos}"
             normal = collisions[0].normal_vector
-            assert np.allclose(normal, expected_normal, atol=1e-6), \
+            assert np.allclose(normal, expected_normal, atol=1e-6), (
                 f"Expected normal {expected_normal}, got {normal} for position {pos}"
+            )
 
 
 class TestRotatedNormals:
@@ -89,11 +92,13 @@ class TestRotatedNormals:
             length=4.0,
             height=4.0,
             thickness=1.0,
-            gate_ids=()
+            gate_ids=(),
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
+        collision_system = CollisionSystem(
+            environment=basic_environment, drone_radius=0.5
+        )
 
         # Drone approaching from +X (which is local Y after rotation)
         state = SwarmState(
@@ -102,7 +107,7 @@ class TestRotatedNormals:
             vel=np.array([[-1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)

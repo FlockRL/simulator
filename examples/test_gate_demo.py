@@ -24,7 +24,7 @@ def create_gate_demo_environment():
         length=10.0,
         height=8.0,
         thickness=0.2,
-        gate_ids=("demo_gate",)
+        gate_ids=("demo_gate",),
     )
 
     # Gate at center of wall, 2m wide x 2m high
@@ -35,7 +35,7 @@ def create_gate_demo_environment():
         orientation=(0.0, 0.0, 0.0),
         width=2.0,
         height=2.0,
-        thickness=0.2
+        thickness=0.2,
     )
 
     env = Environment(
@@ -43,7 +43,7 @@ def create_gate_demo_environment():
         obstacles=[gate, wall],
         start_position=(-5.0, -5.0, 0.0),
         goal_position=(5.0, 5.0, 0.0),
-        seed=42
+        seed=42,
     )
 
     return env
@@ -70,33 +70,33 @@ def run_demo():
         {
             "name": "Drone through center of gate",
             "positions": [[0.0, 0.0, 0.0]],
-            "expected_collisions": 0
+            "expected_collisions": 0,
         },
         {
             "name": "Drone near gate edge (inside)",
             "positions": [[0.9, 0.0, 0.9]],
-            "expected_collisions": 0
+            "expected_collisions": 0,
         },
         {
             "name": "Drone outside gate (left side)",
             "positions": [[2.0, 0.0, 0.0]],
-            "expected_collisions": 1
+            "expected_collisions": 1,
         },
         {
             "name": "Drone above gate",
             "positions": [[0.0, 0.0, 2.0]],
-            "expected_collisions": 1
+            "expected_collisions": 1,
         },
         {
             "name": "Multiple drones (mixed)",
             "positions": [
-                [0.0, 0.0, 0.0],    # Through gate
-                [3.0, 0.0, 0.0],    # Hitting wall
-                [0.5, 0.0, 0.5],    # Through gate
-                [-3.0, 0.0, 0.0],   # Hitting wall
+                [0.0, 0.0, 0.0],  # Through gate
+                [3.0, 0.0, 0.0],  # Hitting wall
+                [0.5, 0.0, 0.5],  # Through gate
+                [-3.0, 0.0, 0.0],  # Hitting wall
             ],
-            "expected_collisions": 2
-        }
+            "expected_collisions": 2,
+        },
     ]
 
     for scenario in scenarios:
@@ -104,14 +104,14 @@ def run_demo():
         print(f"Scenario: {scenario['name']}")
         print(f"Positions: {scenario['positions']}")
 
-        num_drones = len(scenario['positions'])
+        num_drones = len(scenario["positions"])
         state = SwarmState(
-            pos=np.array(scenario['positions']),
+            pos=np.array(scenario["positions"]),
             vel=np.array([[0.0, 1.0, 0.0]] * num_drones),
             acc=np.zeros((num_drones, 3)),
             ids=np.array(range(num_drones)),
             goals=np.zeros((num_drones, 3)),  # Goals always required
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -126,9 +126,11 @@ def run_demo():
                 print(f"    Normal: {collision.normal_vector}")
                 print(f"    Penetration: {collision.penetration_depth:.3f}m")
 
-        expected = scenario['expected_collisions']
+        expected = scenario["expected_collisions"]
         status = "✓ PASS" if len(wall_collisions) == expected else "✗ FAIL"
-        print(f"Expected {expected} collision(s), got {len(wall_collisions)} - {status}")
+        print(
+            f"Expected {expected} collision(s), got {len(wall_collisions)} - {status}"
+        )
         print()
 
     print("=" * 70)

@@ -4,6 +4,7 @@ Tests for ray intersection functionality with obstacles.
 This module tests the ray_intersect methods for various obstacle types
 including RectangularPrism, Wall, and Gate objects.
 """
+
 import numpy as np
 import pytest
 from math import isclose
@@ -37,7 +38,7 @@ class TestRectangularPrismRayIntersect:
             length=2,
             width=2,
             height=2,
-            subtype="box"
+            subtype="box",
         )
 
         # Test hitting top face (Z+)
@@ -77,7 +78,7 @@ class TestRectangularPrismRayIntersect:
             length=2,
             width=2,
             height=2,
-            subtype="box"
+            subtype="box",
         )
 
         # Ray parallel to box, outside its bounds
@@ -96,11 +97,11 @@ class TestRectangularPrismRayIntersect:
             id="box3",
             type="box",
             position=(0, 0, 0),
-            orientation=(0, 0, np.pi/2),
+            orientation=(0, 0, np.pi / 2),
             length=2,
             width=2,
             height=2,
-            subtype="box"
+            subtype="box",
         )
 
         d = unit((-1, 0, 0))
@@ -122,7 +123,7 @@ class TestRectangularPrismRayIntersect:
             length=2,
             width=2,
             height=2,
-            subtype="box"
+            subtype="box",
         )
 
         # Ray just inside the +X face boundary
@@ -145,7 +146,7 @@ class TestWallRayIntersect:
             orientation=(0, 0, 0),
             length=10,
             thickness=0.5,
-            height=3
+            height=3,
         )
 
         # Ray hitting the wall from the side
@@ -180,10 +181,10 @@ class TestWallRayIntersect:
             id="w2",
             type="wall",
             position=(0, 0, 0),
-            orientation=(0, 0, np.pi/2),
+            orientation=(0, 0, np.pi / 2),
             length=10,
             thickness=0.5,
-            height=3
+            height=3,
         )
 
         # After 90° rotation around Z, the wall's length is along Y
@@ -208,7 +209,7 @@ class TestGateRayIntersect:
             orientation=(0, 0, 0),
             width=4,
             height=5,
-            thickness=0.5
+            thickness=0.5,
         )
 
         # Ray hitting the gate from the side
@@ -239,10 +240,10 @@ class TestGateRayIntersect:
             id="g2",
             type="gate",
             position=(0, 0, 0),
-            orientation=(0, np.pi/2, 0),
+            orientation=(0, np.pi / 2, 0),
             width=4,
             height=5,
-            thickness=0.5
+            thickness=0.5,
         )
 
         # After 90° rotation around Y, the gate's width is along Z

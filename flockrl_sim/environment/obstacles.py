@@ -3,11 +3,30 @@ from dataclasses import dataclass
 from typing import List, Optional, Set, Tuple
 import random
 from math import hypot
-from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, RectangularPrism, Bounds
+from flockrl_sim.environment.obstacles_types import (
+    Obstacle,
+    Wall,
+    Gate,
+    RectangularPrism,
+    Bounds,
+)
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
-from flockrl_sim.environment.spec_models.obstacles import WallSpec, ClutterSpec, GateSpec
-from flockrl_sim.environment.spec_models.random_values import resolve_scalar, resolve_vector, resolve_partial_vector
-from flockrl_sim.environment.validation import check_overlap, validate_environment, validate_gate_embedding, validate_geometry
+from flockrl_sim.environment.spec_models.obstacles import (
+    WallSpec,
+    ClutterSpec,
+    GateSpec,
+)
+from flockrl_sim.environment.spec_models.random_values import (
+    resolve_scalar,
+    resolve_vector,
+    resolve_partial_vector,
+)
+from flockrl_sim.environment.validation import (
+    check_overlap,
+    validate_environment,
+    validate_gate_embedding,
+    validate_geometry,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,7 +51,6 @@ class Environment:
     def set_bounds(self, bounds: Bounds) -> None:
         self.bounds = bounds
         logger.debug(f"Environment bounds set to {self.bounds}")
-
 
     def add_obstacle(self, obstacle: Obstacle) -> None:
         self.obstacles.append(obstacle)
@@ -69,7 +87,9 @@ class EnvironmentBuilder:
             x = self.rng.uniform(self.config.bounds[0], self.config.bounds[1])
             y = self.rng.uniform(self.config.bounds[2], self.config.bounds[3])
             z = self.rng.uniform(self.config.bounds[4], self.config.bounds[5])
-            obstacle = Obstacle(id=str(i), type="wall", position=(x, y, z), orientation=(0.0, 0.0, 0.0))
+            obstacle = Obstacle(
+                id=str(i), type="wall", position=(x, y, z), orientation=(0.0, 0.0, 0.0)
+            )
             self.config.add_obstacle(obstacle)
         return self
 
@@ -99,7 +119,9 @@ class EnvironmentBuilder:
             else:
                 raise TypeError(f"Unsupported obstacle spec type: {type(obs_spec)}")
 
-        validation_result = validate_environment(builder.config.obstacles, builder.config.bounds, start_pos, goal_pos) # Validate the environment
+        validation_result = validate_environment(
+            builder.config.obstacles, builder.config.bounds, start_pos, goal_pos
+        )  # Validate the environment
 
         if not validation_result.is_valid():
             raise ValueError(f"Environment validation failed:\n{validation_result}")
@@ -109,7 +131,9 @@ class EnvironmentBuilder:
 
         return builder
 
-    def _process_wall_spec(self, spec: WallSpec, spawn_positions: List[Tuple[float, float, float]]) -> None:
+    def _process_wall_spec(
+        self, spec: WallSpec, spawn_positions: List[Tuple[float, float, float]]
+    ) -> None:
         total = spec.count
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
@@ -147,21 +171,35 @@ class EnvironmentBuilder:
                     gate_ids=tuple(g.id for g in gate_instances),
                 )
 
-                geometry_checks = [validate_geometry(obj, self.config.bounds) for obj in [wall, *gate_instances]]
-                geometry_errors = [error for result in geometry_checks for error in result.errors]
+                geometry_checks = [
+                    validate_geometry(obj, self.config.bounds)
+                    for obj in [wall, *gate_instances]
+                ]
+                geometry_errors = [
+                    error for result in geometry_checks for error in result.errors
+                ]
                 gate_errors = validate_gate_embedding([wall, *gate_instances]).errors
-                
+
                 if geometry_errors or gate_errors:
                     if not spec.random:
-                        raise ValueError(f"Invalid geometry for wall '{wall_id}': {'; '.join(geometry_errors + gate_errors)}")
+                        raise ValueError(
+                            f"Invalid geometry for wall '{wall_id}': {'; '.join(geometry_errors + gate_errors)}"
+                        )
                     continue
 
                 if spec.random:
-                    if not self._check_placement(wall, spawn_positions, {g.id for g in gate_instances} if gate_instances else None):
+                    if not self._check_placement(
+                        wall,
+                        spawn_positions,
+                        {g.id for g in gate_instances} if gate_instances else None,
+                    ):
                         continue
 
                     # Check all gates for collisions
-                    if not all(self._check_placement(g, spawn_positions, {wall.id}) for g in gate_instances):
+                    if not all(
+                        self._check_placement(g, spawn_positions, {wall.id})
+                        for g in gate_instances
+                    ):
                         continue
 
                 # Add all gates first, then wall
@@ -201,7 +239,9 @@ class EnvironmentBuilder:
             thickness=wall_thickness,
         )
 
-    def _process_clutter_spec(self, spec: ClutterSpec, spawn_positions: List[Tuple[float, float, float]]) -> None:
+    def _process_clutter_spec(
+        self, spec: ClutterSpec, spawn_positions: List[Tuple[float, float, float]]
+    ) -> None:
         total = spec.count
         attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
 
@@ -230,7 +270,9 @@ class EnvironmentBuilder:
                 geometry_result = validate_geometry(clutter, self.config.bounds)
                 if geometry_result.errors:
                     if not spec.random:
-                        raise ValueError(f"Invalid geometry for clutter '{clutter_id}': {'; '.join(geometry_result.errors)}")
+                        raise ValueError(
+                            f"Invalid geometry for clutter '{clutter_id}': {'; '.join(geometry_result.errors)}"
+                        )
                     continue
 
                 if spec.random and not self._check_placement(clutter, spawn_positions):
@@ -250,22 +292,43 @@ class EnvironmentBuilder:
 
     def _is_clear_of_spawn(self, position, spawn_positions) -> bool:
         return not spawn_positions or all(
-            ((position[0] - spawn[0])**2 + (position[1] - spawn[1])**2 + (position[2] - spawn[2])**2)**0.5 >= SPAWN_CLEARANCE_METERS
+            (
+                (position[0] - spawn[0]) ** 2
+                + (position[1] - spawn[1]) ** 2
+                + (position[2] - spawn[2]) ** 2
+            )
+            ** 0.5
+            >= SPAWN_CLEARANCE_METERS
             for spawn in spawn_positions
         )
 
-    def _check_placement(self, obstacle: Obstacle, spawn_positions: List[Tuple[float, float, float]], ignore_ids: Optional[Set[str]] = None) -> bool:
+    def _check_placement(
+        self,
+        obstacle: Obstacle,
+        spawn_positions: List[Tuple[float, float, float]],
+        ignore_ids: Optional[Set[str]] = None,
+    ) -> bool:
         """Return True if obstacle placement is valid (clear of spawn and no collisions), False otherwise."""
-        return self._is_clear_of_spawn(obstacle.position, spawn_positions) and not self._collides_with_existing(obstacle, ignore_ids)
+        return self._is_clear_of_spawn(
+            obstacle.position, spawn_positions
+        ) and not self._collides_with_existing(obstacle, ignore_ids)
 
-    def _collides_with_existing(self, candidate: Obstacle, ignore_ids: Optional[Set[str]] = None) -> bool:
+    def _collides_with_existing(
+        self, candidate: Obstacle, ignore_ids: Optional[Set[str]] = None
+    ) -> bool:
         """Return True if candidate collides with any existing obstacle, False otherwise."""
         for existing in self.config.obstacles:
             if ignore_ids and existing.id in ignore_ids:
                 continue
-            if isinstance(candidate, Wall) and existing.id in candidate.linked_gate_ids():
+            if (
+                isinstance(candidate, Wall)
+                and existing.id in candidate.linked_gate_ids()
+            ):
                 continue
-            if isinstance(existing, Wall) and candidate.id in existing.linked_gate_ids():
+            if (
+                isinstance(existing, Wall)
+                and candidate.id in existing.linked_gate_ids()
+            ):
                 continue
             if check_overlap(candidate, existing):
                 return True

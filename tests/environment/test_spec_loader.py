@@ -31,7 +31,9 @@ class TestSpecLoaderPresets:
 
         assert spec.name == "simple"
         assert spec.random_seed == 42
-        assert any(isinstance(obs, ClutterSpec) and obs.random for obs in spec.obstacles)
+        assert any(
+            isinstance(obs, ClutterSpec) and obs.random for obs in spec.obstacles
+        )
 
     def test_load_nonexistent_preset(self):
         """Test that loading non-existent preset raises error."""
@@ -101,11 +103,15 @@ class TestSpecLoaderErrorHandling:
     def test_load_validation_error_preserves_details(self, tmp_path):
         """Test that Pydantic validation errors are preserved."""
         invalid_spec = tmp_path / "invalid_spec.json"
-        invalid_spec.write_text(json.dumps({
-            "name": "invalid",
-            "description": "Missing required fields",
-            "bounds": [-5, 5, -5, 5, 0, 5],
-        }))
+        invalid_spec.write_text(
+            json.dumps(
+                {
+                    "name": "invalid",
+                    "description": "Missing required fields",
+                    "bounds": [-5, 5, -5, 5, 0, 5],
+                }
+            )
+        )
 
         loader = EnvironmentSpecLoader()
         with pytest.raises(ValueError) as exc_info:

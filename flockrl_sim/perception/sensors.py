@@ -31,6 +31,7 @@ class SensorConfig:
     num_rays: int = 128
     max_neighbour_range: float = 10.0
 
+
 @dataclass
 class SensorReading:
     """
@@ -83,7 +84,6 @@ class PerceptionSystem:
         config: Optional[SensorConfig] = None,
         seed: Optional[int] = None,
     ) -> None:
-
         self.environment = environment
         self.config = config or SensorConfig()
         self.rays = generate_rays(self.config.num_rays, seed)

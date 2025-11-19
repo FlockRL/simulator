@@ -37,7 +37,9 @@ class SwarmState:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_initial_positions(cls, positions: np.ndarray, ids: np.ndarray, goals: np.ndarray) -> SwarmState:
+    def from_initial_positions(
+        cls, positions: np.ndarray, ids: np.ndarray, goals: np.ndarray
+    ) -> SwarmState:
         """
         Create a SwarmState from initial positions with zero velocities and accelerations.
 
@@ -56,7 +58,9 @@ class SwarmState:
 
         N = positions.shape[0]
         if ids.shape[0] != N:
-            raise ValueError("Positions and IDs must have the same number of drones (N).")
+            raise ValueError(
+                "Positions and IDs must have the same number of drones (N)."
+            )
 
         if goals.shape != (N, 3):
             raise ValueError(f"Goals must have shape (N, 3), got {goals.shape}")
@@ -72,7 +76,8 @@ class SwarmState:
             acc=accelerations,
             ids=ids,
             goals=goals,
-            metadata={})
+            metadata={},
+        )
 
     def clone(self) -> SwarmState:
         """
@@ -81,11 +86,11 @@ class SwarmState:
         Useful for collision detection (testing proposed states) and logging.
         """
         return SwarmState(
-            t = self.t,
+            t=self.t,
             pos=self.pos.copy() if self.pos is not None else None,
             vel=self.vel.copy() if self.vel is not None else None,
             acc=self.acc.copy() if self.acc is not None else None,
             ids=self.ids.copy() if self.ids is not None else None,
             goals=self.goals.copy(),  # Always required, never None
-            metadata=self.metadata.copy()
+            metadata=self.metadata.copy(),
         )

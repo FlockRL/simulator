@@ -3,6 +3,7 @@ from typing import Annotated, Any, List, Optional, Tuple, Union
 import random
 from pydantic import BaseModel, BeforeValidator, field_validator
 
+
 class UniformRandomConfig(BaseModel):
     uniform: Tuple[float, float]
 
@@ -14,6 +15,7 @@ class UniformRandomConfig(BaseModel):
             raise ValueError("Uniform range min must not be more than max")
         return value
 
+
 class DiscreteRandomConfig(BaseModel):
     discrete: List[float]
 
@@ -24,14 +26,18 @@ class DiscreteRandomConfig(BaseModel):
             raise ValueError("Discrete value list must not be empty")
         return [float(v) for v in values]
 
+
 ScalarValue = Annotated[
     Union[float, UniformRandomConfig, DiscreteRandomConfig],
-    BeforeValidator(lambda x: float(x) if isinstance(x, int) else x)
+    BeforeValidator(lambda x: float(x) if isinstance(x, int) else x),
 ]
 Vector3Value = Tuple[ScalarValue, ScalarValue, ScalarValue]
 
 # Allows for inheritance of parent values. Used only for gates.
-PartialVector3Value = Tuple[Optional[ScalarValue], Optional[ScalarValue], Optional[ScalarValue]]
+PartialVector3Value = Tuple[
+    Optional[ScalarValue], Optional[ScalarValue], Optional[ScalarValue]
+]
+
 
 def contains_random_value(value: Any) -> bool:
     """Recursively check if the value contains any random configuration."""
@@ -40,6 +46,7 @@ def contains_random_value(value: Any) -> bool:
     if isinstance(value, (tuple, list)):
         return any(contains_random_value(v) for v in value)
     return False
+
 
 def validate_positive_scalar(value: ScalarValue, field_name: str) -> ScalarValue:
     """Ensure scalar (or random config) represents positive values."""
@@ -55,6 +62,7 @@ def validate_positive_scalar(value: ScalarValue, field_name: str) -> ScalarValue
 
     return value
 
+
 def resolve_scalar(value: ScalarValue, rng: random.Random) -> float:
     """Resolve a scalar value, sampling from random configs if needed"""
     if isinstance(value, UniformRandomConfig):
@@ -63,14 +71,18 @@ def resolve_scalar(value: ScalarValue, rng: random.Random) -> float:
         return rng.choice(value.discrete)
     return value
 
-def resolve_vector(vector: Vector3Value, rng: random.Random) -> Tuple[float, float, float]:
+
+def resolve_vector(
+    vector: Vector3Value, rng: random.Random
+) -> Tuple[float, float, float]:
     """Resolve a 3D vector with potential random components"""
     return tuple(resolve_scalar(vector[i], rng) for i in range(3))
+
 
 def resolve_partial_vector(
     vector: Optional[PartialVector3Value],
     fallback: Tuple[float, float, float],
-    rng: random.Random
+    rng: random.Random,
 ) -> Tuple[float, float, float]:
     """Resolve a partial 3D vector, None values in vector are replaced with fallback values (usually parent's values)"""
     if vector is None:
@@ -79,6 +91,7 @@ def resolve_partial_vector(
         fallback[i] if comp is None else resolve_scalar(comp, rng)
         for i, comp in enumerate(vector)
     )
+
 
 __all__ = [
     "UniformRandomConfig",

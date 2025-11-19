@@ -25,7 +25,7 @@ class TestMultipleGatesInWall:
             length=10.0,
             height=8.0,
             thickness=0.2,
-            gate_ids=("gate1", "gate2")
+            gate_ids=("gate1", "gate2"),
         )
 
         gate1 = Gate(
@@ -35,7 +35,7 @@ class TestMultipleGatesInWall:
             orientation=(0.0, 0.0, 0.0),
             width=1.5,
             height=2.0,
-            thickness=0.2
+            thickness=0.2,
         )
 
         gate2 = Gate(
@@ -45,7 +45,7 @@ class TestMultipleGatesInWall:
             orientation=(0.0, 0.0, 0.0),
             width=1.5,
             height=2.0,
-            thickness=0.2
+            thickness=0.2,
         )
 
         env = Environment(
@@ -53,26 +53,30 @@ class TestMultipleGatesInWall:
             obstacles=[gate1, gate2, wall],
             start_position=(-5.0, -5.0, 0.0),
             goal_position=(5.0, 5.0, 0.0),
-            seed=42
+            seed=42,
         )
 
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
 
         state = SwarmState(
             goals=np.zeros((3, 3)),
-            pos=np.array([
-                [-2.0, 0.0, 0.0],   # Inside gate1
-                [2.0, 0.0, 0.0],    # Inside gate2
-                [0.0, 0.0, 0.0],    # Between gates (should collide)
-            ]),
-            vel=np.array([
-                [0.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ]),
+            pos=np.array(
+                [
+                    [-2.0, 0.0, 0.0],  # Inside gate1
+                    [2.0, 0.0, 0.0],  # Inside gate2
+                    [0.0, 0.0, 0.0],  # Between gates (should collide)
+                ]
+            ),
+            vel=np.array(
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ]
+            ),
             acc=np.zeros((3, 3)),
             ids=np.array([0, 1, 2]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -99,7 +103,7 @@ class TestRotatedGates:
             length=10.0,
             height=8.0,
             thickness=0.2,
-            gate_ids=("gate1",)
+            gate_ids=("gate1",),
         )
 
         gate = Gate(
@@ -109,7 +113,7 @@ class TestRotatedGates:
             orientation=(0.0, 0.0, yaw),
             width=2.0,
             height=2.0,
-            thickness=0.2
+            thickness=0.2,
         )
 
         env = Environment(
@@ -117,7 +121,7 @@ class TestRotatedGates:
             obstacles=[gate, wall],
             start_position=(-5.0, -5.0, 0.0),
             goal_position=(5.0, 5.0, 0.0),
-            seed=42
+            seed=42,
         )
 
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
@@ -128,7 +132,7 @@ class TestRotatedGates:
             vel=np.array([[1.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -151,7 +155,7 @@ class TestDroneRadiusConsideration:
             length=10.0,
             height=8.0,
             thickness=0.2,
-            gate_ids=("gate1",)
+            gate_ids=("gate1",),
         )
 
         gate = Gate(
@@ -161,7 +165,7 @@ class TestDroneRadiusConsideration:
             orientation=(0.0, 0.0, 0.0),
             width=1.0,
             height=1.0,
-            thickness=0.2
+            thickness=0.2,
         )
 
         env = Environment(
@@ -169,7 +173,7 @@ class TestDroneRadiusConsideration:
             obstacles=[gate, wall],
             start_position=(-5.0, -5.0, 0.0),
             goal_position=(5.0, 5.0, 0.0),
-            seed=42
+            seed=42,
         )
 
         collision_system = CollisionSystem(environment=env, drone_radius=0.6)
@@ -181,7 +185,7 @@ class TestDroneRadiusConsideration:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -204,7 +208,7 @@ class TestErrorHandling:
             length=10.0,
             height=8.0,
             thickness=0.2,
-            gate_ids=()
+            gate_ids=(),
         )
 
         env = Environment(
@@ -212,7 +216,7 @@ class TestErrorHandling:
             obstacles=[wall],
             start_position=(-5.0, -5.0, 0.0),
             goal_position=(5.0, 5.0, 0.0),
-            seed=42
+            seed=42,
         )
 
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
@@ -223,7 +227,7 @@ class TestErrorHandling:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -242,7 +246,7 @@ class TestErrorHandling:
             length=10.0,
             height=8.0,
             thickness=0.2,
-            gate_ids=("nonexistent_gate",)
+            gate_ids=("nonexistent_gate",),
         )
 
         env = Environment(
@@ -250,7 +254,7 @@ class TestErrorHandling:
             obstacles=[wall],
             start_position=(-5.0, -5.0, 0.0),
             goal_position=(5.0, 5.0, 0.0),
-            seed=42
+            seed=42,
         )
 
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
@@ -261,7 +265,7 @@ class TestErrorHandling:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)

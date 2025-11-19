@@ -24,7 +24,7 @@ def simple_environment():
         length=10.0,
         height=8.0,
         thickness=0.2,
-        gate_ids=("gate1",)
+        gate_ids=("gate1",),
     )
 
     gate = Gate(
@@ -34,7 +34,7 @@ def simple_environment():
         orientation=(0.0, 0.0, 0.0),
         width=2.0,
         height=2.0,
-        thickness=0.2
+        thickness=0.2,
     )
 
     env = Environment(
@@ -42,7 +42,7 @@ def simple_environment():
         obstacles=[gate, wall],
         start_position=(-5.0, -5.0, 0.0),
         goal_position=(5.0, 5.0, 0.0),
-        seed=42
+        seed=42,
     )
 
     return env
@@ -65,7 +65,7 @@ class TestBasicGatePassThrough:
             vel=np.array([[1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -82,7 +82,7 @@ class TestBasicGatePassThrough:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -104,7 +104,7 @@ class TestGateBoundaries:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -121,7 +121,7 @@ class TestGateBoundaries:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -138,7 +138,7 @@ class TestGateBoundaries:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -155,21 +155,25 @@ class TestMultipleDrones:
         """Test multiple drones, some inside gate, some outside."""
         state = SwarmState(
             goals=np.zeros((4, 3)),
-            pos=np.array([
-                [0.0, 0.0, 0.0],    # Inside gate
-                [3.0, 0.0, 0.0],    # Outside gate, colliding
-                [0.5, 0.0, 0.5],    # Inside gate
-                [-3.0, 0.0, 0.0],   # Outside gate, colliding
-            ]),
-            vel=np.array([
-                [0.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ]),
+            pos=np.array(
+                [
+                    [0.0, 0.0, 0.0],  # Inside gate
+                    [3.0, 0.0, 0.0],  # Outside gate, colliding
+                    [0.5, 0.0, 0.5],  # Inside gate
+                    [-3.0, 0.0, 0.0],  # Outside gate, colliding
+                ]
+            ),
+            vel=np.array(
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ]
+            ),
             acc=np.zeros((4, 3)),
             ids=np.array([0, 1, 2, 3]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -194,7 +198,7 @@ class TestWallWithoutGate:
             length=10.0,
             height=8.0,
             thickness=0.2,
-            gate_ids=()
+            gate_ids=(),
         )
 
         env = Environment(
@@ -202,7 +206,7 @@ class TestWallWithoutGate:
             obstacles=[wall],
             start_position=(-5.0, -5.0, 0.0),
             goal_position=(5.0, 5.0, 0.0),
-            seed=42
+            seed=42,
         )
 
         collision_system = CollisionSystem(environment=env, drone_radius=0.5)
@@ -213,7 +217,7 @@ class TestWallWithoutGate:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
