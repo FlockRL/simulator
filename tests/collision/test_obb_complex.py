@@ -20,7 +20,7 @@ def basic_environment():
         obstacles=[],
         start_position=(-10.0, -10.0, 0.0),
         goal_position=(10.0, 10.0, 0.0),
-        seed=42
+        seed=42,
     )
     return env
 
@@ -42,11 +42,13 @@ class TestCompoundRotations:
             orientation=(roll, pitch, yaw),
             length=2.0,
             width=2.0,
-            height=2.0
+            height=2.0,
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
+        collision_system = CollisionSystem(
+            environment=basic_environment, drone_radius=0.5
+        )
 
         # Drone at box center should collide
         state = SwarmState(
@@ -55,7 +57,7 @@ class TestCompoundRotations:
             vel=np.array([[1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -78,7 +80,7 @@ class TestMultipleObstacles:
             length=2.0,
             height=4.0,
             thickness=0.5,
-            gate_ids=()
+            gate_ids=(),
         )
 
         wall2 = Wall(
@@ -89,11 +91,13 @@ class TestMultipleObstacles:
             length=2.0,
             height=4.0,
             thickness=0.5,
-            gate_ids=()
+            gate_ids=(),
         )
 
         basic_environment.obstacles.extend([wall1, wall2])
-        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
+        collision_system = CollisionSystem(
+            environment=basic_environment, drone_radius=0.5
+        )
 
         # Drone colliding with wall1 but not wall2
         state = SwarmState(
@@ -102,7 +106,7 @@ class TestMultipleObstacles:
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -122,13 +126,15 @@ class TestMultipleObstacles:
                 orientation=(0.0, 0.0, i * np.pi / 8),
                 length=1.5,
                 width=1.5,
-                height=2.0
+                height=2.0,
             )
             for i in range(4)
         ]
 
         basic_environment.obstacles.extend(boxes)
-        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
+        collision_system = CollisionSystem(
+            environment=basic_environment, drone_radius=0.5
+        )
 
         # Drone passing through without hitting any
         state = SwarmState(
@@ -137,7 +143,7 @@ class TestMultipleObstacles:
             vel=np.array([[1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -159,11 +165,13 @@ class TestEdgeCases:
             orientation=(0.0, 0.0, np.pi / 4),
             length=2.0,
             width=2.0,
-            height=2.0
+            height=2.0,
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
+        collision_system = CollisionSystem(
+            environment=basic_environment, drone_radius=0.5
+        )
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -171,7 +179,7 @@ class TestEdgeCases:
             vel=np.array([[-1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)
@@ -190,11 +198,13 @@ class TestEdgeCases:
             orientation=(1e-10, 1e-10, 1e-10),
             length=2.0,
             width=2.0,
-            height=2.0
+            height=2.0,
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5)
+        collision_system = CollisionSystem(
+            environment=basic_environment, drone_radius=0.5
+        )
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -202,7 +212,7 @@ class TestEdgeCases:
             vel=np.array([[-1.0, 0.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),
-            t=0.0
+            t=0.0,
         )
 
         _, info = collision_system(state)

@@ -1,5 +1,11 @@
 from flockrl_sim.environment.obstacles_types import Wall, Gate, RectangularPrism, Bounds
-from flockrl_sim.environment.validation import validate_geometry, validate_no_overlaps, validate_gate_embedding, validate_environment
+from flockrl_sim.environment.validation import (
+    validate_geometry,
+    validate_no_overlaps,
+    validate_gate_embedding,
+    validate_environment,
+)
+
 
 # Helper functions that use default values to make obstacle creation less verbose
 def helper_wall(
@@ -22,6 +28,7 @@ def helper_wall(
         gate_ids=gate_ids,
     )
 
+
 def helper_gate(
     id="gate1",
     position=(0.0, 0.0, 0.0),
@@ -39,6 +46,7 @@ def helper_gate(
         height=height,
         thickness=thickness,
     )
+
 
 def helper_clutter(
     id="clutter1",
@@ -59,8 +67,10 @@ def helper_clutter(
         height=height,
     )
 
+
 # Common test constants
 BOUNDS: Bounds = (-10.0, 10.0, -10.0, 10.0, 0.0, 10.0)
+
 
 class TestGeometryValidation:
     """Test individual obstacle geometry validation."""
@@ -77,14 +87,27 @@ class TestGeometryValidation:
         assert not result.is_valid()
         assert any("non-positive length" in err for err in result.errors)
 
+
 class TestOverlapValidation:
     """Test overlap detection between obstacles."""
 
     def test_overlap_detected(self):
         """Test that overlapping obstacles are detected."""
         obstacles = [
-            helper_clutter(id="clutter1", position=(0.0, 0.0, 0.0), length=1.0, width=1.0, height=1.0),
-            helper_clutter(id="clutter2", position=(0.2, 0.2, 0.2), length=1.0, width=1.0, height=1.0),
+            helper_clutter(
+                id="clutter1",
+                position=(0.0, 0.0, 0.0),
+                length=1.0,
+                width=1.0,
+                height=1.0,
+            ),
+            helper_clutter(
+                id="clutter2",
+                position=(0.2, 0.2, 0.2),
+                length=1.0,
+                width=1.0,
+                height=1.0,
+            ),
         ]
         result = validate_no_overlaps(obstacles)
         assert not result.is_valid()
@@ -145,18 +168,26 @@ class TestFullEnvironmentValidation:
     def test_valid_environment(self):
         """Test validation of a valid environment."""
         obstacles = [
-            helper_wall(id="wall1", length=8.0, gate_ids=("gate1",), position=(0.0, 0.0, 1.5)),
+            helper_wall(
+                id="wall1", length=8.0, gate_ids=("gate1",), position=(0.0, 0.0, 1.5)
+            ),
             helper_gate(id="gate1", position=(0.0, 0.0, 1.5)),
             helper_clutter(id="clutter1", position=(5.0, 5.0, 0.4)),
         ]
-        result = validate_environment(obstacles, BOUNDS, (-8.0, 0.0, 1.0), (8.0, 0.0, 1.0))
+        result = validate_environment(
+            obstacles, BOUNDS, (-8.0, 0.0, 1.0), (8.0, 0.0, 1.0)
+        )
         assert result.is_valid()  # May have warnings but should not have errors
 
     def test_invalid_environment_multiple_errors(self):
         """Test environment with multiple validation errors."""
         obstacles = [
-            helper_wall(length=-5.0, gate_ids=("nonexistent_gate",)),  # Invalid: negative length, missing gate
-            helper_clutter(position=(0.1, 0.1, 0.1), length=1.0, width=1.0, height=1.0),  # May overlap
+            helper_wall(
+                length=-5.0, gate_ids=("nonexistent_gate",)
+            ),  # Invalid: negative length, missing gate
+            helper_clutter(
+                position=(0.1, 0.1, 0.1), length=1.0, width=1.0, height=1.0
+            ),  # May overlap
         ]
         result = validate_environment(obstacles, BOUNDS)
         assert not result.is_valid()
@@ -173,5 +204,7 @@ class TestFullEnvironmentValidation:
             helper_gate(id="gate1", position=(0.0, 0.0, 1.5)),
             helper_gate(id="gate2", position=(1.5, 0.0, 1.5)),
         ]
-        result = validate_environment(obstacles, BOUNDS, (-8.0, 0.0, 1.0), (8.0, 0.0, 1.0))
+        result = validate_environment(
+            obstacles, BOUNDS, (-8.0, 0.0, 1.0), (8.0, 0.0, 1.0)
+        )
         assert result.is_valid()

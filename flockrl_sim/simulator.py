@@ -35,6 +35,7 @@ class SimulationFrame:
 @dataclass
 class SimulationRun:
     """Collection of frames associated with a single simulator execution"""
+
     frames: List[SimulationFrame] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -44,7 +45,7 @@ class CoreSimulator:
 
     def __init__(
         self,
-        delta_t: float = 1.0 / 60.0, # Defaults to 60 Hz
+        delta_t: float = 1.0 / 60.0,  # Defaults to 60 Hz
         collision_system: Optional[CollisionHandler] = None,
         render_hook: Optional[RenderHook] = None,
         environment: Optional[Environment] = None,
@@ -60,7 +61,7 @@ class CoreSimulator:
                 obstacles=[],
                 start_position=(0.0, 0.0, 1.0),
                 goal_position=(0.0, 0.0, 10.0),
-                seed=0
+                seed=0,
             )
         self.environment = environment
         self.config = config or SimulationConfig(delta_t=delta_t)
@@ -76,9 +77,9 @@ class CoreSimulator:
         # Episode statistics
         self._episode_stats = {
             "collision_count": 0,
-            "min_goal_distance": float('inf'),
-            "final_goal_distance": float('inf'),
-            "total_steps": 0
+            "min_goal_distance": float("inf"),
+            "final_goal_distance": float("inf"),
+            "total_steps": 0,
         }
 
         # Perception system - enabled by default for RL
@@ -87,10 +88,14 @@ class CoreSimulator:
             self._perception_system = PerceptionSystem(
                 environment=self.environment,
                 config=None,  # Use default config
-                seed=None
+                seed=None,
             )
 
-    def start_run(self, initial_state: Optional[SwarmState] = None, metadata: Optional[Dict[str, Any]] = None) -> SwarmState:
+    def start_run(
+        self,
+        initial_state: Optional[SwarmState] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> SwarmState:
         """
         Initialize a new simulation run with optional metadata.
 
@@ -107,7 +112,10 @@ class CoreSimulator:
         """
         # Determine goal position
         goal_pos = np.array([0.0, 0.0, 10.0], dtype=float)  # Default goal
-        if hasattr(self.environment, 'goal_position') and self.environment.goal_position is not None:
+        if (
+            hasattr(self.environment, "goal_position")
+            and self.environment.goal_position is not None
+        ):
             goal_pos = np.array(self.environment.goal_position, dtype=float)
 
         if initial_state is None:
@@ -135,16 +143,13 @@ class CoreSimulator:
         # Reset episode statistics
         self._episode_stats = {
             "collision_count": 0,
-            "min_goal_distance": float('inf'),
-            "final_goal_distance": float('inf'),
-            "total_steps": 0
+            "min_goal_distance": float("inf"),
+            "final_goal_distance": float("inf"),
+            "total_steps": 0,
         }
 
         # Creating a run:
-        self.current_run = SimulationRun(
-            frames=[],
-            metadata=metadata or {}
-        )
+        self.current_run = SimulationRun(frames=[], metadata=metadata or {})
 
         # Get initial observations
         initial_observations = []
@@ -152,15 +157,17 @@ class CoreSimulator:
             initial_observations = self._perception_system.observe(self.state)
 
         # Logging the first frame with consistent info structure
-        self.log_frame(info={
-            "event": "run_started",
-            "collisions": [],
-            "observations": initial_observations,
-            "step": 0,
-            "done": False,
-            "termination_reason": None,
-            "episode_stats": self._episode_stats.copy()
-        })
+        self.log_frame(
+            info={
+                "event": "run_started",
+                "collisions": [],
+                "observations": initial_observations,
+                "step": 0,
+                "done": False,
+                "termination_reason": None,
+                "episode_stats": self._episode_stats.copy(),
+            }
+        )
 
         return self.state
 
@@ -172,11 +179,15 @@ class CoreSimulator:
             Tuple of (updated SwarmState, info dict with collision events, termination status, etc.)
         """
         if self.state is None or self.state.pos is None:
-            raise RuntimeError("Simulator state is not initialized. Call start_run() first.")
+            raise RuntimeError(
+                "Simulator state is not initialized. Call start_run() first."
+            )
 
         # Check if episode is already terminated
         if self._episode_terminated:
-            raise RuntimeError(f"Episode already terminated: {self._termination_reason}. Call reset() to start a new episode.")
+            raise RuntimeError(
+                f"Episode already terminated: {self._termination_reason}. Call reset() to start a new episode."
+            )
 
         # 1. Validate actions
         actions = self._validate_actions(actions)
@@ -186,7 +197,11 @@ class CoreSimulator:
 
         # Calculate proposed new velocities and positions
         proposed_vel = self.state.vel + self.state.acc * self.delta_t
-        proposed_pos = self.state.pos + self.state.vel * self.delta_t + 0.5 * self.state.acc * (self.delta_t ** 2)
+        proposed_pos = (
+            self.state.pos
+            + self.state.vel * self.delta_t
+            + 0.5 * self.state.acc * (self.delta_t**2)
+        )
         proposed_t = self.state.t + self.delta_t
 
         # 3. Create proposed state for collision checking
@@ -236,7 +251,9 @@ class CoreSimulator:
         # 7. Update goal distance statistics
         goal_distances = np.linalg.norm(self.state.pos - self.state.goals, axis=1)
         min_dist = float(np.min(goal_distances))
-        self._episode_stats["min_goal_distance"] = min(self._episode_stats["min_goal_distance"], min_dist)
+        self._episode_stats["min_goal_distance"] = min(
+            self._episode_stats["min_goal_distance"], min_dist
+        )
         self._episode_stats["final_goal_distance"] = min_dist
 
         # 8. Check termination conditions
@@ -255,13 +272,15 @@ class CoreSimulator:
         if "collisions" not in info_dict:
             info_dict["collisions"] = []
 
-        info_dict.update({
-            "step": self._step_count,
-            "done": self._episode_terminated,
-            "termination_reason": self._termination_reason,
-            "episode_stats": self._episode_stats.copy(),
-            "observations": observations if observations is not None else []
-        })
+        info_dict.update(
+            {
+                "step": self._step_count,
+                "done": self._episode_terminated,
+                "termination_reason": self._termination_reason,
+                "episode_stats": self._episode_stats.copy(),
+                "observations": observations if observations is not None else [],
+            }
+        )
 
         # 11. Log for Visualization
         self.log_frame(info=info_dict)
@@ -275,29 +294,28 @@ class CoreSimulator:
     def log_frame(self, info: Optional[Dict[str, Any]] = None) -> None:
         """
         Append the current swarm state to the run history.
-        
+
         Args:
             info: Optional info dict containing collision events, etc.
         """
         if self.current_run is None:
             raise RuntimeError("No active run. Call start_run() first.")
-        
+
         frame = SimulationFrame(
-            state=self.state.clone(),
-            info=info.copy() if info else {}
+            state=self.state.clone(), info=info.copy() if info else {}
         )
         self.current_run.frames.append(frame)
 
     def save_run(self, output_path: Path) -> None:
         """
         Persist the current simulation run to disk for offline visualization.
-        
+
         Args:
             output_path: Path where the SimulationRun will be saved
         """
         if self.current_run is None:
             raise RuntimeError("No run to save. Call start_run() first.")
-        
+
         # Helper function to make info dict JSON serializable
         def serialize_info(info: dict) -> dict:
             """Convert info dict to JSON-serializable format"""
@@ -307,7 +325,9 @@ class CoreSimulator:
                     # Convert CollisionInfo objects to dicts
                     serialized[key] = [
                         {
-                            "drone_id": int(c.drone_id),  # Convert numpy int to Python int
+                            "drone_id": int(
+                                c.drone_id
+                            ),  # Convert numpy int to Python int
                             "collision_type": c.collision_type,
                             "normal_vector": c.normal_vector.tolist(),
                             "contact_point": c.contact_point.tolist(),
@@ -324,8 +344,10 @@ class CoreSimulator:
                             "ranges": obs.ranges.tolist(),
                             "hits": obs.hits.tolist(),
                             "neighbor_vectors": obs.neighbor_vectors.tolist(),
-                            "metadata": {k: v.tolist() if hasattr(v, 'tolist') else v
-                                       for k, v in obs.metadata.items()}
+                            "metadata": {
+                                k: v.tolist() if hasattr(v, "tolist") else v
+                                for k, v in obs.metadata.items()
+                            },
                         }
                         for obs in value
                     ]
@@ -346,16 +368,16 @@ class CoreSimulator:
                         "acc": frame.state.acc.tolist(),
                         "ids": frame.state.ids.tolist(),
                         "goals": frame.state.goals.tolist(),
-                        "metadata": frame.state.metadata
+                        "metadata": frame.state.metadata,
                     },
-                    "info": serialize_info(frame.info)
+                    "info": serialize_info(frame.info),
                 }
                 for frame in self.current_run.frames
-            ]
+            ],
         }
-        
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
 
     def reset(self, randomize: bool = False, seed: Optional[int] = None) -> SwarmState:
@@ -388,9 +410,7 @@ class CoreSimulator:
             goals = self._initial_state.goals.copy()
 
             self.state = SwarmState.from_initial_positions(
-                positions=positions,
-                ids=self._initial_state.ids.copy(),
-                goals=goals
+                positions=positions, ids=self._initial_state.ids.copy(), goals=goals
             )
             self.state.vel = velocities
         else:
@@ -405,9 +425,9 @@ class CoreSimulator:
         # Reset episode statistics
         self._episode_stats = {
             "collision_count": 0,
-            "min_goal_distance": float('inf'),
-            "final_goal_distance": float('inf'),
-            "total_steps": 0
+            "min_goal_distance": float("inf"),
+            "final_goal_distance": float("inf"),
+            "total_steps": 0,
         }
 
         # Clear current run frames (but keep the run object)
@@ -432,7 +452,9 @@ class CoreSimulator:
         # Check shape
         expected_shape = (N, 3)
         if actions.shape != expected_shape:
-            raise ValueError(f"Invalid action shape. Expected {expected_shape}, got {actions.shape}")
+            raise ValueError(
+                f"Invalid action shape. Expected {expected_shape}, got {actions.shape}"
+            )
 
         # Check for NaN or Inf
         if np.any(~np.isfinite(actions)):
@@ -444,9 +466,13 @@ class CoreSimulator:
             action_mags = np.linalg.norm(actions, axis=1)
             exceeded = action_mags > self.config.max_acceleration
             if np.any(exceeded):
-                warnings.warn(f"{np.sum(exceeded)} action(s) exceed max acceleration. Clipping to {self.config.max_acceleration} m/s^2.")
+                warnings.warn(
+                    f"{np.sum(exceeded)} action(s) exceed max acceleration. Clipping to {self.config.max_acceleration} m/s^2."
+                )
                 # Normalize and scale
-                scale = np.minimum(1.0, self.config.max_acceleration / (action_mags + 1e-12))
+                scale = np.minimum(
+                    1.0, self.config.max_acceleration / (action_mags + 1e-12)
+                )
                 actions = actions * scale[:, np.newaxis]
 
         return actions
@@ -473,7 +499,7 @@ class CoreSimulator:
             return True, "success"
 
         # Check out-of-bounds
-        if hasattr(self.environment, 'bounds'):
+        if hasattr(self.environment, "bounds"):
             bounds = self.environment.bounds
             if callable(bounds):
                 bounds = bounds()
@@ -483,9 +509,12 @@ class CoreSimulator:
                 pos = self.state.pos
 
                 out_of_bounds = (
-                    np.any(pos[:, 0] < x_min) or np.any(pos[:, 0] > x_max) or
-                    np.any(pos[:, 1] < y_min) or np.any(pos[:, 1] > y_max) or
-                    np.any(pos[:, 2] < z_min) or np.any(pos[:, 2] > z_max)
+                    np.any(pos[:, 0] < x_min)
+                    or np.any(pos[:, 0] > x_max)
+                    or np.any(pos[:, 1] < y_min)
+                    or np.any(pos[:, 1] > y_max)
+                    or np.any(pos[:, 2] < z_min)
+                    or np.any(pos[:, 2] > z_max)
                 )
 
                 if out_of_bounds:

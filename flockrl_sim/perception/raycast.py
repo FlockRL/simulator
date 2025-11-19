@@ -25,16 +25,16 @@ def raycast(
 ) -> Optional[RayHit]:
     """
     Cast a ray and return closest hit within max_distance.
-    
+
     For each obstacle, compute ray intersection and return the nearest one.
     Standard computer graphics ray tracing problem.
-    
+
     Args:
         origin: Ray origin (shape=(3,))
         direction: Normalized direction vector (shape=(3,))
         obstacles: List of obstacles to test against
         max_distance: Maximum ray distance [meters]
-    
+
     Returns:
         (distance, hit_point, obstacle) or None if no hit
     """
@@ -61,19 +61,19 @@ def raycast_batch(
 ) -> np.ndarray:
     """
     Cast multiple rays at once
-    
+
     Consider performance when implementing this.
-    
+
     Args:
         origins: Ray origins (shape=(N, 3))
         directions: Normalized direction vectors (shape=(N, 3))
         obstacles: List of obstacles to test against
         max_distance: Maximum ray distance [meters]
-    
+
     Returns:
         Distances to closest hit for each ray (shape=(N,))
     """
-    
+
     N = origins.shape[0]
     distances = np.full((N,), max_distance)
 

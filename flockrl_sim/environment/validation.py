@@ -2,7 +2,12 @@ from __future__ import annotations
 from typing import List, Tuple, Optional
 from itertools import combinations
 import math
-from flockrl_sim.environment.obstacles_types import Obstacle, Wall, Gate, RectangularPrism
+from flockrl_sim.environment.obstacles_types import (
+    Obstacle,
+    Wall,
+    Gate,
+    RectangularPrism,
+)
 
 
 class ValidationResult:
@@ -28,8 +33,12 @@ class ValidationResult:
         parts = [f"Validation failed with {len(self.errors)} errors:"]
         parts.extend(f"  - {error}" for error in self.errors)
         if self.warnings:
-            parts.extend([f"\nWarnings ({len(self.warnings)}):",
-                         *(f"  - {warning}" for warning in self.warnings)])
+            parts.extend(
+                [
+                    f"\nWarnings ({len(self.warnings)}):",
+                    *(f"  - {warning}" for warning in self.warnings),
+                ]
+            )
         return "\n".join(parts)
 
 
@@ -42,16 +51,17 @@ def _validate_positive_dimensions(
     result: ValidationResult,
     obstacle_id: str,
     obstacle_type: str,
-    dimensions: List[Tuple[str, float]]
+    dimensions: List[Tuple[str, float]],
 ) -> None:
     for name, value in dimensions:
         if value <= 0:
-            result.add_error(f"{obstacle_type} {obstacle_id} has non-positive {name}: {value}")
+            result.add_error(
+                f"{obstacle_type} {obstacle_id} has non-positive {name}: {value}"
+            )
 
 
 def validate_geometry(
-    obstacle: Obstacle,
-    bounds: Tuple[float, float, float, float, float, float]
+    obstacle: Obstacle, bounds: Tuple[float, float, float, float, float, float]
 ) -> ValidationResult:
     """Validate obstacle has positive dimensions and full extent is within bounds."""
     result = ValidationResult()
@@ -60,7 +70,9 @@ def validate_geometry(
     orientation = obstacle.orientation
 
     if abs(orientation[0]) > 1e-6 or abs(orientation[1]) > 1e-6:
-        result.add_warning(f"Obstacle {obstacle.id} has roll/pitch rotations but validator currently only considers yaw when computing bounding boxes")
+        result.add_warning(
+            f"Obstacle {obstacle.id} has roll/pitch rotations but validator currently only considers yaw when computing bounding boxes"
+        )
 
     dims = _get_dims(obstacle)
     aabb_size = _axis_aligned_size(obstacle, *dims)
@@ -84,18 +96,36 @@ def validate_geometry(
 
     if isinstance(obstacle, Wall):
         _validate_positive_dimensions(
-            result, obstacle.id, "Wall",
-            [("length", obstacle.length), ("height", obstacle.height), ("thickness", obstacle.thickness)]
+            result,
+            obstacle.id,
+            "Wall",
+            [
+                ("length", obstacle.length),
+                ("height", obstacle.height),
+                ("thickness", obstacle.thickness),
+            ],
         )
     elif isinstance(obstacle, Gate):
         _validate_positive_dimensions(
-            result, obstacle.id, "Gate",
-            [("width", obstacle.width), ("height", obstacle.height), ("thickness", obstacle.thickness)]
+            result,
+            obstacle.id,
+            "Gate",
+            [
+                ("width", obstacle.width),
+                ("height", obstacle.height),
+                ("thickness", obstacle.thickness),
+            ],
         )
     elif isinstance(obstacle, RectangularPrism):
         _validate_positive_dimensions(
-            result, obstacle.id, "Clutter",
-            [("length", obstacle.length), ("width", obstacle.width), ("height", obstacle.height)]
+            result,
+            obstacle.id,
+            "Clutter",
+            [
+                ("length", obstacle.length),
+                ("width", obstacle.width),
+                ("height", obstacle.height),
+            ],
         )
 
     return result
@@ -109,12 +139,14 @@ def _axis_aligned_size(
 ) -> Tuple[float, float, float]:
     """Compute axis-aligned bounding box size accounting for yaw rotation."""
     yaw = 0.0
-    if (orient := getattr(obs, "orientation", None)) and len(orient) >= 3 and orient[2] != 0.0:
+    if (
+        (orient := getattr(obs, "orientation", None))
+        and len(orient) >= 3
+        and orient[2] != 0.0
+    ):
         yaw = orient[2]
     cos_yaw, sin_yaw = abs(math.cos(yaw)), abs(math.sin(yaw))
-    return (dim_x * cos_yaw + dim_y * sin_yaw,
-            dim_x * sin_yaw + dim_y * cos_yaw,
-            dim_z)
+    return (dim_x * cos_yaw + dim_y * sin_yaw, dim_x * sin_yaw + dim_y * cos_yaw, dim_z)
 
 
 def _get_dims(obs: Obstacle) -> Tuple[float, float, float]:
@@ -128,6 +160,7 @@ def _get_dims(obs: Obstacle) -> Tuple[float, float, float]:
         case _:
             raise ValueError(f"Unsupported obstacle type: {type(obs)}")
 
+
 def check_overlap(obs1: Obstacle, obs2: Obstacle) -> bool:
     """Conservative AABB collision check. May produce false positives for rotated obstacles.
 
@@ -140,8 +173,10 @@ def check_overlap(obs1: Obstacle, obs2: Obstacle) -> bool:
     size2 = _axis_aligned_size(obs2, *_get_dims(obs2))
 
     # Overlap occurs if distance between centers is less than sum of half-sizes in all dimensions
-    return all(abs(c2 - c1) < (s1 + s2) / 2
-               for c1, c2, s1, s2 in zip((x1, y1, z1), (x2, y2, z2), size1, size2))
+    return all(
+        abs(c2 - c1) < (s1 + s2) / 2
+        for c1, c2, s1, s2 in zip((x1, y1, z1), (x2, y2, z2), size1, size2)
+    )
 
 
 def _point_inside_obstacle(point: Tuple[float, float, float], obs: Obstacle) -> bool:
@@ -150,8 +185,9 @@ def _point_inside_obstacle(point: Tuple[float, float, float], obs: Obstacle) -> 
 
 
 def _is_gate_wall_pair(obs1: Obstacle, obs2: Obstacle) -> bool:
-    return ((isinstance(obs1, Wall) and obs2.id in obs1.linked_gate_ids()) or
-            (isinstance(obs2, Wall) and obs1.id in obs2.linked_gate_ids()))
+    return (isinstance(obs1, Wall) and obs2.id in obs1.linked_gate_ids()) or (
+        isinstance(obs2, Wall) and obs1.id in obs2.linked_gate_ids()
+    )
 
 
 def validate_no_overlaps(obstacles: List[Obstacle]) -> ValidationResult:
@@ -172,12 +208,16 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
     for wall in (o for o in obstacles if isinstance(o, Wall)):
         for gate_id in wall.linked_gate_ids():
             if gate_id not in obs_map:
-                result.add_error(f"Wall {wall.id} references non-existent gate {gate_id}")
+                result.add_error(
+                    f"Wall {wall.id} references non-existent gate {gate_id}"
+                )
                 continue
 
             gate = obs_map[gate_id]
             if not isinstance(gate, Gate):
-                result.add_error(f"Wall {wall.id} references {gate_id} which is not a gate")
+                result.add_error(
+                    f"Wall {wall.id} references {gate_id} which is not a gate"
+                )
                 continue
 
             wall_half_length = wall.length / 2
@@ -220,7 +260,9 @@ def validate_gate_embedding(obstacles: List[Obstacle]) -> ValidationResult:
                 )
 
             if gate.height > wall.height:
-                result.add_error(f"Gate {gate.id} height ({gate.height:.2f}m) exceeds parent wall {wall.id} height ({wall.height:.2f}m)")
+                result.add_error(
+                    f"Gate {gate.id} height ({gate.height:.2f}m) exceeds parent wall {wall.id} height ({wall.height:.2f}m)"
+                )
 
     return result
 
@@ -229,7 +271,7 @@ def validate_spawn_positions(
     obstacles: List[Obstacle],
     start_position: Optional[Tuple[float, float, float]],
     goal_position: Optional[Tuple[float, float, float]],
-    bounds: Tuple[float, float, float, float, float, float]
+    bounds: Tuple[float, float, float, float, float, float],
 ) -> ValidationResult:
     """Check start and goal positions are within bounds and not inside obstacles."""
     result = ValidationResult()
@@ -243,16 +285,24 @@ def validate_spawn_positions(
         x, y, z = position
 
         if not (x_min <= x <= x_max):
-            result.add_error(f"{name} position x-coordinate {x} is outside bounds [{x_min}, {x_max}]")
+            result.add_error(
+                f"{name} position x-coordinate {x} is outside bounds [{x_min}, {x_max}]"
+            )
         if not (y_min <= y <= y_max):
-            result.add_error(f"{name} position y-coordinate {y} is outside bounds [{y_min}, {y_max}]")
+            result.add_error(
+                f"{name} position y-coordinate {y} is outside bounds [{y_min}, {y_max}]"
+            )
         if not (z_min <= z <= z_max):
-            result.add_error(f"{name} position z-coordinate {z} is outside bounds [{z_min}, {z_max}]")
+            result.add_error(
+                f"{name} position z-coordinate {z} is outside bounds [{z_min}, {z_max}]"
+            )
 
         # Check if position is inside any obstacle (excluding gates)
         for obs in (o for o in obstacles if not isinstance(o, Gate)):
             if _point_inside_obstacle(position, obs):
-                result.add_error(f"{name} position {position} is inside obstacle {obs.id}")
+                result.add_error(
+                    f"{name} position {position} is inside obstacle {obs.id}"
+                )
 
     return result
 
@@ -261,7 +311,7 @@ def validate_environment(
     obstacles: List[Obstacle],
     bounds: Tuple[float, float, float, float, float, float],
     start_position: Optional[Tuple[float, float, float]] = None,
-    goal_position: Optional[Tuple[float, float, float]] = None
+    goal_position: Optional[Tuple[float, float, float]] = None,
 ) -> ValidationResult:
     """Validate geometry, overlaps, and gate embedding for all obstacles."""
     combined = ValidationResult()
@@ -272,6 +322,9 @@ def validate_environment(
     for validator in (validate_no_overlaps, validate_gate_embedding):
         _extend_result(combined, validator(obstacles))
 
-    _extend_result(combined, validate_spawn_positions(obstacles, start_position, goal_position, bounds))
+    _extend_result(
+        combined,
+        validate_spawn_positions(obstacles, start_position, goal_position, bounds),
+    )
 
     return combined

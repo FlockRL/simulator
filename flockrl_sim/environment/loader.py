@@ -5,6 +5,7 @@ from typing import Union
 from pydantic import ValidationError
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
 
+
 class EnvironmentSpecLoader:
     def __init__(self):
         self.specs_dir = Path(__file__).parent / "specs"
@@ -15,7 +16,9 @@ class EnvironmentSpecLoader:
         name = name if name.endswith(".json") else f"{name}.json"
         preset_path = self.specs_dir / name
         if not preset_path.exists():
-            raise FileNotFoundError(f"Preset '{name}' not found. Available: {', '.join(self.list_presets())}")
+            raise FileNotFoundError(
+                f"Preset '{name}' not found. Available: {', '.join(self.list_presets())}"
+            )
         return self._load_from_file(preset_path)
 
     def load_from_path(self, path: Union[str, Path]) -> EnvironmentSpec:
@@ -46,7 +49,7 @@ class EnvironmentSpecLoader:
 
     def _load_from_file(self, path: Path) -> EnvironmentSpec:
         try:
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 data = json.load(f)
             return EnvironmentSpec(**data)
         except json.JSONDecodeError as e:
@@ -57,10 +60,7 @@ class EnvironmentSpecLoader:
             )
         except ValidationError as e:
             # Preserve Pydantic's detailed field-level validation errors
-            raise ValueError(
-                f"Validation failed for {path}:\n"
-                f"{e}"
-            )
+            raise ValueError(f"Validation failed for {path}:\n{e}")
         except FileNotFoundError:
             # Re-raise file errors without wrapping
             raise
