@@ -14,6 +14,7 @@ import json
 try:
     import pyvista as pv  # type: ignore[import-untyped]
 except ModuleNotFoundError:
+    print("WARNING: Rendering requires pyvista, which is not installed.")
     pv = None  # type: ignore[assignment]
 
 #from ..simulator import SimulationRun
