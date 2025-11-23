@@ -58,6 +58,20 @@ flockrl generate -n 10 -f 200 -o my_simulation.json
 flockrl generate -n 5 -f 100 -d 10.0 -s 42 -o output.json
 ```
 
+### Gymnasium environment (RL)
+
+The simulator can be used directly with Gymnasium for training loops:
+
+```python
+import gymnasium as gym
+from flockrl_sim import FlockRLGymEnv
+
+env = FlockRLGymEnv()
+obs, info = env.reset()
+action = env.action_space.sample()
+obs, reward, terminated, truncated, info = env.step(action)
+```
+
 ### Team assignments
 
 - **Core Simulation & Kinematics**: Implement `simulator.py` and `state.py` methods
