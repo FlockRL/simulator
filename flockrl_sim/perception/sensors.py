@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from ..environment.obstacles import Environment
+from ..geometry import OBB, point_in_obb
 from ..state import SwarmState
 
 
@@ -98,6 +99,23 @@ class PerceptionSystem:
         self.config = config or SensorConfig()
         self.rays = generate_rays(self.config.num_rays, seed)
 
+    def _is_point_inside_gate(self, point: np.ndarray, gate) -> bool:
+        """
+        Check if a point is inside a gate's bounding volume, this is to filter out rays that hit a portion of the wall which contains a gate
+        """
+        gate_pos = np.array(gate.position, dtype=float)
+
+        # Gate dimensions: (width, thickness, height) map to (x, y, z) half-extents
+        half_extents = np.array(
+            [gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float
+        )
+
+        obb = OBB(
+            center=gate_pos, half_extents=half_extents, orientation=gate.orientation
+        )
+
+        return point_in_obb(point, obb)
+
     def observe(self, state: SwarmState) -> List[SensorReading]:
         """
         Compute sensor readings for every drone in state.
@@ -112,6 +130,10 @@ class PerceptionSystem:
 
         N = state.pos.shape[0]
         M = self.config.num_rays
+
+        # Build gate map for filtering wall hits that pass through gates
+        gates = [obs for obs in self.environment.obstacles if getattr(obs, "type", None) == "gate"]
+        gate_map = {gate.id: gate for gate in gates}
 
         # for each drone, calculate relative position/velocity of other drones in the swarm
         neighbor_pos = state.pos[None, :, :] - state.pos[:, None, :]
@@ -136,16 +158,43 @@ class PerceptionSystem:
 
             # for each ray, get its ray-cast distance and whether it hit an obstacle
             for j in range(M):
+                # Get ray intersections from all obstacles, tracking which obstacle each hit came from
                 raycast_results = [
-                    obst.ray_intersect(
+                    (obst, obst.ray_intersect(
                         state.pos[i], self.rays[j], self.config.max_range
-                    )
+                    ))
                     for obst in self.environment.obstacles
                 ]
 
-                hits = [res for res in raycast_results if res is not None]
-                if hits:
-                    ray_dists[j] = min(hit[0] for hit in hits)
+                # Filter out None results
+                hits = [(obst, res) for obst, res in raycast_results if res is not None]
+
+                # Filter out wall hits that pass through gates
+                filtered_hits = []
+                for obst, hit_info in hits:
+                    # Check if this is a wall hit
+                    if getattr(obst, "type", None) == "wall":
+                        _, hit_point, _ = hit_info
+                        # Check if hit point is inside any of this wall's gates
+                        gate_ids = getattr(obst, "gate_ids", ())
+                        is_in_gate = False
+                        for gate_id in gate_ids:
+                            gate = gate_map.get(gate_id)
+                            if gate is not None and self._is_point_inside_gate(hit_point, gate):
+                                is_in_gate = True
+                                break
+                        # Skip this wall hit if it's inside a gate (ray passes through)
+                        if is_in_gate:
+                            continue
+
+                    # Also filter out gate hits (gates should be transparent to rays)
+                    if getattr(obst, "type", None) == "gate":
+                        continue
+
+                    filtered_hits.append(hit_info)
+
+                if filtered_hits:
+                    ray_dists[j] = min(hit[0] for hit in filtered_hits)
                     ray_hits[j] = True
 
             readings.append(
