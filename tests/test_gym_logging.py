@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from flockrl_sim.gym_logging import EpisodeLogger, EpisodeResult, TrajectoryData
+from flockrl_sim.gym_logging import EpisodeLogger, EpisodeResult
 
 
 class TestEpisodeResult:
@@ -35,7 +35,6 @@ class TestEpisodeLogger:
         """Test logger initialization without log directory."""
         logger = EpisodeLogger()
         assert logger.log_dir is None
-        assert not logger._save_trajectories
         assert len(logger._results) == 0
 
     def test_init_with_log_dir(self):
@@ -55,31 +54,6 @@ class TestEpisodeLogger:
         assert logger._current_episode_metadata == metadata
         assert logger._current_episode_start_time is not None
 
-    def test_log_step_without_trajectory_saving(self):
-        """Test that log_step does nothing when save_trajectories=False."""
-        logger = EpisodeLogger(save_trajectories=False)
-        logger.start_episode(0)
-
-        position = np.array([1.0, 2.0, 3.0])
-        action = np.array([0.1, 0.2, 0.3])
-        logger.log_step(position, action, reward=1.0, timestep=0.1)
-
-        # Should not create trajectory buffer
-        assert logger._current_trajectory_buffer is None
-
-    def test_log_step_with_trajectory_saving(self):
-        """Test step logging when save_trajectories=True."""
-        logger = EpisodeLogger(save_trajectories=True)
-        logger.start_episode(0)
-
-        position = np.array([1.0, 2.0, 3.0])
-        action = np.array([0.1, 0.2, 0.3])
-        logger.log_step(position, action, reward=1.5, timestep=0.1)
-
-        assert logger._current_trajectory_buffer is not None
-        assert len(logger._current_trajectory_buffer["positions"]) == 1
-        assert len(logger._current_trajectory_buffer["actions"]) == 1
-        assert logger._current_trajectory_buffer["rewards"][0] == 1.5
 
     def test_end_episode(self):
         """Test ending episode and creating result."""
@@ -107,33 +81,6 @@ class TestEpisodeLogger:
         assert result.final_goal_distance == 0.4
         assert len(logger._results) == 1
 
-    def test_end_episode_with_trajectories(self):
-        """Test ending episode with trajectory saving."""
-        logger = EpisodeLogger(save_trajectories=True)
-        logger.start_episode(0)
-
-        # Log some steps
-        for i in range(5):
-            pos = np.array([float(i), 0.0, 0.0])
-            action = np.array([1.0, 0.0, 0.0])
-            logger.log_step(pos, action, reward=1.0, timestep=float(i))
-
-        episode_stats = {
-            "total_steps": 5,
-            "final_goal_distance": 5.0,
-            "min_goal_distance": 0.0,
-            "collision_count": 0,
-        }
-
-        result = logger.end_episode("success", episode_stats, total_reward=5.0)
-
-        # Check trajectory was saved
-        assert 0 in logger._trajectories
-        trajectory = logger._trajectories[0]
-        assert isinstance(trajectory, TrajectoryData)
-        assert trajectory.positions.shape == (5, 3)
-        assert trajectory.actions.shape == (5, 3)
-        assert trajectory.rewards.shape == (5,)
 
     def test_results_access(self):
         """Test accessing episode results directly."""
@@ -208,7 +155,7 @@ class TestEpisodeLogger:
             logger.end_episode("success", stats, total_reward=75.0)
 
             # Save to disk
-            logger.save_to_disk(force=True)
+            logger.save_to_disk()
 
             # Check file was created
             json_path = Path(tmpdir) / "episode_results.json"
@@ -221,40 +168,6 @@ class TestEpisodeLogger:
             assert data[0]["episode_num"] == 0
             assert data[0]["termination_reason"] == "success"
 
-    def test_save_trajectories_npz(self):
-        """Test saving trajectories to NPZ format."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            logger = EpisodeLogger(
-                log_dir=Path(tmpdir), save_trajectories=True
-            )
-
-            # Log episode with trajectory
-            logger.start_episode(0)
-            for i in range(5):
-                pos = np.array([float(i), 0.0, 0.0])
-                action = np.array([1.0, 0.0, 0.0])
-                logger.log_step(pos, action, reward=1.0, timestep=float(i))
-
-            stats = {
-                "total_steps": 5,
-                "final_goal_distance": 5.0,
-                "min_goal_distance": 0.0,
-                "collision_count": 0,
-            }
-            logger.end_episode("success", stats, total_reward=5.0)
-
-            # Save to disk
-            logger.save_to_disk(force=True)
-
-            # Check trajectory file was created
-            traj_path = Path(tmpdir) / "trajectories" / "episode_000000.npz"
-            assert traj_path.exists()
-
-            # Verify contents
-            data = np.load(traj_path)
-            assert "positions" in data
-            assert "actions" in data
-            assert data["positions"].shape == (5, 3)
 
     def test_create_dataframe_directly(self):
         """Test creating DataFrame directly from results."""

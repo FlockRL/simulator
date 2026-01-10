@@ -29,4 +29,4 @@ visualization:
 gym:
   max_neighbors: 4  # Maximum number of neighbors to encode in observations
   log_dir: null  # Directory for saving logs (null to disable logging)
-  save_trajectories: false  # Whether to save full position/action trajectories
+  save_runs: false  # Whether to save simulation runs (episode_XXXXXX.json) for visualization

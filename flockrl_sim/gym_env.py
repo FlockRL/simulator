@@ -8,7 +8,7 @@ RL tooling that expects the Gymnasium API.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
@@ -71,6 +71,9 @@ class FlockRLGymEnv(gym.Env):
         # Create collision system
         collision_system = self._build_collision_system(collision_config)
         
+        # Whether to save simulation runs for visualization
+        self._save_runs = gym_config["save_runs"]
+        
         self.simulator = CoreSimulator(
             delta_t=sim_config["delta_t"],
             max_steps=sim_config["max_steps"],
@@ -79,6 +82,7 @@ class FlockRLGymEnv(gym.Env):
             terminate_on_collision=sim_config["terminate_on_collision"],
             collision_system=collision_system,
             environment=self.environment,
+            enable_frame_logging=self._save_runs,  # Only log frames if we'll save them
         )
 
         self.max_neighbors = gym_config["max_neighbors"]
@@ -94,10 +98,7 @@ class FlockRLGymEnv(gym.Env):
         self.logger: Optional[EpisodeLogger] = None
         log_dir = gym_config["log_dir"]
         if log_dir:
-            self.logger = EpisodeLogger(
-                log_dir=Path(log_dir),
-                save_trajectories=gym_config["save_trajectories"],
-            )
+            self.logger = EpisodeLogger(log_dir=Path(log_dir))
 
         self._episode_num = 0
         self._episode_reward = 0.0
@@ -247,18 +248,9 @@ class FlockRLGymEnv(gym.Env):
             "collisions": sim_info.get("collisions", []),
         }
 
-        # Log step data (only if save_trajectories enabled)
-        if self.logger and self.logger._save_trajectories:
-            self.logger.log_step(
-                position=state.pos[0],
-                action=clipped_action,
-                reward=reward,
-                timestep=state.t,
-            )
-
         self._episode_reward += reward
 
-        # End episode logging
+        # End episode logging and save simulation run
         if (terminated or truncated) and self.logger:
             result = self.logger.end_episode(
                 termination_reason=sim_info.get("termination_reason"),
@@ -266,6 +258,11 @@ class FlockRLGymEnv(gym.Env):
                 total_reward=self._episode_reward,
             )
             info["episode_result"] = result  # Add to info dict
+            
+            # Save simulation run for visualization if enabled (use current episode num before incrementing)
+            if self._save_runs and self.simulator.current_run and self.simulator.current_run.frames:
+                self._save_episode_run(self._episode_num)
+            
             self._episode_num += 1
 
         return obs, reward, terminated, truncated, info
@@ -278,7 +275,43 @@ class FlockRLGymEnv(gym.Env):
         Does nothing if log_dir was not specified.
         """
         if self.logger:
-            self.logger.save_to_disk(force=True)
+            self.logger.save_to_disk()
+            
+            # Also save current simulation run if enabled and it exists
+            if self._save_runs and self.simulator.current_run and self.simulator.current_run.frames:
+                self._save_episode_run()
+    
+    def _save_episode_run(self, episode_num: Optional[int] = None):
+        """Save the current simulation run to disk."""
+        if not self.logger or not self.logger.log_dir:
+            return
+        
+        # Use provided episode number or current one
+        if episode_num is None:
+            episode_num = self._episode_num
+        
+        # Add obstacles and environment info to metadata
+        if self.simulator.current_run:
+            if "environment" not in self.simulator.current_run.metadata:
+                self.simulator.current_run.metadata["environment"] = {}
+            
+            # Store obstacle objects directly
+            self.simulator.current_run.metadata["environment"]["obstacles"] = (
+                self.environment.obstacles
+            )
+            self.simulator.current_run.metadata["environment"]["bounds"] = (
+                list(self.environment.bounds)
+            )
+            self.simulator.current_run.metadata["environment"]["start_position"] = (
+                list(self.environment.start_position)
+            )
+            self.simulator.current_run.metadata["environment"]["goal_position"] = (
+                list(self.environment.goal_position)
+            )
+            
+            # Save to same directory as episode results
+            output_path = self.logger.log_dir / f"episode_{episode_num:06d}.json"
+            self.simulator.save_run(output_path)
 
     def render(self) -> None:
         # Offline rendering is handled by the simulator's logger/visualizer.

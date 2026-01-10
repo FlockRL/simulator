@@ -183,7 +183,7 @@ env = FlockRLGymEnv(
 
 ### Episode Logging
 
-Episode logging is configured via `config.yml` under `gym`. Set `log_dir` (string path) to enable logging, and `save_trajectories` to store full trajectories.
+Episode logging is configured via `config.yml` under `gym`. Set `log_dir` (string path) to enable logging. Simulation runs are automatically saved as JSON files for visualization.
 
 ```python
 env = FlockRLGymEnv(
@@ -195,11 +195,9 @@ env = FlockRLGymEnv(
 env.save_logs()
 ```
 
-**Trajectory Logging:**
-For detailed analysis, set `gym.save_trajectories: true` in `config.yml`:
-```python
-env = FlockRLGymEnv(reward_fn=my_reward_fn, environment=environment)
-```
+When logging is enabled, simulation runs are automatically saved as JSON files (`episode_XXXXXX.json`) in the log directory after each episode completes. These files can be visualized using the `LogVisualizer` (see Visualization section).
+
+**Important:** Set `gym.save_runs: true` in `config.yml` **only when you need data to visualize your model**, not training/eval. Saving full simulation runs for every episode during training can consume significant disk space (up to several MB per episode for long episodes). For training, keep `save_runs: false` to only save lightweight episode statistics (`episode_results.json`).
 
 ### Observation Space
 

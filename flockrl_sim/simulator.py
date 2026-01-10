@@ -17,9 +17,12 @@ from .environment import Environment
 import json
 from .perception.sensors import PerceptionSystem
 from collections import defaultdict
+from .environment import Environment
 
 CollisionHandler = Callable[[SwarmState], Tuple[SwarmState, dict]]
 RenderHook = Callable[[SwarmState, dict], None]
+
+
 
 
 @dataclass
@@ -53,6 +56,7 @@ class CoreSimulator:
         collision_system: CollisionHandler,
         render_hook: Optional[RenderHook] = None,
         environment: Optional[Environment] = None,
+        enable_frame_logging: bool = True,
     ) -> None:
         self.delta_t = delta_t
         self.max_steps = max_steps
@@ -73,6 +77,9 @@ class CoreSimulator:
         self.environment = environment
         self.state: Optional[SwarmState] = None  # Set by start_run()
         self.current_run: Optional[SimulationRun] = None
+        
+        # Frame logging control
+        self._enable_frame_logging = enable_frame_logging
 
         # Episode management
         self._step_count = 0
@@ -163,17 +170,18 @@ class CoreSimulator:
             initial_observations = self._perception_system.observe(self.state)
 
         # Logging the first frame with consistent info structure
-        self.log_frame(
-            info={
-                "event": "run_started",
-                "collisions": [],
-                "observations": initial_observations,
-                "step": 0,
-                "done": False,
-                "termination_reason": None,
-                "episode_stats": self._episode_stats.copy(),
-            }
-        )
+        if self._enable_frame_logging:
+            self.log_frame(
+                info={
+                    "event": "run_started",
+                    "collisions": [],
+                    "observations": initial_observations,
+                    "step": 0,
+                    "done": False,
+                    "termination_reason": None,
+                    "episode_stats": self._episode_stats.copy(),
+                }
+            )
 
         return self.state
 
@@ -318,7 +326,8 @@ class CoreSimulator:
         )
 
         # 11. Log for Visualization
-        self.log_frame(info=info_dict)
+        if self._enable_frame_logging:
+            self.log_frame(info=info_dict)
 
         # 12. Call Render Hook
         if self.render_hook:
@@ -351,11 +360,11 @@ class CoreSimulator:
         if self.current_run is None:
             raise RuntimeError("No run to save. Call start_run() first.")
 
-        # Helper function to make info dict JSON serializable
-        def serialize_info(info: dict) -> dict:
-            """Convert info dict to JSON-serializable format"""
+        # Helper function to make info dict and metadata JSON serializable
+        def serialize_info(data: dict) -> dict:
+            """Convert dict to JSON-serializable format, handling collisions, observations, and obstacles."""
             serialized = {}
-            for key, value in info.items():
+            for key, value in data.items():
                 if key == "collisions":
                     # Convert CollisionInfo objects to dicts
                     serialized[key] = [
@@ -386,6 +395,37 @@ class CoreSimulator:
                         }
                         for obs in value
                     ]
+                elif key == "obstacles":
+                    # Convert Obstacle objects to dicts
+                    serialized[key] = []
+                    for obs in value:
+                        obs_dict = {
+                            "id": obs.id,
+                            "type": obs.type,
+                            "position": list(obs.position),
+                        }
+                        
+                        if obs.orientation is not None:
+                            obs_dict["orientation"] = list(obs.orientation)
+                        
+                        # Add dimensions based on obstacle type
+                        if hasattr(obs, "length"):
+                            obs_dict["length"] = float(obs.length)
+                        if hasattr(obs, "width"):
+                            obs_dict["width"] = float(obs.width)
+                        if hasattr(obs, "height"):
+                            obs_dict["height"] = float(obs.height)
+                        if hasattr(obs, "thickness"):
+                            obs_dict["thickness"] = float(obs.thickness)
+                        if hasattr(obs, "subtype"):
+                            obs_dict["subtype"] = obs.subtype
+                        if hasattr(obs, "gate_ids"):
+                            obs_dict["gate_ids"] = list(obs.gate_ids)
+                        
+                        serialized[key].append(obs_dict)
+                elif key == "environment" and isinstance(value, dict):
+                    # Recursively serialize environment dict (which may contain obstacles)
+                    serialized[key] = serialize_info(value)
                 else:
                     # Other fields are already serializable
                     serialized[key] = value
@@ -393,7 +433,7 @@ class CoreSimulator:
 
         # Convert to serializable format (JSON)
         data = {
-            "metadata": self.current_run.metadata,
+            "metadata": serialize_info(self.current_run.metadata),
             "frames": [
                 {
                     "state": {
@@ -468,7 +508,8 @@ class CoreSimulator:
         # Clear current run frames (but keep the run object)
         if self.current_run is not None:
             self.current_run.frames = []
-            self.log_frame(info={"event": "episode_reset"})
+            if self._enable_frame_logging:
+                self.log_frame(info={"event": "episode_reset"})
 
         return self.state
 

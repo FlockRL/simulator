@@ -21,7 +21,6 @@ def create_test_env(
     **kwargs
 ):
     """Helper to create test environment with defaults."""
-    save_trajectories = kwargs.pop("save_trajectories", False)
     environment = kwargs.pop(
         "environment",
         Environment(
@@ -48,7 +47,6 @@ def create_test_env(
                 "gym": {
                     "max_neighbors": 4,
                     "log_dir": str(log_dir),
-                    "save_trajectories": save_trajectories,
                 },
                 "collision": {
                     "restitution": 0.8,
@@ -303,13 +301,12 @@ class TestFlockRLGymEnvWithLogging:
             json_path = Path(tmpdir) / "episode_results.json"
             assert json_path.exists()
 
-    def test_trajectory_logging(self):
-        """Test trajectory logging when enabled."""
+    def test_simulation_run_saving(self):
+        """Test that simulation runs are saved when episodes end."""
         with tempfile.TemporaryDirectory() as tmpdir:
             env = create_test_env(
                 SimpleReward(),
                 log_dir=Path(tmpdir),
-                save_trajectories=True,
             )
 
             # Run one episode to completion
@@ -323,12 +320,18 @@ class TestFlockRLGymEnvWithLogging:
                 done = terminated or truncated
                 step_count += 1
 
-            # Check trajectory was logged
-            trajectory = env.logger._trajectories.get(0)
-            assert trajectory is not None
-            assert trajectory.positions.shape[0] == step_count
-            assert trajectory.actions.shape[0] == step_count
-            assert trajectory.rewards.shape[0] == step_count
+            # Check that simulation run was saved
+            episode_json = Path(tmpdir) / "episode_000000.json"
+            assert episode_json.exists()
+            
+            # Verify it's valid JSON with frames
+            import json
+            with open(episode_json) as f:
+                data = json.load(f)
+            assert "frames" in data
+            assert len(data["frames"]) == step_count + 1  # +1 for initial frame
+            assert "metadata" in data
+            assert "environment" in data["metadata"]
 
     def test_logger_dataframe(self):
         """Test accessing DataFrame from logger."""
