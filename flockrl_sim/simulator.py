@@ -13,7 +13,6 @@ import numpy as np
 
 from .state import SwarmState
 from .environment import Environment
-from .config import SimulationConfig
 
 import json
 from .perception.sensors import PerceptionSystem
@@ -46,13 +45,20 @@ class CoreSimulator:
 
     def __init__(
         self,
-        delta_t: float = 1.0 / 60.0,  # Defaults to 60 Hz
-        collision_system: Optional[CollisionHandler] = None,
+        delta_t: float,
+        max_steps: int,
+        goal_threshold: float,
+        max_acceleration: Optional[float],
+        terminate_on_collision: bool,
+        collision_system: CollisionHandler,
         render_hook: Optional[RenderHook] = None,
         environment: Optional[Environment] = None,
-        config: Optional[SimulationConfig] = None,
     ) -> None:
         self.delta_t = delta_t
+        self.max_steps = max_steps
+        self.goal_threshold = goal_threshold
+        self.max_acceleration = max_acceleration
+        self.terminate_on_collision = terminate_on_collision
         self.collision_system = collision_system
         self.render_hook = render_hook
         # Default empty environment
@@ -65,7 +71,6 @@ class CoreSimulator:
                 seed=0,
             )
         self.environment = environment
-        self.config = config or SimulationConfig(delta_t=delta_t)
         self.state: Optional[SwarmState] = None  # Set by start_run()
         self.current_run: Optional[SimulationRun] = None
 
@@ -216,61 +221,60 @@ class CoreSimulator:
         final_state = proposed_state
 
         # 4. Call Collision System and apply collision response
-        if self.collision_system:
-            # The collision system detects collisions and returns collision info
-            # We need to apply the new_position and rebound_velocity from CollisionInfo
-            final_state, info_dict = self.collision_system(proposed_state)
+        # The collision system detects collisions and returns collision info
+        # We need to apply the new_position and rebound_velocity from CollisionInfo
+        final_state, info_dict = self.collision_system(proposed_state)
 
-            # Apply collision responses
-            collisions = info_dict.get("collisions", [])
-            if collisions:
-                # Group collisions by drone_id to handle multiple simultaneous collisions
-                collisions_by_drone = defaultdict(list)
-                for collision in collisions:
-                    collisions_by_drone[collision.drone_id].append(collision)
+        # Apply collision responses
+        collisions = info_dict.get("collisions", [])
+        if collisions:
+            # Group collisions by drone_id to handle multiple simultaneous collisions
+            collisions_by_drone = defaultdict(list)
+            for collision in collisions:
+                collisions_by_drone[collision.drone_id].append(collision)
 
-                # Apply accumulated corrections for each drone
-                for drone_id, drone_collisions in collisions_by_drone.items():
-                    # Find the index of this drone
-                    drone_idx = np.where(final_state.ids == drone_id)[0]
-                    if len(drone_idx) == 0:
-                        continue
+            # Apply accumulated corrections for each drone
+            for drone_id, drone_collisions in collisions_by_drone.items():
+                # Find the index of this drone
+                drone_idx = np.where(final_state.ids == drone_id)[0]
+                if len(drone_idx) == 0:
+                    continue
 
-                    idx = drone_idx[0]
-                    original_pos = proposed_state.pos[idx].copy()
-                    original_vel = proposed_state.vel[idx].copy()
+                idx = drone_idx[0]
+                original_pos = proposed_state.pos[idx].copy()
+                original_vel = proposed_state.vel[idx].copy()
 
-                    # Accumulate position corrections from all collisions
-                    total_pos_correction = np.zeros(3)
-                    for collision in drone_collisions:
-                        pos_correction = collision.new_position - original_pos
-                        total_pos_correction += pos_correction
+                # Accumulate position corrections from all collisions
+                total_pos_correction = np.zeros(3)
+                for collision in drone_collisions:
+                    pos_correction = collision.new_position - original_pos
+                    total_pos_correction += pos_correction
 
-                    # Apply position correction
-                    final_state.pos[idx] = original_pos + total_pos_correction
+                # Apply position correction
+                final_state.pos[idx] = original_pos + total_pos_correction
 
-                    # For velocity, apply each rebound sequentially in the normal direction
-                    # This properly handles corner collisions where multiple normals apply
-                    final_vel = original_vel.copy()
-                    for collision in drone_collisions:
-                        normal = collision.normal_vector
-                        # Decompose current velocity into normal and tangential components
-                        v_n = np.dot(final_vel, normal) * normal
-                        v_t = final_vel - v_n
-                        # Get the rebounded normal component from collision
-                        collision_v_n = np.dot(collision.rebound_velocity, normal) * normal
-                        # Reconstruct velocity with rebounded normal component
-                        final_vel = v_t + collision_v_n
+                # For velocity, apply each rebound sequentially in the normal direction
+                # This properly handles corner collisions where multiple normals apply
+                final_vel = original_vel.copy()
+                for collision in drone_collisions:
+                    normal = collision.normal_vector
+                    # Decompose current velocity into normal and tangential components
+                    v_n = np.dot(final_vel, normal) * normal
+                    v_t = final_vel - v_n
+                    # Get the rebounded normal component from collision
+                    collision_v_n = np.dot(collision.rebound_velocity, normal) * normal
+                    # Reconstruct velocity with rebounded normal component
+                    final_vel = v_t + collision_v_n
 
-                    final_state.vel[idx] = final_vel
+                final_state.vel[idx] = final_vel
 
-                # Update statistics
-                self._episode_stats["collision_count"] += len(collisions)
+            # Update statistics
+            self._episode_stats["collision_count"] += len(collisions)
 
-                # Terminate episode if configured to do so
-                if self.config.terminate_on_collision:
-                    self._episode_terminated = True
-                    self._termination_reason = "collision"
+            # Terminate episode if configured to do so
+            if self.terminate_on_collision:
+                self._episode_terminated = True
+                self._termination_reason = "collision"
 
         # 5. Update master state
         self.state = final_state
@@ -493,16 +497,13 @@ class CoreSimulator:
             actions = np.nan_to_num(actions, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Clip to max acceleration if configured
-        if self.config.max_acceleration is not None:
+        if self.max_acceleration is not None:
             action_mags = np.linalg.norm(actions, axis=1)
-            exceeded = action_mags > self.config.max_acceleration
+            exceeded = action_mags > self.max_acceleration
             if np.any(exceeded):
-                warnings.warn(
-                    f"{np.sum(exceeded)} action(s) exceed max acceleration. Clipping to {self.config.max_acceleration} m/s^2."
-                )
                 # Normalize and scale
                 scale = np.minimum(
-                    1.0, self.config.max_acceleration / (action_mags + 1e-12)
+                    1.0, self.max_acceleration / (action_mags + 1e-12)
                 )
                 actions = actions * scale[:, np.newaxis]
 
@@ -521,12 +522,12 @@ class CoreSimulator:
             return True, self._termination_reason
 
         # Check timeout
-        if self._step_count >= self.config.max_steps:
+        if self._step_count >= self.max_steps:
             return True, "timeout"
 
         # Check success (all drones within goal threshold)
         goal_distances = np.linalg.norm(self.state.pos - self.state.goals, axis=1)
-        if np.all(goal_distances <= self.config.goal_threshold):
+        if np.all(goal_distances <= self.goal_threshold):
             return True, "success"
 
         # Check out-of-bounds

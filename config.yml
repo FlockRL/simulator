@@ -1,0 +1,32 @@
+# FlockRL Simulator Configuration
+
+# Simulation settings
+simulation:
+  delta_t: 0.004166666666666667  # 1.0 / 240.0 (240 Hz)
+  max_steps: 1000
+  goal_threshold: 0.5  # Distance threshold for goal success (meters)
+  max_acceleration: 5.0  # Maximum allowed acceleration magnitude (m/s^2)
+  terminate_on_collision: true  # Whether to terminate episode immediately on collision
+
+# Environment settings
+environment:
+  spec: null  # Environment spec name or path to JSON file
+  bounds: null  # Simulation bounds (overrides spec) - [x_min, x_max, y_min, y_max, z_min, z_max]
+  seed: null  # Random seed (overrides spec)
+
+# Collision settings
+collision:
+  restitution: 1.0  # Coefficient of restitution (0.0 to 1.0)
+  enable_collisions: true  # Enable collision detection and response
+
+# Visualization settings
+visualization:
+  render_mode: "offline"  # Rendering mode (offline/online)
+  fps: 60  # Frames per second for playback
+  save_path: null  # Path to save visualization output
+
+# Gym environment settings
+gym:
+  max_neighbors: 4  # Maximum number of neighbors to encode in observations
+  log_dir: null  # Directory for saving logs (null to disable logging)
+  save_trajectories: false  # Whether to save full position/action trajectories

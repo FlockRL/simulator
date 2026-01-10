@@ -1,13 +1,9 @@
 """FlockRL Simulator - Public API exports."""
 
 from .collision.system import CollisionInfo, CollisionSystem
-from .config import (
-    CollisionConfig,
-    EnvironmentConfig,
-    SimulationConfig,
-    VisualizationConfig,
-)
-from .gym_env import FlockRLGymEnv
+from .gym_env import FlockRLGymEnv, load_config
+from .gym_logging import EpisodeLogger, EpisodeResult, TrajectoryData
+from .rewards import RewardFunction
 from .environment.obstacles import Environment, EnvironmentBuilder, Obstacle
 from .perception import PerceptionSystem, RayHit, SensorConfig, SensorReading
 from .simulator import CoreSimulator, SimulationFrame, SimulationRun
@@ -35,11 +31,14 @@ __all__ = [
     "RayHit",
     # Visualization
     "OfflineVisualizer",
-    # Configs
-    "SimulationConfig",
-    "EnvironmentConfig",
-    "CollisionConfig",
-    "VisualizationConfig",
+    # Config
+    "load_config",
     # Gymnasium
     "FlockRLGymEnv",
+    # Gymnasium logging
+    "EpisodeLogger",
+    "EpisodeResult",
+    "TrajectoryData",
+    # Reward functions
+    "RewardFunction",
 ]

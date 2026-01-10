@@ -7,18 +7,38 @@ RL tooling that expects the Gymnasium API.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
+import yaml
 from gymnasium import spaces
 
-from .config import SimulationConfig
+from .collision.system import CollisionSystem
 from .environment import Environment
+from .gym_logging import EpisodeLogger
+from .rewards import RewardFunction
 from .simulator import CoreSimulator
 from .state import SwarmState
 
-DEFAULT_ACCELERATION_LIMIT = 5.0
+
+def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Load configuration from YAML file."""
+    if config_path is None:
+        # Look for config.yml in the project root (parent of flockrl_sim)
+        config_path = Path(__file__).parent.parent / "config.yml"
+    
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"Configuration file not found: {config_path}. "
+            "Please create config.yml in the project root."
+        )
+    
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f) or {}
+    
+    return config
 
 
 class FlockRLGymEnv(gym.Env):
@@ -28,55 +48,59 @@ class FlockRLGymEnv(gym.Env):
 
     def __init__(
         self,
-        environment: Optional[Environment] = None,
-        sim_config: Optional[SimulationConfig] = None,
-        max_neighbors: int = 4,
-        success_reward: float = 100.0,
-        collision_penalty: float = 50.0,
-        step_cost: float = 0.1,
-        distance_scale: float = 1.0,
+        reward_fn: RewardFunction,
+        environment: Environment,
+        config_path: Optional[Path] = None,
     ) -> None:
         """
         Args:
-            environment: Optional environment instance. If not provided, a simple empty
-                environment is created using the defaults from CoreSimulator.
-            sim_config: Simulation configuration (dt, termination rules, etc.).
-            max_neighbors: Maximum number of neighbors to encode in observations.
-            success_reward: Bonus reward when reaching the goal.
-            collision_penalty: Penalty applied when the episode ends due to collision.
-            step_cost: Constant cost subtracted each step to encourage faster completion.
-            distance_scale: Scale factor on dense reward based on goal distance reduction.
+            reward_fn: Reward function instance.
+            environment: Environment instance.
+            config_path: Optional path to config.yml file. If None, uses default location.
         """
         super().__init__()
-        self.environment = environment or Environment(
-            bounds=(-100, 100, -100, 100, 0, 100),
-            obstacles=[],
-            start_position=(0.0, 0.0, 1.0),
-            goal_position=(0.0, 0.0, 10.0),
-            seed=0,
-        )
-        self.sim_config = sim_config or SimulationConfig()
+        
+        config = load_config(config_path)
+        gym_config = config["gym"]
+        sim_config = config["simulation"]
+        collision_config = config["collision"]
+        
+        self.environment = environment
+        self.sim_config = sim_config
+        
+        # Create collision system
+        collision_system = self._build_collision_system(collision_config)
+        
         self.simulator = CoreSimulator(
-            delta_t=self.sim_config.delta_t,
+            delta_t=sim_config["delta_t"],
+            max_steps=sim_config["max_steps"],
+            goal_threshold=sim_config["goal_threshold"],
+            max_acceleration=sim_config["max_acceleration"],
+            terminate_on_collision=sim_config["terminate_on_collision"],
+            collision_system=collision_system,
             environment=self.environment,
-            config=self.sim_config,
         )
 
-        self.max_neighbors = max_neighbors
-        self.success_reward = success_reward
-        self.collision_penalty = collision_penalty
-        self.step_cost = step_cost
-        self.distance_scale = distance_scale
-
-        self._action_limit = float(
-            self.sim_config.max_acceleration or DEFAULT_ACCELERATION_LIMIT
-        )
+        self.max_neighbors = gym_config["max_neighbors"]
+        self.reward_fn = reward_fn
+        self._action_limit = float(sim_config["max_acceleration"])
         self._num_rays = (
             self.simulator._perception_system.config.num_rays
             if self.simulator._perception_system is not None
             else 0
         )
-        self._last_goal_distance: Optional[float] = None
+
+        # Episode logger (only enabled if log_dir is provided)
+        self.logger: Optional[EpisodeLogger] = None
+        log_dir = gym_config["log_dir"]
+        if log_dir:
+            self.logger = EpisodeLogger(
+                log_dir=Path(log_dir),
+                save_trajectories=gym_config["save_trajectories"],
+            )
+
+        self._episode_num = 0
+        self._episode_reward = 0.0
 
         self.action_space = spaces.Box(
             low=-self._action_limit,
@@ -91,6 +115,17 @@ class FlockRLGymEnv(gym.Env):
             dtype=np.float32,
         )
 
+    def _build_collision_system(
+        self, collision_config: Dict[str, Any]
+    ) -> Optional[CollisionSystem]:
+        """Create a CollisionSystem instance when enabled in config."""
+        enable = collision_config.get("enable_collisions", True)
+        if not enable:
+            return None
+
+        restitution = collision_config.get("restitution", 0.8)
+        return CollisionSystem(environment=self.environment, restitution=restitution)
+
     def _observation_dim(self) -> int:
         # pos(3) + vel(3) + goal vector(3) + goal distance(1)
         base = 10
@@ -103,9 +138,6 @@ class FlockRLGymEnv(gym.Env):
         ids = np.array([0], dtype=int)
         goals = np.array([self.environment.goal_position], dtype=float)
         return SwarmState.from_initial_positions(pos, ids, goals)
-
-    def _goal_distance(self, state: SwarmState) -> float:
-        return float(np.linalg.norm(state.pos[0] - state.goals[0]))
 
     def _build_observation(
         self, state: SwarmState, sim_info: Optional[Dict[str, Any]] = None
@@ -139,6 +171,7 @@ class FlockRLGymEnv(gym.Env):
             )
 
         goal_vector = (state.goals[0] - state.pos[0]).astype(np.float32)
+        goal_distance = float(np.linalg.norm(goal_vector))
         vel = (
             state.vel[0].astype(np.float32)
             if state.vel is not None
@@ -149,30 +182,12 @@ class FlockRLGymEnv(gym.Env):
             state.pos[0].astype(np.float32),
             vel,
             goal_vector,
-            np.array([self._goal_distance(state)], dtype=np.float32),
+            np.array([goal_distance], dtype=np.float32),
             ranges,
             hits,
             neighbor_vectors.flatten(),
         ]
         return np.concatenate(obs_parts, dtype=np.float32)
-
-    def _compute_reward(self, state: SwarmState, sim_info: Dict[str, Any]) -> float:
-        current_dist = self._goal_distance(state)
-        delta = (
-            self._last_goal_distance - current_dist
-            if self._last_goal_distance is not None
-            else 0.0
-        )
-        reward = delta * self.distance_scale - self.step_cost
-
-        termination_reason = sim_info.get("termination_reason")
-        if termination_reason == "success":
-            reward += self.success_reward
-        elif termination_reason == "collision":
-            reward -= self.collision_penalty
-
-        self._last_goal_distance = current_dist
-        return float(reward)
 
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
@@ -185,13 +200,25 @@ class FlockRLGymEnv(gym.Env):
             initial_state=self._initial_state(),
             metadata={"reset_seed": seed, "reset_options": options or {}},
         )
-        self._last_goal_distance = self._goal_distance(state)
+        
+        # Initialize reward function
+        self.reward_fn.reset(state)
+        
         obs = self._build_observation(state)
+        goal_distance = float(np.linalg.norm(state.pos[0] - state.goals[0]))
         info = {
-            "goal_distance": self._last_goal_distance,
+            "goal_distance": goal_distance,
             "termination_reason": None,
             "collisions": [],
         }
+
+        # Start episode logging
+        if self.logger:
+            metadata = {"seed": seed, **(options or {})}
+            self.logger.start_episode(self._episode_num, metadata)
+
+        self._episode_reward = 0.0
+
         return obs, info
 
     def step(
@@ -205,7 +232,7 @@ class FlockRLGymEnv(gym.Env):
         state, sim_info = self.simulator.step(clipped_action[None, :])
 
         obs = self._build_observation(state, sim_info)
-        reward = self._compute_reward(state, sim_info)
+        reward = self.reward_fn.compute(state, clipped_action, sim_info)
 
         terminated = bool(sim_info.get("done")) and (
             sim_info.get("termination_reason") != "timeout"
@@ -219,7 +246,39 @@ class FlockRLGymEnv(gym.Env):
             "termination_reason": sim_info.get("termination_reason"),
             "collisions": sim_info.get("collisions", []),
         }
+
+        # Log step data (only if save_trajectories enabled)
+        if self.logger and self.logger._save_trajectories:
+            self.logger.log_step(
+                position=state.pos[0],
+                action=clipped_action,
+                reward=reward,
+                timestep=state.t,
+            )
+
+        self._episode_reward += reward
+
+        # End episode logging
+        if (terminated or truncated) and self.logger:
+            result = self.logger.end_episode(
+                termination_reason=sim_info.get("termination_reason"),
+                episode_stats=sim_info["episode_stats"],
+                total_reward=self._episode_reward,
+            )
+            info["episode_result"] = result  # Add to info dict
+            self._episode_num += 1
+
         return obs, reward, terminated, truncated, info
+
+    def save_logs(self):
+        """
+        Manually trigger save of episode logs to disk.
+
+        Call this when you want to checkpoint (e.g., after training steps or at the end).
+        Does nothing if log_dir was not specified.
+        """
+        if self.logger:
+            self.logger.save_to_disk(force=True)
 
     def render(self) -> None:
         # Offline rendering is handled by the simulator's logger/visualizer.

@@ -21,7 +21,9 @@ from .environment import Environment, EnvironmentBuilder
 from .environment.loader import EnvironmentSpecLoader
 from .environment.obstacles_types import Wall, Gate, RectangularPrism
 from .collision.system import CollisionSystem
-from .config import SimulationConfig
+import yaml
+from pathlib import Path
+from .gym_env import load_config
 
 
 def demo_basic_simulation():
@@ -40,18 +42,22 @@ def demo_basic_simulation():
     )
 
     # Create simulator with collision system
-    config = SimulationConfig(
-        delta_t=1 / 60.0,
-        max_steps=300,
-        goal_threshold=1.0,
-        terminate_on_collision=False,
-    )
+    config = {
+        "delta_t": 1 / 60.0,
+        "max_steps": 300,
+        "goal_threshold": 1.0,
+        "terminate_on_collision": False,
+        "max_acceleration": None,
+    }
 
     simulator = CoreSimulator(
-        delta_t=config.delta_t,
+        delta_t=config["delta_t"],
+        max_steps=config["max_steps"],
+        goal_threshold=config["goal_threshold"],
+        max_acceleration=config["max_acceleration"],
+        terminate_on_collision=config["terminate_on_collision"],
         collision_system=CollisionSystem(env),
         environment=env,
-        config=config,
     )
 
     # Initialize with 3 drones
@@ -148,15 +154,22 @@ def demo_obstacles_and_collisions():
         seed=42,
     )
 
-    config = SimulationConfig(
-        delta_t=1 / 60.0, max_steps=500, goal_threshold=1.0, terminate_on_collision=True
-    )
+    config = {
+        "delta_t": 1 / 60.0,
+        "max_steps": 500,
+        "goal_threshold": 1.0,
+        "terminate_on_collision": True,
+        "max_acceleration": None,
+    }
 
     simulator = CoreSimulator(
-        delta_t=config.delta_t,
+        delta_t=config["delta_t"],
+        max_steps=config["max_steps"],
+        goal_threshold=config["goal_threshold"],
+        max_acceleration=config["max_acceleration"],
+        terminate_on_collision=config["terminate_on_collision"],
         collision_system=CollisionSystem(env, drone_radius=0.5),
         environment=env,
-        config=config,
     )
 
     # Single drone trying to navigate through gate
@@ -240,8 +253,16 @@ def demo_perception_system():
         seed=42,
     )
 
+    # This demo doesn't use config, so we'll use defaults from config.yml
+    # For demo purposes, we'll create a minimal config
     simulator = CoreSimulator(
-        delta_t=1 / 60.0, collision_system=CollisionSystem(env), environment=env
+        delta_t=1 / 60.0,
+        max_steps=1000,
+        goal_threshold=0.5,
+        max_acceleration=None,
+        terminate_on_collision=True,
+        collision_system=CollisionSystem(env),
+        environment=env,
     )
 
     # Multiple drones for neighbor detection
@@ -299,12 +320,21 @@ def demo_environment_loading():
     print(f"  - Goal: {env.goal_position}")
 
     # Run a quick simulation
-    config = SimulationConfig(delta_t=1 / 60.0, max_steps=100)
+    config = {
+        "delta_t": 1 / 60.0,
+        "max_steps": 100,
+        "goal_threshold": 0.5,
+        "terminate_on_collision": True,
+        "max_acceleration": None,
+    }
     simulator = CoreSimulator(
-        delta_t=config.delta_t,
+        delta_t=config["delta_t"],
+        max_steps=config["max_steps"],
+        goal_threshold=config["goal_threshold"],
+        max_acceleration=config["max_acceleration"],
+        terminate_on_collision=config["terminate_on_collision"],
         collision_system=CollisionSystem(env),
         environment=env,
-        config=config,
     )
 
     state = simulator.start_run()
@@ -326,18 +356,22 @@ def demo_episode_management():
         seed=42,
     )
 
-    config = SimulationConfig(
-        delta_t=1 / 60.0,
-        max_steps=200,
-        goal_threshold=1.0,
-        terminate_on_collision=False,
-    )
+    config = {
+        "delta_t": 1 / 60.0,
+        "max_steps": 200,
+        "goal_threshold": 1.0,
+        "terminate_on_collision": False,
+        "max_acceleration": None,
+    }
 
     simulator = CoreSimulator(
-        delta_t=config.delta_t,
+        delta_t=config["delta_t"],
+        max_steps=config["max_steps"],
+        goal_threshold=config["goal_threshold"],
+        max_acceleration=config["max_acceleration"],
+        terminate_on_collision=config["terminate_on_collision"],
         collision_system=CollisionSystem(env),
         environment=env,
-        config=config,
     )
 
     # Run 3 episodes
@@ -389,18 +423,22 @@ def demo_termination_conditions():
         seed=42,
     )
 
-    config = SimulationConfig(
-        delta_t=1 / 60.0,
-        max_steps=1000,
-        goal_threshold=0.5,  # Large threshold for easy success
-        terminate_on_collision=False,
-    )
+    config = {
+        "delta_t": 1 / 60.0,
+        "max_steps": 1000,
+        "goal_threshold": 0.5,  # Large threshold for easy success
+        "terminate_on_collision": False,
+        "max_acceleration": None,
+    }
 
     simulator = CoreSimulator(
-        delta_t=config.delta_t,
+        delta_t=config["delta_t"],
+        max_steps=config["max_steps"],
+        goal_threshold=config["goal_threshold"],
+        max_acceleration=config["max_acceleration"],
+        terminate_on_collision=config["terminate_on_collision"],
         collision_system=CollisionSystem(env),
         environment=env,
-        config=config,
     )
 
     state = simulator.start_run()
@@ -437,12 +475,14 @@ def demo_termination_conditions():
         seed=42,
     )
 
-    config.terminate_on_collision = True
     simulator = CoreSimulator(
-        delta_t=config.delta_t,
+        delta_t=config["delta_t"],
+        max_steps=config["max_steps"],
+        goal_threshold=config["goal_threshold"],
+        max_acceleration=config["max_acceleration"],
+        terminate_on_collision=True,
         collision_system=CollisionSystem(env, drone_radius=0.5),
         environment=env,
-        config=config,
     )
 
     state = simulator.start_run()
@@ -456,9 +496,6 @@ def demo_termination_conditions():
 
     # Test 3: Timeout
     print("\n3. Testing TIMEOUT termination...")
-    config.max_steps = 50
-    config.terminate_on_collision = False
-
     env = Environment(
         bounds=(-10, 10, -10, 10, 0, 20),
         obstacles=[],
@@ -468,10 +505,13 @@ def demo_termination_conditions():
     )
 
     simulator = CoreSimulator(
-        delta_t=config.delta_t,
+        delta_t=config["delta_t"],
+        max_steps=50,
+        goal_threshold=config["goal_threshold"],
+        max_acceleration=config["max_acceleration"],
+        terminate_on_collision=False,
         collision_system=CollisionSystem(env),
         environment=env,
-        config=config,
     )
 
     state = simulator.start_run()
@@ -502,9 +542,12 @@ def demo_save_and_record():
 
     simulator = CoreSimulator(
         delta_t=1 / 60.0,
+        max_steps=100,
+        goal_threshold=0.5,
+        max_acceleration=None,
+        terminate_on_collision=True,
         collision_system=CollisionSystem(env),
         environment=env,
-        config=SimulationConfig(max_steps=100),
     )
 
     positions = np.array([[0.0, 0.0, 1.0]])
