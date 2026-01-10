@@ -570,24 +570,47 @@ class CollisionSystem:
 
     def _is_point_inside_gate(self, point: np.ndarray, gate: Any) -> bool:
         """
-        Check if a point is inside a gate's bounding volume.
+        Check if a drone (represented by its center point) can fit inside a gate.
 
-        Gates are rectangular volumes defined by (width, thickness, height).
-        For axis-aligned gates, this is a simple AABB test.
+        Accounts for drone radius by shrinking the gate's effective volume.
+        The entire drone sphere must fit inside the gate for pass-through to work.
 
         Args:
-            point: 3D point to test, shape (3,)
+            point: Drone center position, shape (3,)
             gate: Gate obstacle with position, width, height, thickness, orientation
 
         Returns:
-            True if point is inside gate volume, False otherwise
+            True if drone sphere fits inside gate volume, False otherwise
         """
         gate_pos = np.array(gate.position, dtype=float)
 
         # Gate dimensions: (width, thickness, height) map to (x, y, z) half-extents
+        # For gate pass-through, only width and height matter (the opening size)
+        # Thickness is the wall depth and doesn't constrain drone passage
+        required_width = 2.0 * self.drone_radius
+        required_height = 2.0 * self.drone_radius
+        
+        # Check if gate opening is large enough (width and height only)
+        if gate.width < required_width - 1e-9 or gate.height < required_height - 1e-9:
+            return False
+        
+        # Calculate effective half-extents (gate size minus drone radius on each side)
+        # Shrink width and height by drone radius, but don't constrain thickness
+        # (thickness can be smaller than drone diameter - it's just the wall depth)
         half_extents = np.array(
-            [gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float
+            [
+                gate.width * 0.5 - self.drone_radius,
+                gate.thickness * 0.5,  # Don't shrink thickness - it's just wall depth
+                gate.height * 0.5 - self.drone_radius,
+            ],
+            dtype=float,
         )
+
+        # Special case: if gate is exactly drone diameter, only allow if perfectly centered
+        # (all half-extents are effectively zero)
+        if np.allclose(half_extents, 0.0, atol=1e-9):
+            # Check if point is at gate center (within tolerance)
+            return np.allclose(point, gate_pos, atol=1e-6)
 
         obb = OBB(
             center=gate_pos, half_extents=half_extents, orientation=gate.orientation

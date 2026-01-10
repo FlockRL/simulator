@@ -13,8 +13,10 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from .collision.system import CollisionSystem
 from .config import SimulationConfig
-from .environment import Environment
+from .environment import Environment, EnvironmentBuilder
+from .environment.loader import EnvironmentSpecLoader
 from .simulator import CoreSimulator
 from .state import SwarmState
 
@@ -35,31 +37,55 @@ class FlockRLGymEnv(gym.Env):
         collision_penalty: float = 50.0,
         step_cost: float = 0.1,
         distance_scale: float = 1.0,
+        drone_radius: float = 0.5,
+        enable_collisions: bool = True,
     ) -> None:
         """
+        Initialize the FlockRL Gymnasium environment.
+
         Args:
-            environment: Optional environment instance. If not provided, a simple empty
-                environment is created using the defaults from CoreSimulator.
+            environment: Optional environment instance. If not provided, loads the
+                'simple' environment spec (2 walls with gates, 3 random clutter).
             sim_config: Simulation configuration (dt, termination rules, etc.).
             max_neighbors: Maximum number of neighbors to encode in observations.
             success_reward: Bonus reward when reaching the goal.
             collision_penalty: Penalty applied when the episode ends due to collision.
             step_cost: Constant cost subtracted each step to encourage faster completion.
             distance_scale: Scale factor on dense reward based on goal distance reduction.
+            drone_radius: Radius of the drone for collision detection (meters).
+            enable_collisions: Whether to enable collision detection and response.
+
+        Note:
+            The environment (including random obstacle placement) is built once during
+            initialization using the environment spec's seed. The seed parameter in
+            reset() only affects the drone's initial state (position/velocity), not
+            obstacle layout. To get different obstacle configurations, create a new
+            environment instance or provide a custom environment with a different seed.
         """
         super().__init__()
-        self.environment = environment or Environment(
-            bounds=(-100, 100, -100, 100, 0, 100),
-            obstacles=[],
-            start_position=(0.0, 0.0, 1.0),
-            goal_position=(0.0, 0.0, 10.0),
-            seed=0,
-        )
+
+        # Load default environment from simple.json spec if not provided
+        if environment is None:
+            loader = EnvironmentSpecLoader()
+            spec = loader.load("simple")
+            environment = EnvironmentBuilder.from_spec(spec).build()
+
+        self.environment = environment
         self.sim_config = sim_config or SimulationConfig()
+
+        # Create collision system if enabled
+        collision_system = None
+        if enable_collisions:
+            collision_system = CollisionSystem(
+                environment=self.environment,
+                drone_radius=drone_radius,
+            )
+
         self.simulator = CoreSimulator(
             delta_t=self.sim_config.delta_t,
             environment=self.environment,
             config=self.sim_config,
+            collision_system=collision_system,
         )
 
         self.max_neighbors = max_neighbors
@@ -177,6 +203,18 @@ class FlockRLGymEnv(gym.Env):
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Reset the environment to initial state.
+
+        Args:
+            seed: Random seed for reproducibility. Note that this only affects the
+                drone's initial state, not the obstacle layout (which is fixed at
+                environment initialization).
+            options: Additional options (currently unused).
+
+        Returns:
+            Tuple of (observation, info dict).
+        """
         super().reset(seed=seed)
         if seed is not None:
             np.random.seed(seed)

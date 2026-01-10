@@ -7,7 +7,6 @@ from .config import (
     SimulationConfig,
     VisualizationConfig,
 )
-from .gym_env import FlockRLGymEnv
 from .environment.obstacles import Environment, EnvironmentBuilder, Obstacle
 from .perception import PerceptionSystem, RayHit, SensorConfig, SensorReading
 from .simulator import CoreSimulator, SimulationFrame, SimulationRun
@@ -40,6 +39,12 @@ __all__ = [
     "EnvironmentConfig",
     "CollisionConfig",
     "VisualizationConfig",
-    # Gymnasium
-    "FlockRLGymEnv",
 ]
+
+# Conditionally import gymnasium environment if gymnasium is available
+try:
+    from .gym_env import FlockRLGymEnv
+    __all__.append("FlockRLGymEnv")
+except ImportError:
+    # gymnasium not installed, skip FlockRLGymEnv
+    pass

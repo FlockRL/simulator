@@ -1,0 +1,22 @@
+{
+  "name": "random_obstacles",
+  "description": "Environment with 5 random obstacles and no walls",
+  "bounds": [-6.0, 6.0, -6.0, 6.0, -4.0, 4.0],
+  "random_seed": 101,
+  "obstacles": [
+    {
+      "id": "random_clutter",
+      "type": "clutter",
+      "random": true,
+      "count": 5,
+      "position": [{"uniform": [-5.5, 5.5]}, {"uniform": [-5.5, 5.5]}, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": {"uniform": [0.4, 0.8]},
+      "width": {"uniform": [0.4, 0.8]},
+      "height": {"uniform": [0.5, 1.2]}
+    }
+  ],
+  "start_position": [-5.0, -3.0, 0.0],
+  "goal_position": [5.0, 3.0, 0.0]
+}
