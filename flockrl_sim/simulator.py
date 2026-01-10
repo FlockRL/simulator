@@ -50,6 +50,8 @@ class CoreSimulator:
         render_hook: Optional[RenderHook] = None,
         environment: Optional[Environment] = None,
         config: Optional[SimulationConfig] = None,
+        enable_logging: bool = True,
+        enable_perception: bool = True,
     ) -> None:
         self.delta_t = delta_t
         self.collision_system = collision_system
@@ -82,9 +84,12 @@ class CoreSimulator:
             "total_steps": 0,
         }
 
+        # Logging Toggle:
+        self.enable_logging = enable_logging
+
         # Perception system - enabled by default for RL
         self._perception_system = None
-        if self.environment is not None:
+        if self.environment is not None and enable_perception:
             self._perception_system = PerceptionSystem(
                 environment=self.environment,
                 config=None,  # Use default config
@@ -157,17 +162,18 @@ class CoreSimulator:
             initial_observations = self._perception_system.observe(self.state)
 
         # Logging the first frame with consistent info structure
-        self.log_frame(
-            info={
-                "event": "run_started",
-                "collisions": [],
-                "observations": initial_observations,
-                "step": 0,
-                "done": False,
-                "termination_reason": None,
-                "episode_stats": self._episode_stats.copy(),
-            }
-        )
+        if self.enable_logging:
+            self.log_frame(
+                info={
+                    "event": "run_started",
+                    "collisions": [],
+                    "observations": initial_observations,
+                    "step": 0,
+                    "done": False,
+                    "termination_reason": None,
+                    "episode_stats": self._episode_stats.copy(),
+                }
+            )
 
         return self.state
 
@@ -283,7 +289,8 @@ class CoreSimulator:
         )
 
         # 11. Log for Visualization
-        self.log_frame(info=info_dict)
+        if self.enable_logging:
+            self.log_frame(info=info_dict)
 
         # 12. Call Render Hook
         if self.render_hook:
