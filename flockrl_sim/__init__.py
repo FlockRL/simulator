@@ -7,6 +7,7 @@ from .config import (
     SimulationConfig,
     VisualizationConfig,
 )
+from .gym_env import FlockRLGymEnv
 from .environment.obstacles import Environment, EnvironmentBuilder, Obstacle
 from .perception import PerceptionSystem, RayHit, SensorConfig, SensorReading
 from .simulator import CoreSimulator, SimulationFrame, SimulationRun
@@ -39,4 +40,6 @@ __all__ = [
     "EnvironmentConfig",
     "CollisionConfig",
     "VisualizationConfig",
+    # Gymnasium
+    "FlockRLGymEnv",
 ]
