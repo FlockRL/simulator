@@ -24,7 +24,8 @@ dev = [
     "pytest-cov>=4.0",
 ]
 visualization = [
-    "pyvista>=0.43",
+    "dash>=2.14",
+    "plotly>=5.18",
 ]
 
 [project.scripts]

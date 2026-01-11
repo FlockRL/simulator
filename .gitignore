@@ -9,4 +9,6 @@ build/
 *.json
 !examples/*.json
 !flockrl_sim/environment/specs/*.json
-
+logs/
+models/
+eval_logs/

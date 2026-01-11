@@ -195,7 +195,7 @@ env = FlockRLGymEnv(
 env.save_logs()
 ```
 
-When logging is enabled, simulation runs are automatically saved as JSON files (`episode_XXXXXX.json`) in the log directory after each episode completes. These files can be visualized using the `LogVisualizer` (see Visualization section).
+When logging is enabled, simulation runs are automatically saved as JSON files (`episode_XXXXXX.json`) in the log directory after each episode completes. These files can be visualized using the `OfflineVisualizer` (see Visualization section).
 
 **Important:** Set `gym.save_runs: true` in `config.yml` **only when you need data to visualize your model**, not training/eval. Saving full simulation runs for every episode during training can consume significant disk space (up to several MB per episode for long episodes). For training, keep `save_runs: false` to only save lightweight episode statistics (`episode_results.json`).
 
