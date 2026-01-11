@@ -7,10 +7,8 @@ for both axis-aligned and rotated boxes.
 
 import numpy as np
 import pytest
-from flockrl_sim.collision.system import CollisionSystem
+from flockrl_sim import CollisionSystem, Environment, SwarmState
 from flockrl_sim.environment.obstacles_types import Wall
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
 
 
 @pytest.fixture
@@ -44,7 +42,7 @@ class TestAxisAlignedNormals:
         basic_environment.obstacles.append(wall)
 
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         # Test each face
@@ -97,7 +95,7 @@ class TestRotatedNormals:
         basic_environment.obstacles.append(wall)
 
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         # Drone approaching from +X (which is local Y after rotation)

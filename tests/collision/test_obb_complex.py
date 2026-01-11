@@ -6,10 +6,8 @@ Tests for compound rotations, multiple obstacles, and boundary conditions.
 
 import numpy as np
 import pytest
-from flockrl_sim.collision.system import CollisionSystem
+from flockrl_sim import CollisionSystem, Environment, SwarmState
 from flockrl_sim.environment.obstacles_types import Wall, RectangularPrism
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
 
 
 @pytest.fixture
@@ -47,7 +45,7 @@ class TestCompoundRotations:
         basic_environment.obstacles.append(clutter)
 
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         # Drone at box center should collide
@@ -96,7 +94,7 @@ class TestMultipleObstacles:
 
         basic_environment.obstacles.extend([wall1, wall2])
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         # Drone colliding with wall1 but not wall2
@@ -133,7 +131,7 @@ class TestMultipleObstacles:
 
         basic_environment.obstacles.extend(boxes)
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         # Drone passing through without hitting any
@@ -170,7 +168,7 @@ class TestEdgeCases:
         basic_environment.obstacles.append(clutter)
 
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         state = SwarmState(
@@ -203,7 +201,7 @@ class TestEdgeCases:
         basic_environment.obstacles.append(clutter)
 
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         state = SwarmState(

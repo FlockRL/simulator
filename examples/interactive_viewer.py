@@ -4,7 +4,8 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
-from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
+from flockrl_sim import EnvironmentBuilder, EnvironmentSpecLoader
+from flockrl_sim.gym_env import load_config
 from visualization_utils import (
     get_obstacle_props,
     draw_spawn_markers,
@@ -124,13 +125,20 @@ class BaseViewer:
         if not self.presets:
             raise RuntimeError("No environment presets available")
         self.current_idx = 0
+        
+        # Load config for EnvironmentBuilder parameters
+        config = load_config()
+        env_config = config["environment"]
+        self.spawn_clearance = env_config["spawn_clearance"]
+        self.max_placement_attempts = env_config["max_placement_attempts"]
+        
         self.load_environment(0)
 
     def load_environment(self, idx):
         self.current_idx = idx % len(self.presets)
         preset_name = self.presets[self.current_idx]
         self.spec = self.loader.load_preset(preset_name)
-        self.env = EnvironmentBuilder.from_spec(self.spec).build()
+        self.env = EnvironmentBuilder.from_spec(self.spec, self.spawn_clearance, self.max_placement_attempts).build()
         self.bounds = self.env.bounds
         self.z_min, self.z_max = self.env.bounds[4], self.env.bounds[5]
 

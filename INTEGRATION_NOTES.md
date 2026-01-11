@@ -17,7 +17,7 @@ This document outlines critical coordination points between feature teams to ens
 
 **When collisions occurs:**
 
-- Collision team creates a collision event and inform the core simulation team that an event has occured
+- Collision team creates a collision event and inform the core simulation team that an event has occurred
 - Collision team will also update the new drone velocities (rebound) and position (to prevent re-penetration) and inform the core simulation team of the new velocity via each collision event
 - For moving obstacles (future): coordinate on obstacle velocity updates
 

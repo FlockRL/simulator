@@ -30,9 +30,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MAX_PLACEMENT_ATTEMPTS = 50
-SPAWN_CLEARANCE_METERS = 2.0
-
 
 def _instance_id(base_id: str, index: int, total: int) -> str:
     """Generate instance ID with suffix if total > 1."""
@@ -77,9 +74,11 @@ class Environment:
 
 
 class EnvironmentBuilder:
-    def __init__(self, config: Environment, rng: random.Random) -> None:
+    def __init__(self, config: Environment, rng: random.Random, spawn_clearance: float, max_placement_attempts: int) -> None:
         self.config = config
         self.rng = rng
+        self.spawn_clearance = spawn_clearance
+        self.max_placement_attempts = max_placement_attempts
 
     def add_random_obstacles(self, n: int = 5) -> "EnvironmentBuilder":
         for i in range(n):
@@ -93,7 +92,7 @@ class EnvironmentBuilder:
         return self
 
     @classmethod
-    def from_spec(cls, spec: EnvironmentSpec) -> "EnvironmentBuilder":
+    def from_spec(cls, spec: EnvironmentSpec, spawn_clearance: float, max_placement_attempts: int) -> "EnvironmentBuilder":
         """Builds environment and validates it from EnvironmentSpec (manual, random, or hybrid)"""
         rng = random.Random(spec.random_seed)
         start_pos = resolve_vector(spec.start_position, rng)
@@ -106,7 +105,7 @@ class EnvironmentBuilder:
             goal_position=goal_pos,
         )
 
-        builder = cls(config=env, rng=rng)
+        builder = cls(config=env, rng=rng, spawn_clearance=spawn_clearance, max_placement_attempts=max_placement_attempts)
 
         spawn_positions = [start_pos, goal_pos]
 
@@ -134,7 +133,7 @@ class EnvironmentBuilder:
         self, spec: WallSpec, spawn_positions: List[Tuple[float, float, float]]
     ) -> None:
         total = spec.count
-        attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
+        attempts = self.max_placement_attempts if spec.random else 1
 
         for index in range(total):
             wall_id = _instance_id(spec.id, index, total)
@@ -211,7 +210,7 @@ class EnvironmentBuilder:
             if not placed:
                 raise ValueError(
                     f"Unable to place wall '{wall_id}' without collisions after "
-                    f"{MAX_PLACEMENT_ATTEMPTS} attempts. The environment may be too constrained "
+                    f"{self.max_placement_attempts} attempts. The environment may be too constrained "
                     f"(small bounds, large obstacles, or too many obstacles). "
                     f"Try: reducing obstacle count, increasing bounds, or decreasing obstacle size."
                 )
@@ -242,7 +241,7 @@ class EnvironmentBuilder:
         self, spec: ClutterSpec, spawn_positions: List[Tuple[float, float, float]]
     ) -> None:
         total = spec.count
-        attempts = MAX_PLACEMENT_ATTEMPTS if spec.random else 1
+        attempts = self.max_placement_attempts if spec.random else 1
 
         for index in range(total):
             clutter_id = _instance_id(spec.id, index, total)
@@ -284,7 +283,7 @@ class EnvironmentBuilder:
             if not placed:
                 raise ValueError(
                     f"Unable to place clutter '{clutter_id}' without collisions after "
-                    f"{MAX_PLACEMENT_ATTEMPTS} attempts. The environment may be too constrained "
+                    f"{self.max_placement_attempts} attempts. The environment may be too constrained "
                     f"(small bounds, large obstacles, or too many obstacles). "
                     f"Try: reducing obstacle count, increasing bounds, or decreasing obstacle size."
                 )
@@ -297,7 +296,7 @@ class EnvironmentBuilder:
                 + (position[2] - spawn[2]) ** 2
             )
             ** 0.5
-            >= SPAWN_CLEARANCE_METERS
+            >= self.spawn_clearance
             for spawn in spawn_positions
         )
 

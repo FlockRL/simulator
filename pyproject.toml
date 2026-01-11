@@ -9,10 +9,11 @@ description = "Skeleton codebase for the FlockRL drone simulator."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "click>=8.0",
     "numpy>=1.21",
     "pandas>=2.0",
     "pydantic>=2.0",
+    "gymnasium>=0.29",
+    "pyyaml>=6.0",
     "simple-term-menu>=1.6.1",
 ]
 
@@ -22,11 +23,9 @@ dev = [
     "pytest-cov>=4.0",
 ]
 visualization = [
-    "pyvista>=0.43",
+    "dash>=2.14",
+    "plotly>=5.18",
 ]
-
-[project.scripts]
-flockrl = "flockrl_sim.cli.main:cli"
 
 [tool.setuptools]
 packages = ["flockrl_sim"]

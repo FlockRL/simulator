@@ -1,6 +1,7 @@
 import sys
 import matplotlib.pyplot as plt
-from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
+from flockrl_sim import EnvironmentBuilder, EnvironmentSpecLoader
+from flockrl_sim.gym_env import load_config
 from collections import Counter
 from visualization_utils import (
     get_obstacle_props,
@@ -47,7 +48,13 @@ def visualize_environment(spec_name_or_path):
         print(f"Error loading '{spec_name_or_path}': {e}")
         sys.exit(1)
 
-    env = EnvironmentBuilder.from_spec(spec).build()
+    # Load config for EnvironmentBuilder parameters
+    config = load_config()
+    env_config = config["environment"]
+    spawn_clearance = env_config["spawn_clearance"]
+    max_placement_attempts = env_config["max_placement_attempts"]
+
+    env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
     counts = Counter(obs.type for obs in env.obstacles)
     print(f"Total obstacles: {len(env.obstacles)}")
     for t, c in counts.items():

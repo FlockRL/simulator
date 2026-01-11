@@ -9,10 +9,8 @@ Tests verify fundamental OBB collision detection for:
 
 import numpy as np
 import pytest
-from flockrl_sim.collision.system import CollisionSystem
+from flockrl_sim import CollisionSystem, Environment, SwarmState
 from flockrl_sim.environment.obstacles_types import Wall, RectangularPrism
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
 
 
 @pytest.fixture
@@ -45,9 +43,7 @@ class TestAxisAlignedCollision:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -78,9 +74,7 @@ class TestAxisAlignedCollision:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -110,9 +104,7 @@ class TestAxisAlignedCollision:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -149,9 +141,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         # Drone along rotated -Y axis (world diagonal)
         state = SwarmState(
@@ -185,9 +175,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -219,9 +207,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         # Drone at center - definitely collides
         state = SwarmState(
@@ -254,9 +240,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -290,9 +274,7 @@ class TestDroneInsideBox:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -323,9 +305,7 @@ class TestDroneInsideBox:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),

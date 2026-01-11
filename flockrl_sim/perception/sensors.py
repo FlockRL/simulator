@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from ..environment.obstacles import Environment
+from ..geometry import OBB, point_in_obb
 from ..state import SwarmState
 
 
@@ -27,9 +28,9 @@ class SensorConfig:
         max_neighbour_range: Maximum distance to consider a drone as a neighbor (meters)
     """
 
-    max_range: float = 50.0
-    num_rays: int = 128
-    max_neighbour_range: float = 10.0
+    max_range: float
+    num_rays: int
+    max_neighbour_range: float
 
 
 @dataclass
@@ -81,22 +82,39 @@ class PerceptionSystem:
     def __init__(
         self,
         environment: Environment,
-        config: Optional[SensorConfig] = None,
+        config: SensorConfig,
         seed: Optional[int] = None,
     ) -> None:
         self.environment = environment
-        self.config = config or SensorConfig()
+        self.config = config
         self.rays = generate_rays(self.config.num_rays, seed)
 
     def reset(
-        self, config: Optional[SensorConfig] = None, seed: Optional[int] = None
+        self, config: SensorConfig, seed: Optional[int] = None
     ) -> None:
         """
         Reset the perception system with an optional updated sensor configuration.
         """
 
-        self.config = config or SensorConfig()
+        self.config = config
         self.rays = generate_rays(self.config.num_rays, seed)
+
+    def _is_point_inside_gate(self, point: np.ndarray, gate) -> bool:
+        """
+        Check if a point is inside a gate's bounding volume, this is to filter out rays that hit a portion of the wall which contains a gate
+        """
+        gate_pos = np.array(gate.position, dtype=float)
+
+        # Gate dimensions: (width, thickness, height) map to (x, y, z) half-extents
+        half_extents = np.array(
+            [gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float
+        )
+
+        obb = OBB(
+            center=gate_pos, half_extents=half_extents, orientation=gate.orientation
+        )
+
+        return point_in_obb(point, obb)
 
     def observe(self, state: SwarmState) -> List[SensorReading]:
         """
@@ -113,6 +131,10 @@ class PerceptionSystem:
         N = state.pos.shape[0]
         M = self.config.num_rays
 
+        # Build gate map for filtering wall hits that pass through gates
+        gates = [obs for obs in self.environment.obstacles if getattr(obs, "type", None) == "gate"]
+        gate_map = {gate.id: gate for gate in gates}
+
         # for each drone, calculate relative position/velocity of other drones in the swarm
         neighbor_pos = state.pos[None, :, :] - state.pos[:, None, :]
         vel = state.vel if state.vel is not None else np.zeros_like(state.pos)
@@ -124,9 +146,6 @@ class PerceptionSystem:
         # drones will not consider itself as a neighbor
         np.fill_diagonal(neighbor_dist, float("inf"))
 
-        # get mask to select relative position/velocity of drones that are considered neighbors
-        mask = neighbor_dist < self.config.max_neighbour_range
-
         readings = []
         # for each drone get a SensorReading
         for i in range(N):
@@ -136,26 +155,57 @@ class PerceptionSystem:
 
             # for each ray, get its ray-cast distance and whether it hit an obstacle
             for j in range(M):
+                # Get ray intersections from all obstacles, tracking which obstacle each hit came from
                 raycast_results = [
-                    obst.ray_intersect(
+                    (obst, obst.ray_intersect(
                         state.pos[i], self.rays[j], self.config.max_range
-                    )
+                    ))
                     for obst in self.environment.obstacles
                 ]
 
-                hits = [res for res in raycast_results if res is not None]
-                if hits:
-                    ray_dists[j] = min(hit[0] for hit in hits)
+                # Filter out None results
+                hits = [(obst, res) for obst, res in raycast_results if res is not None]
+
+                # Filter out wall hits that pass through gates
+                filtered_hits = []
+                for obst, hit_info in hits:
+                    # Check if this is a wall hit
+                    if getattr(obst, "type", None) == "wall":
+                        _, hit_point, _ = hit_info
+                        # Check if hit point is inside any of this wall's gates
+                        gate_ids = getattr(obst, "gate_ids", ())
+                        is_in_gate = False
+                        for gate_id in gate_ids:
+                            gate = gate_map.get(gate_id)
+                            if gate is not None and self._is_point_inside_gate(hit_point, gate):
+                                is_in_gate = True
+                                break
+                        # Skip this wall hit if it's inside a gate (ray passes through)
+                        if is_in_gate:
+                            continue
+
+                    # Also filter out gate hits (gates should be transparent to rays)
+                    if getattr(obst, "type", None) == "gate":
+                        continue
+
+                    filtered_hits.append(hit_info)
+
+                if filtered_hits:
+                    ray_dists[j] = min(hit[0] for hit in filtered_hits)
                     ray_hits[j] = True
 
-            readings.append(
-                SensorReading(
-                    ray_dists,
-                    ray_hits,
-                    np.concatenate(
-                        (neighbor_pos[i, mask[i]], neighbor_vel[i, mask[i]]), axis=1
-                    ),
-                )
-            )
+            neighbor_vectors = np.zeros((0, 6), dtype=float)
+            if self.config.max_neighbour_range > 0:
+                in_range = neighbor_dist[i] < self.config.max_neighbour_range
+                neighbor_indices = np.where(in_range)[0]
+                if neighbor_indices.size:
+                    order = np.argsort(neighbor_dist[i, neighbor_indices])
+                    ordered_indices = neighbor_indices[order]
+                    neighbor_vectors = np.concatenate(
+                        (neighbor_pos[i, ordered_indices], neighbor_vel[i, ordered_indices]),
+                        axis=1,
+                    )
+
+            readings.append(SensorReading(ray_dists, ray_hits, neighbor_vectors))
 
         return readings

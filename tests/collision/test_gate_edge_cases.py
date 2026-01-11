@@ -5,10 +5,8 @@ Tests for multiple gates, rotated gates, and error handling.
 """
 
 import numpy as np
-from flockrl_sim.collision.system import CollisionSystem
+from flockrl_sim import CollisionSystem, Environment, SwarmState
 from flockrl_sim.environment.obstacles_types import Wall, Gate
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
 
 
 class TestMultipleGatesInWall:
@@ -55,7 +53,7 @@ class TestMultipleGatesInWall:
             seed=42,
         )
 
-        collision_system = CollisionSystem(environment=env, drone_radius=0.5)
+        collision_system = CollisionSystem(environment=env, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((3, 3)),
@@ -123,7 +121,7 @@ class TestRotatedGates:
             seed=42,
         )
 
-        collision_system = CollisionSystem(environment=env, drone_radius=0.5)
+        collision_system = CollisionSystem(environment=env, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -175,7 +173,7 @@ class TestDroneRadiusConsideration:
             seed=42,
         )
 
-        collision_system = CollisionSystem(environment=env, drone_radius=0.6)
+        collision_system = CollisionSystem(environment=env, drone_radius=0.6, restitution=1.0)
 
         # Drone center at gate edge
         state = SwarmState(
@@ -218,7 +216,7 @@ class TestErrorHandling:
             seed=42,
         )
 
-        collision_system = CollisionSystem(environment=env, drone_radius=0.5)
+        collision_system = CollisionSystem(environment=env, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -256,7 +254,7 @@ class TestErrorHandling:
             seed=42,
         )
 
-        collision_system = CollisionSystem(environment=env, drone_radius=0.5)
+        collision_system = CollisionSystem(environment=env, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),

@@ -13,13 +13,16 @@ import numpy as np
 
 from .state import SwarmState
 from .environment import Environment
-from .config import SimulationConfig
 
 import json
-from .perception.sensors import PerceptionSystem
+from .perception.sensors import PerceptionSystem, SensorConfig
+from collections import defaultdict
+from .environment import Environment
 
 CollisionHandler = Callable[[SwarmState], Tuple[SwarmState, dict]]
 RenderHook = Callable[[SwarmState, dict], None]
+
+
 
 
 @dataclass
@@ -45,15 +48,29 @@ class CoreSimulator:
 
     def __init__(
         self,
-        delta_t: float = 1.0 / 60.0,  # Defaults to 60 Hz
-        collision_system: Optional[CollisionHandler] = None,
+        delta_t: float,
+        max_steps: int,
+        goal_threshold: float,
+        max_acceleration: Optional[float],
+        terminate_on_collision: bool,
+        collision_system: CollisionHandler,
         render_hook: Optional[RenderHook] = None,
         environment: Optional[Environment] = None,
-        config: Optional[SimulationConfig] = None,
+        enable_frame_logging: bool = True,
+        perception_config: Optional[Dict[str, Any]] = None,
+        reset_config: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.delta_t = delta_t
+        self.max_steps = max_steps
+        self.goal_threshold = goal_threshold
+        self.max_acceleration = max_acceleration
+        self.terminate_on_collision = terminate_on_collision
         self.collision_system = collision_system
         self.render_hook = render_hook
+        
+        # Store reset config for randomization
+        self._reset_config = reset_config or {}
+        
         # Default empty environment
         if environment is None:
             environment = Environment(
@@ -64,9 +81,11 @@ class CoreSimulator:
                 seed=0,
             )
         self.environment = environment
-        self.config = config or SimulationConfig(delta_t=delta_t)
         self.state: Optional[SwarmState] = None  # Set by start_run()
         self.current_run: Optional[SimulationRun] = None
+        
+        # Frame logging control
+        self._enable_frame_logging = enable_frame_logging
 
         # Episode management
         self._step_count = 0
@@ -85,9 +104,17 @@ class CoreSimulator:
         # Perception system - enabled by default for RL
         self._perception_system = None
         if self.environment is not None:
+            # Create SensorConfig from perception_config dict
+            sensor_config = None
+            if perception_config:
+                sensor_config = SensorConfig(
+                    max_range=perception_config["max_range"],
+                    num_rays=perception_config["num_rays"],
+                    max_neighbour_range=perception_config["max_neighbour_range"],
+                )
             self._perception_system = PerceptionSystem(
                 environment=self.environment,
-                config=None,  # Use default config
+                config=sensor_config,  # Use config from perception_config or defaults
                 seed=None,
             )
 
@@ -157,17 +184,18 @@ class CoreSimulator:
             initial_observations = self._perception_system.observe(self.state)
 
         # Logging the first frame with consistent info structure
-        self.log_frame(
-            info={
-                "event": "run_started",
-                "collisions": [],
-                "observations": initial_observations,
-                "step": 0,
-                "done": False,
-                "termination_reason": None,
-                "episode_stats": self._episode_stats.copy(),
-            }
-        )
+        if self._enable_frame_logging:
+            self.log_frame(
+                info={
+                    "event": "run_started",
+                    "collisions": [],
+                    "observations": initial_observations,
+                    "step": 0,
+                    "done": False,
+                    "termination_reason": None,
+                    "episode_stats": self._episode_stats.copy(),
+                }
+            )
 
         return self.state
 
@@ -215,31 +243,60 @@ class CoreSimulator:
         final_state = proposed_state
 
         # 4. Call Collision System and apply collision response
-        if self.collision_system:
-            # The collision system detects collisions and returns collision info
-            # We need to apply the new_position and rebound_velocity from CollisionInfo
-            final_state, info_dict = self.collision_system(proposed_state)
+        # The collision system detects collisions and returns collision info
+        # We need to apply the new_position and rebound_velocity from CollisionInfo
+        final_state, info_dict = self.collision_system(proposed_state)
 
-            # Apply collision responses
-            collisions = info_dict.get("collisions", [])
-            if collisions:
-                # Apply each collision's new_position and rebound_velocity
-                for collision in collisions:
-                    drone_id = collision.drone_id
-                    # Find the index of this drone
-                    drone_idx = np.where(final_state.ids == drone_id)[0]
-                    if len(drone_idx) > 0:
-                        idx = drone_idx[0]
-                        final_state.pos[idx] = collision.new_position
-                        final_state.vel[idx] = collision.rebound_velocity
+        # Apply collision responses
+        collisions = info_dict.get("collisions", [])
+        if collisions:
+            # Group collisions by drone_id to handle multiple simultaneous collisions
+            collisions_by_drone = defaultdict(list)
+            for collision in collisions:
+                collisions_by_drone[collision.drone_id].append(collision)
 
-                # Update statistics
-                self._episode_stats["collision_count"] += len(collisions)
+            # Apply accumulated corrections for each drone
+            for drone_id, drone_collisions in collisions_by_drone.items():
+                # Find the index of this drone
+                drone_idx = np.where(final_state.ids == drone_id)[0]
+                if len(drone_idx) == 0:
+                    continue
 
-                # Terminate episode if configured to do so
-                if self.config.terminate_on_collision:
-                    self._episode_terminated = True
-                    self._termination_reason = "collision"
+                idx = drone_idx[0]
+                original_pos = proposed_state.pos[idx].copy()
+                original_vel = proposed_state.vel[idx].copy()
+
+                # Accumulate position corrections from all collisions
+                total_pos_correction = np.zeros(3)
+                for collision in drone_collisions:
+                    pos_correction = collision.new_position - original_pos
+                    total_pos_correction += pos_correction
+
+                # Apply position correction
+                final_state.pos[idx] = original_pos + total_pos_correction
+
+                # For velocity, apply each rebound sequentially in the normal direction
+                # This properly handles corner collisions where multiple normals apply
+                final_vel = original_vel.copy()
+                for collision in drone_collisions:
+                    normal = collision.normal_vector
+                    # Decompose current velocity into normal and tangential components
+                    v_n = np.dot(final_vel, normal) * normal
+                    v_t = final_vel - v_n
+                    # Get the rebounded normal component from collision
+                    collision_v_n = np.dot(collision.rebound_velocity, normal) * normal
+                    # Reconstruct velocity with rebounded normal component
+                    final_vel = v_t + collision_v_n
+
+                final_state.vel[idx] = final_vel
+
+            # Update statistics
+            self._episode_stats["collision_count"] += len(collisions)
+
+            # Terminate episode if configured to do so
+            if self.terminate_on_collision:
+                self._episode_terminated = True
+                self._termination_reason = "collision"
 
         # 5. Update master state
         self.state = final_state
@@ -283,7 +340,8 @@ class CoreSimulator:
         )
 
         # 11. Log for Visualization
-        self.log_frame(info=info_dict)
+        if self._enable_frame_logging:
+            self.log_frame(info=info_dict)
 
         # 12. Call Render Hook
         if self.render_hook:
@@ -316,11 +374,11 @@ class CoreSimulator:
         if self.current_run is None:
             raise RuntimeError("No run to save. Call start_run() first.")
 
-        # Helper function to make info dict JSON serializable
-        def serialize_info(info: dict) -> dict:
-            """Convert info dict to JSON-serializable format"""
+        # Helper function to make info dict and metadata JSON serializable
+        def serialize_info(data: dict) -> dict:
+            """Convert dict to JSON-serializable format, handling collisions, observations, and obstacles."""
             serialized = {}
-            for key, value in info.items():
+            for key, value in data.items():
                 if key == "collisions":
                     # Convert CollisionInfo objects to dicts
                     serialized[key] = [
@@ -351,6 +409,37 @@ class CoreSimulator:
                         }
                         for obs in value
                     ]
+                elif key == "obstacles":
+                    # Convert Obstacle objects to dicts
+                    serialized[key] = []
+                    for obs in value:
+                        obs_dict = {
+                            "id": obs.id,
+                            "type": obs.type,
+                            "position": list(obs.position),
+                        }
+                        
+                        if obs.orientation is not None:
+                            obs_dict["orientation"] = list(obs.orientation)
+                        
+                        # Add dimensions based on obstacle type
+                        if hasattr(obs, "length"):
+                            obs_dict["length"] = float(obs.length)
+                        if hasattr(obs, "width"):
+                            obs_dict["width"] = float(obs.width)
+                        if hasattr(obs, "height"):
+                            obs_dict["height"] = float(obs.height)
+                        if hasattr(obs, "thickness"):
+                            obs_dict["thickness"] = float(obs.thickness)
+                        if hasattr(obs, "subtype"):
+                            obs_dict["subtype"] = obs.subtype
+                        if hasattr(obs, "gate_ids"):
+                            obs_dict["gate_ids"] = list(obs.gate_ids)
+                        
+                        serialized[key].append(obs_dict)
+                elif key == "environment" and isinstance(value, dict):
+                    # Recursively serialize environment dict (which may contain obstacles)
+                    serialized[key] = serialize_info(value)
                 else:
                     # Other fields are already serializable
                     serialized[key] = value
@@ -358,7 +447,7 @@ class CoreSimulator:
 
         # Convert to serializable format (JSON)
         data = {
-            "metadata": self.current_run.metadata,
+            "metadata": serialize_info(self.current_run.metadata),
             "frames": [
                 {
                     "state": {
@@ -399,12 +488,16 @@ class CoreSimulator:
             rng = np.random.RandomState(seed)
             N = self._initial_state.pos.shape[0]
 
+            # Get noise values from config
+            position_noise = self._reset_config["reset_position_noise"]
+            velocity_noise = self._reset_config["reset_velocity_noise"]
+
             # Randomize positions within some bounds
-            # For now, just add small perturbations to initial positions
-            positions = self._initial_state.pos.copy() + rng.randn(N, 3) * 0.5
+            # Add small perturbations to initial positions
+            positions = self._initial_state.pos.copy() + rng.randn(N, 3) * position_noise
 
             # Randomize velocities (small random velocities)
-            velocities = rng.randn(N, 3) * 0.1
+            velocities = rng.randn(N, 3) * velocity_noise
 
             # Goals are always required
             goals = self._initial_state.goals.copy()
@@ -433,7 +526,8 @@ class CoreSimulator:
         # Clear current run frames (but keep the run object)
         if self.current_run is not None:
             self.current_run.frames = []
-            self.log_frame(info={"event": "episode_reset"})
+            if self._enable_frame_logging:
+                self.log_frame(info={"event": "episode_reset"})
 
         return self.state
 
@@ -462,16 +556,13 @@ class CoreSimulator:
             actions = np.nan_to_num(actions, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Clip to max acceleration if configured
-        if self.config.max_acceleration is not None:
+        if self.max_acceleration is not None:
             action_mags = np.linalg.norm(actions, axis=1)
-            exceeded = action_mags > self.config.max_acceleration
+            exceeded = action_mags > self.max_acceleration
             if np.any(exceeded):
-                warnings.warn(
-                    f"{np.sum(exceeded)} action(s) exceed max acceleration. Clipping to {self.config.max_acceleration} m/s^2."
-                )
                 # Normalize and scale
                 scale = np.minimum(
-                    1.0, self.config.max_acceleration / (action_mags + 1e-12)
+                    1.0, self.max_acceleration / (action_mags + 1e-12)
                 )
                 actions = actions * scale[:, np.newaxis]
 
@@ -490,12 +581,12 @@ class CoreSimulator:
             return True, self._termination_reason
 
         # Check timeout
-        if self._step_count >= self.config.max_steps:
+        if self._step_count >= self.max_steps:
             return True, "timeout"
 
         # Check success (all drones within goal threshold)
         goal_distances = np.linalg.norm(self.state.pos - self.state.goals, axis=1)
-        if np.all(goal_distances <= self.config.goal_threshold):
+        if np.all(goal_distances <= self.goal_threshold):
             return True, "success"
 
         # Check out-of-bounds

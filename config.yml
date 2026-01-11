@@ -1,0 +1,31 @@
+collision:
+  drone_radius: 0.2
+  restitution: 1.0
+environment:
+  bounds: null
+  max_placement_attempts: 50
+  seed: null
+  spawn_clearance: 2.0
+  spec: null
+gym:
+  log_dir: null
+  max_neighbors: 4
+  num_drones: 1
+  save_runs: false
+  spawn_offset_range: 0.25
+perception:
+  max_neighbour_range: 10.0
+  max_range: 50.0
+  num_rays: 128
+simulation:
+  delta_t: 0.01666666666
+  goal_threshold: 0.5
+  max_acceleration: 5.0
+  max_steps: 1000
+  reset_position_noise: 0.5
+  reset_velocity_noise: 0.1
+  terminate_on_collision: true
+visualization:
+  fps: 60
+  render_mode: offline
+  save_path: null
