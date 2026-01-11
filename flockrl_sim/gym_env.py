@@ -42,9 +42,8 @@ def load_environment_from_spec(spec_name_or_path: Union[str, Path], config: Dict
     loader = EnvironmentSpecLoader()
     spec = loader.load(spec_name_or_path)
     
-    env_config = config["environment"]
-    spawn_clearance = env_config["spawn_clearance"]
-    max_placement_attempts = env_config["max_placement_attempts"]
+    spawn_clearance = config["environment"]["spawn_clearance"]
+    max_placement_attempts = config["environment"]["max_placement_attempts"]
     
     return EnvironmentBuilder.from_spec(
         spec, 
@@ -59,14 +58,8 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
         # Look for config.yml in the project root (parent of flockrl_sim)
         config_path = Path(__file__).parent.parent / "config.yml"
     
-    if not config_path.exists():
-        raise FileNotFoundError(
-            f"Configuration file not found: {config_path}. "
-            "Please create config.yml in the project root."
-        )
-    
     with open(config_path, "r") as f:
-        config = yaml.safe_load(f) or {}
+        config = yaml.safe_load(f)
     
     return config
 
