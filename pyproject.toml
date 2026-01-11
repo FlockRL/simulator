@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "flockrl-sim"
 version = "0.1.0"
-description = "Skeleton codebase for the FlockRL drone simulator."
+description = "Codebase for the FlockRL drone simulator."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -28,7 +28,7 @@ visualization = [
 ]
 
 [tool.setuptools]
-packages = ["flockrl_sim"]
+packages = {find = {}}
 
 [tool.setuptools.package-data]
 "flockrl_sim.environment" = ["specs/*.json"]
