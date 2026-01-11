@@ -146,9 +146,6 @@ class PerceptionSystem:
         # drones will not consider itself as a neighbor
         np.fill_diagonal(neighbor_dist, float("inf"))
 
-        # get mask to select relative position/velocity of drones that are considered neighbors
-        mask = neighbor_dist < self.config.max_neighbour_range
-
         readings = []
         # for each drone get a SensorReading
         for i in range(N):
@@ -197,14 +194,18 @@ class PerceptionSystem:
                     ray_dists[j] = min(hit[0] for hit in filtered_hits)
                     ray_hits[j] = True
 
-            readings.append(
-                SensorReading(
-                    ray_dists,
-                    ray_hits,
-                    np.concatenate(
-                        (neighbor_pos[i, mask[i]], neighbor_vel[i, mask[i]]), axis=1
-                    ),
-                )
-            )
+            neighbor_vectors = np.zeros((0, 6), dtype=float)
+            if self.config.max_neighbour_range > 0:
+                in_range = neighbor_dist[i] < self.config.max_neighbour_range
+                neighbor_indices = np.where(in_range)[0]
+                if neighbor_indices.size:
+                    order = np.argsort(neighbor_dist[i, neighbor_indices])
+                    ordered_indices = neighbor_indices[order]
+                    neighbor_vectors = np.concatenate(
+                        (neighbor_pos[i, ordered_indices], neighbor_vel[i, ordered_indices]),
+                        axis=1,
+                    )
+
+            readings.append(SensorReading(ray_dists, ray_hits, neighbor_vectors))
 
         return readings

@@ -309,8 +309,9 @@ class FlockRLGymEnv(gym.Env):
             sim_info.get("termination_reason") == "timeout"
         )
 
+        goal_distances = np.linalg.norm(state.pos - state.goals, axis=1)
         info = {
-            "goal_distance": sim_info["episode_stats"]["final_goal_distance"],
+            "goal_distance": goal_distances,
             "termination_reason": sim_info.get("termination_reason"),
             "collisions": sim_info.get("collisions", []),
         }

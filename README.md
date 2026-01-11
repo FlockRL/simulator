@@ -48,6 +48,8 @@ pip install -e .
 
 The simulator provides a Gymnasium-compatible environment (`FlockRLGymEnv`) that can be used with standard RL libraries like Stable-Baselines3, RLlib, or custom training loops. The Gym env reads simulation and logging settings from `config.yml` in the project root by default (or a custom path you provide).
 
+**Current limitation:** Only single-drone training is supported (`gym.num_drones: 1`). Multi-drone support is not yet complete.
+
 ### Config (required)
 
 `FlockRLGymEnv` loads `config.yml` and expects `simulation` and `gym` sections (see `config.yml` in this repo for defaults). If you store the config elsewhere, pass `config_path`.
@@ -100,6 +102,8 @@ obs, rewards, terminated, truncated, info = env.step(action)
 - Observations: shape `(num_drones, obs_dim)` - observation for each drone
 - Rewards: shape `(num_drones,)` - independent reward per drone
 - Configure `num_drones` in `config.yml` (default: 1)
+  
+**Note:** Although the API is vectorized, only `num_drones = 1` is supported at the moment.
 
 ### Environment Setup
 

@@ -1,5 +1,5 @@
 collision:
-  drone_radius: 1.0
+  drone_radius: 0.2
   restitution: 1.0
 environment:
   bounds: null
