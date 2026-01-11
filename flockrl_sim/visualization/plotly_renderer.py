@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 import numpy as np
+import logging
+import werkzeug.serving
 
 try:
     import dash
@@ -47,8 +49,12 @@ class PlotlyRenderer:
         if not self.frames:
             raise RuntimeError("No frames provided for rendering.")
 
+        # Suppress Flask/Dash logging
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
+        
         app = dash.Dash(__name__)
-        initial_fig = self._create_figure(frame_idx=0, show_trajectories_up_to=0)
+        initial_fig = self._create_figure(frame_idx=0, show_trajectories_up_to=0, camera=None)
 
         app.layout = html.Div(
             [
@@ -128,6 +134,7 @@ class PlotlyRenderer:
                 ),
                 dcc.Store(id="is-playing", data=False),
                 dcc.Store(id="current-frame", data=0),
+                dcc.Store(id="camera-state", data=None),
             ]
         )
 
@@ -159,6 +166,18 @@ class PlotlyRenderer:
             return speed
 
         @app.callback(
+            Output("camera-state", "data"),
+            [Input("3d-graph", "relayoutData")],
+            [State("camera-state", "data")],
+        )
+        def update_camera_state(relayout_data, current_camera):
+            """Capture camera position when user interacts with the graph."""
+            if relayout_data and "scene.camera" in relayout_data:
+                # Plotly sends camera as a nested dict
+                return relayout_data["scene.camera"]
+            return current_camera
+
+        @app.callback(
             [
                 Output("3d-graph", "figure"),
                 Output("info-display", "children"),
@@ -166,10 +185,10 @@ class PlotlyRenderer:
                 Output("current-frame", "data", allow_duplicate=True),
             ],
             [Input("interval-component", "n_intervals"), Input("frame-slider", "value")],
-            [State("is-playing", "data"), State("current-frame", "data")],
+            [State("is-playing", "data"), State("current-frame", "data"), State("camera-state", "data")],
             prevent_initial_call=True,
         )
-        def update_figure(n_intervals, slider_value, is_playing, current_frame):
+        def update_figure(n_intervals, slider_value, is_playing, current_frame, camera_state):
             ctx = dash.callback_context
 
             if not ctx.triggered:
@@ -185,7 +204,7 @@ class PlotlyRenderer:
                 else:
                     frame_idx = current_frame
 
-            fig = self._create_figure(frame_idx, show_trajectories_up_to=frame_idx)
+            fig = self._create_figure(frame_idx, show_trajectories_up_to=frame_idx, camera=camera_state)
 
             frame_state = self.frames[frame_idx]["state"]
             frame_time = frame_state.get("t", 0.0)
@@ -202,9 +221,12 @@ class PlotlyRenderer:
         print("Press Ctrl+C to stop the server")
         print(f"{'=' * 60}\n")
 
+        # Suppress Flask request logging
+        werkzeug.serving.WSGIRequestHandler.log_request = lambda *args, **kwargs: None
+        
         app.run(host=host, port=port, debug=debug)
 
-    def _create_figure(self, frame_idx: int, show_trajectories_up_to: int) -> "go.Figure":
+    def _create_figure(self, frame_idx: int, show_trajectories_up_to: int, camera: Any = None) -> "go.Figure":
         fig = go.Figure()
 
         for obstacle in self.obstacles:
@@ -287,13 +309,16 @@ class PlotlyRenderer:
             )
         )
 
+        # Use stored camera position if available, otherwise use default
+        camera_dict = camera if camera is not None else dict(eye=dict(x=1.5, y=1.5, z=1.2))
+        
         fig.update_layout(
             scene=dict(
                 xaxis=dict(title="X", gridcolor="lightgray"),
                 yaxis=dict(title="Y", gridcolor="lightgray"),
                 zaxis=dict(title="Z", gridcolor="lightgray"),
                 aspectmode="data",
-                camera=dict(eye=dict(x=1.5, y=1.5, z=1.2)),
+                camera=camera_dict,
             ),
             showlegend=True,
             hovermode="closest",
