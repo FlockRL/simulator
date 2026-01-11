@@ -1,5 +1,21 @@
-# FlockRL Simulator Configuration
-
+# Collision settings
+collision:
+  enable_collisions: true  # Enable collision detection and response
+  restitution: 1.0  # Coefficient of restitution (0.0 to 1.0)
+  drone_radius: 1.0  # Radius of drone for collision detection (meters)
+# Environment settings
+environment:
+  spec: null  # Environment spec name or path to JSON file
+  bounds: null  # Simulation bounds (overrides spec) - [x_min, x_max, y_min, y_max, z_min, z_max]
+  seed: null  # Random seed (overrides spec)
+  spawn_clearance: 2.0  # Clearance distance for obstacle placement (meters)
+# Gym environment settings
+gym:
+  num_drones: 1  # Number of drones in the environment
+  spawn_offset_range: 0.25  # Random offset range for multi-drone spawn positions (meters)
+  max_neighbors: 4  # Maximum number of neighbors to encode in observations
+  log_dir: null  # Directory for saving logs (null to disable logging)
+  save_runs: false  # Whether to save simulation runs (episode_XXXXXX.json) for visualization
 # Simulation settings
 simulation:
   delta_t: 0.004166666666666667  # 1.0 / 240.0 (240 Hz)
@@ -7,26 +23,16 @@ simulation:
   goal_threshold: 0.5  # Distance threshold for goal success (meters)
   max_acceleration: 5.0  # Maximum allowed acceleration magnitude (m/s^2)
   terminate_on_collision: true  # Whether to terminate episode immediately on collision
-
-# Environment settings
-environment:
-  spec: null  # Environment spec name or path to JSON file
-  bounds: null  # Simulation bounds (overrides spec) - [x_min, x_max, y_min, y_max, z_min, z_max]
-  seed: null  # Random seed (overrides spec)
-
-# Collision settings
-collision:
-  restitution: 1.0  # Coefficient of restitution (0.0 to 1.0)
-  enable_collisions: true  # Enable collision detection and response
+  reset_position_noise: 0.5  # Standard deviation for position randomization on reset (meters)
+  reset_velocity_noise: 0.1  # Standard deviation for velocity randomization on reset (m/s)
+# Perception system settings
+perception:
+  max_range: 50.0  # Maximum sensing distance (meters)
+  num_rays: 128  # Number of ray-cast beams in the virtual LIDAR
+  max_neighbour_range: 10.0  # Maximum distance to consider a drone as a neighbor (meters)
 
 # Visualization settings
 visualization:
   render_mode: "offline"  # Rendering mode (offline/online)
   fps: 60  # Frames per second for playback
   save_path: null  # Path to save visualization output
-
-# Gym environment settings
-gym:
-  max_neighbors: 4  # Maximum number of neighbors to encode in observations
-  log_dir: null  # Directory for saving logs (null to disable logging)
-  save_runs: false  # Whether to save simulation runs (episode_XXXXXX.json) for visualization

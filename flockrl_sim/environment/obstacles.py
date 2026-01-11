@@ -31,7 +31,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 MAX_PLACEMENT_ATTEMPTS = 50
-SPAWN_CLEARANCE_METERS = 2.0
+# Default spawn clearance - can be overridden in EnvironmentBuilder
+DEFAULT_SPAWN_CLEARANCE_METERS = 2.0
 
 
 def _instance_id(base_id: str, index: int, total: int) -> str:
@@ -77,9 +78,10 @@ class Environment:
 
 
 class EnvironmentBuilder:
-    def __init__(self, config: Environment, rng: random.Random) -> None:
+    def __init__(self, config: Environment, rng: random.Random, spawn_clearance: float = DEFAULT_SPAWN_CLEARANCE_METERS) -> None:
         self.config = config
         self.rng = rng
+        self.spawn_clearance = spawn_clearance
 
     def add_random_obstacles(self, n: int = 5) -> "EnvironmentBuilder":
         for i in range(n):
@@ -93,7 +95,7 @@ class EnvironmentBuilder:
         return self
 
     @classmethod
-    def from_spec(cls, spec: EnvironmentSpec) -> "EnvironmentBuilder":
+    def from_spec(cls, spec: EnvironmentSpec, spawn_clearance: float = DEFAULT_SPAWN_CLEARANCE_METERS) -> "EnvironmentBuilder":
         """Builds environment and validates it from EnvironmentSpec (manual, random, or hybrid)"""
         rng = random.Random(spec.random_seed)
         start_pos = resolve_vector(spec.start_position, rng)
@@ -106,7 +108,7 @@ class EnvironmentBuilder:
             goal_position=goal_pos,
         )
 
-        builder = cls(config=env, rng=rng)
+        builder = cls(config=env, rng=rng, spawn_clearance=spawn_clearance)
 
         spawn_positions = [start_pos, goal_pos]
 
@@ -297,7 +299,7 @@ class EnvironmentBuilder:
                 + (position[2] - spawn[2]) ** 2
             )
             ** 0.5
-            >= SPAWN_CLEARANCE_METERS
+            >= self.spawn_clearance
             for spawn in spawn_positions
         )
 

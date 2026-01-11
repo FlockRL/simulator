@@ -15,7 +15,7 @@ from .state import SwarmState
 from .environment import Environment
 
 import json
-from .perception.sensors import PerceptionSystem
+from .perception.sensors import PerceptionSystem, SensorConfig
 from collections import defaultdict
 from .environment import Environment
 
@@ -57,6 +57,8 @@ class CoreSimulator:
         render_hook: Optional[RenderHook] = None,
         environment: Optional[Environment] = None,
         enable_frame_logging: bool = True,
+        perception_config: Optional[Dict[str, Any]] = None,
+        reset_config: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.delta_t = delta_t
         self.max_steps = max_steps
@@ -65,6 +67,10 @@ class CoreSimulator:
         self.terminate_on_collision = terminate_on_collision
         self.collision_system = collision_system
         self.render_hook = render_hook
+        
+        # Store reset config for randomization
+        self._reset_config = reset_config or {}
+        
         # Default empty environment
         if environment is None:
             environment = Environment(
@@ -98,9 +104,17 @@ class CoreSimulator:
         # Perception system - enabled by default for RL
         self._perception_system = None
         if self.environment is not None:
+            # Create SensorConfig from perception_config dict
+            sensor_config = None
+            if perception_config:
+                sensor_config = SensorConfig(
+                    max_range=perception_config.get("max_range", 50.0),
+                    num_rays=perception_config.get("num_rays", 128),
+                    max_neighbour_range=perception_config.get("max_neighbour_range", 10.0),
+                )
             self._perception_system = PerceptionSystem(
                 environment=self.environment,
-                config=None,  # Use default config
+                config=sensor_config,  # Use config from perception_config or defaults
                 seed=None,
             )
 
@@ -474,12 +488,16 @@ class CoreSimulator:
             rng = np.random.RandomState(seed)
             N = self._initial_state.pos.shape[0]
 
+            # Get noise values from config
+            position_noise = self._reset_config.get("reset_position_noise", 0.5)
+            velocity_noise = self._reset_config.get("reset_velocity_noise", 0.1)
+
             # Randomize positions within some bounds
-            # For now, just add small perturbations to initial positions
-            positions = self._initial_state.pos.copy() + rng.randn(N, 3) * 0.5
+            # Add small perturbations to initial positions
+            positions = self._initial_state.pos.copy() + rng.randn(N, 3) * position_noise
 
             # Randomize velocities (small random velocities)
-            velocities = rng.randn(N, 3) * 0.1
+            velocities = rng.randn(N, 3) * velocity_noise
 
             # Goals are always required
             goals = self._initial_state.goals.copy()

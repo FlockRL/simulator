@@ -35,22 +35,22 @@ class RewardFunction:
 
     def compute(
         self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]
-    ) -> float:
+    ) -> np.ndarray:
         """
-        Compute reward for the current step.
+        Compute rewards for all drones in the current step.
         
         Must be implemented by subclasses.
         
         Args:
-            state: Current simulation state
-            action: Action that was taken (after clipping)
+            state: Current simulation state with N drones
+            action: Actions that were taken (after clipping), shape (N, 3)
             sim_info: Dictionary with simulation information including:
                 - termination_reason: How episode ended (if done)
                 - episode_stats: Statistics about the episode
                 - collisions: List of collision events
                 
         Returns:
-            Reward value (float)
+            Reward array of shape (N,) - one reward per drone
         """
         raise NotImplementedError("Subclasses must implement compute()")
 

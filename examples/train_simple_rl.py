@@ -15,7 +15,12 @@ from flockrl_sim import FlockRLGymEnv, RewardFunction, SwarmState, load_environm
 import pandas as pd
 
 class SimpleRewardFunction(RewardFunction):
-    """Simple dense reward function for training."""
+    """
+    Simple dense reward function for training.
+    
+    Computes independent rewards for each drone based on their progress toward their goal.
+    Each drone gets its own reward signal for independent learning.
+    """
 
     def __init__(
         self,
@@ -26,27 +31,30 @@ class SimpleRewardFunction(RewardFunction):
         self.success_reward = success_reward
         self.collision_penalty = collision_penalty
         self.step_cost = step_cost
-        self._last_distance = 0.0
+        self._last_distances = None
 
     def reset(self, state: SwarmState) -> None:
-        """Initialize distance tracking."""
-        self._last_distance = float(np.linalg.norm(state.pos[0] - state.goals[0]))
+        """Initialize distance tracking for all drones."""
+        self._last_distances = np.linalg.norm(state.pos - state.goals, axis=1)
 
     def compute(
         self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]
-    ) -> float:
-        """Compute reward based on progress toward goal."""
-        current_dist = float(np.linalg.norm(state.pos[0] - state.goals[0]))
-        reward = (self._last_distance - current_dist) - self.step_cost
+    ) -> np.ndarray:
+        """Compute independent rewards for each drone based on progress toward goal."""
+        N = state.pos.shape[0]
+        current_distances = np.linalg.norm(state.pos - state.goals, axis=1)
+        
+        # Base reward: progress toward goal minus step cost
+        rewards = (self._last_distances - current_distances) - self.step_cost
 
-        # Terminal rewards
+        # Terminal rewards (applied to all drones when episode ends)
         if sim_info.get("termination_reason") == "success":
-            reward += self.success_reward
+            rewards += self.success_reward
         elif sim_info.get("termination_reason") == "collision":
-            reward -= self.collision_penalty
+            rewards -= self.collision_penalty
 
-        self._last_distance = current_dist
-        return reward
+        self._last_distances = current_distances
+        return rewards
 
 
 def random_policy(obs: np.ndarray) -> np.ndarray:
@@ -57,12 +65,13 @@ def random_policy(obs: np.ndarray) -> np.ndarray:
     (e.g., from Stable-Baselines3, RLlib, or your own implementation).
 
     Args:
-        obs: Observation from environment
+        obs: Observation from environment, shape (N, obs_dim) where N is number of drones
 
     Returns:
-        Random action in the action space
+        Random action in the action space, shape (N, 3)
     """
-    return np.random.uniform(-5, 5, size=3)
+    num_drones = obs.shape[0]
+    return np.random.uniform(-5, 5, size=(num_drones, 3))
 
 
 def main():

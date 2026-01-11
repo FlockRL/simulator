@@ -49,6 +49,7 @@ def create_test_env(
                 "gym": {
                     "max_neighbors": 4,
                     "log_dir": str(log_dir),
+                    "save_runs": True,  # Enable simulation run saving for tests
                 },
                 "collision": {
                     "restitution": 0.8,

@@ -25,7 +25,7 @@ from .simulator import CoreSimulator
 from .state import SwarmState
 
 
-def load_environment_from_spec(spec_name_or_path: Union[str, Path]) -> Environment:
+def load_environment_from_spec(spec_name_or_path: Union[str, Path], spawn_clearance: Optional[float] = None) -> Environment:
     """Load an environment from a preset name or JSON file path.
     
     This is a convenience function that combines EnvironmentSpecLoader and
@@ -33,12 +33,15 @@ def load_environment_from_spec(spec_name_or_path: Union[str, Path]) -> Environme
     
     Args:
         spec_name_or_path: Preset name (e.g., "simple") or path to JSON spec file.
+        spawn_clearance: Clearance distance for obstacle placement (meters). If None, uses default.
     
     Returns:
         Environment instance ready to use with FlockRLGymEnv.
     """
     loader = EnvironmentSpecLoader()
     spec = loader.load(spec_name_or_path)
+    if spawn_clearance is not None:
+        return EnvironmentBuilder.from_spec(spec, spawn_clearance=spawn_clearance).build()
     return EnvironmentBuilder.from_spec(spec).build()
 
 
@@ -61,9 +64,7 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
 
 
 class FlockRLGymEnv(gym.Env):
-    """Single-drone Gymnasium environment backed by the CoreSimulator."""
-
-    metadata = {"render_modes": ["none"], "render_fps": 60}
+    """Multi-drone Gymnasium environment backed by the CoreSimulator."""
 
     def __init__(
         self,
@@ -83,15 +84,24 @@ class FlockRLGymEnv(gym.Env):
         gym_config = config["gym"]
         sim_config = config["simulation"]
         collision_config = config["collision"]
+        perception_config = config.get("perception", {})
+        visualization_config = config.get("visualization", {})
+        
+        # Set metadata from config
+        self.metadata = {
+            "render_modes": ["none"],
+            "render_fps": visualization_config.get("fps", 60)
+        }
         
         self.environment = environment
         self.sim_config = sim_config
+        self.perception_config = perception_config
         
         # Create collision system
         collision_system = self._build_collision_system(collision_config)
         
         # Whether to save simulation runs for visualization
-        self._save_runs = gym_config["save_runs"]
+        self._save_runs = gym_config.get("save_runs", False)
         
         self.simulator = CoreSimulator(
             delta_t=sim_config["delta_t"],
@@ -102,9 +112,13 @@ class FlockRLGymEnv(gym.Env):
             collision_system=collision_system,
             environment=self.environment,
             enable_frame_logging=self._save_runs,  # Only log frames if we'll save them
+            perception_config=perception_config,
+            reset_config=sim_config,
         )
 
-        self.max_neighbors = gym_config["max_neighbors"]
+        self.num_drones = gym_config.get("num_drones", 1)
+        self.spawn_offset_range = gym_config.get("spawn_offset_range", 0.25)
+        self.max_neighbors = gym_config.get("max_neighbors", 4)
         self.reward_fn = reward_fn
         self._action_limit = float(sim_config["max_acceleration"])
         self._num_rays = (
@@ -120,18 +134,18 @@ class FlockRLGymEnv(gym.Env):
             self.logger = EpisodeLogger(log_dir=Path(log_dir))
 
         self._episode_num = 0
-        self._episode_reward = 0.0
+        self._episode_reward = np.zeros(1, dtype=np.float32)  # Will be resized in reset()
 
         self.action_space = spaces.Box(
             low=-self._action_limit,
             high=self._action_limit,
-            shape=(3,),
+            shape=(self.num_drones, 3),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self._observation_dim(),),
+            shape=(self.num_drones, self._observation_dim()),
             dtype=np.float32,
         )
 
@@ -143,8 +157,13 @@ class FlockRLGymEnv(gym.Env):
         if not enable:
             return None
 
-        restitution = collision_config.get("restitution", 0.8)
-        return CollisionSystem(environment=self.environment, restitution=restitution)
+        restitution = collision_config.get("restitution", 1.0)
+        drone_radius = collision_config.get("drone_radius", 1.0)
+        return CollisionSystem(
+            environment=self.environment,
+            restitution=restitution,
+            drone_radius=drone_radius
+        )
 
     def _observation_dim(self) -> int:
         # pos(3) + vel(3) + goal vector(3) + goal distance(1)
@@ -154,9 +173,20 @@ class FlockRLGymEnv(gym.Env):
         return base + sensor + neighbors
 
     def _initial_state(self) -> SwarmState:
-        pos = np.array([self.environment.start_position], dtype=float)
-        ids = np.array([0], dtype=int)
-        goals = np.array([self.environment.goal_position], dtype=float)
+        base_start = np.array(self.environment.start_position, dtype=float)
+        base_goal = np.array(self.environment.goal_position, dtype=float)
+        
+        # Generate random offsets for each drone (uniform in [-spawn_offset_range, spawn_offset_range])
+        offsets = np.random.uniform(
+            -self.spawn_offset_range, 
+            self.spawn_offset_range, 
+            size=(self.num_drones, 3)
+        )
+        
+        pos = base_start[None, :] + offsets
+        ids = np.arange(self.num_drones, dtype=int)
+        goals = base_goal[None, :] + offsets  # Same offset for goals to maintain relative positioning
+        
         return SwarmState.from_initial_positions(pos, ids, goals)
 
     def _build_observation(
@@ -169,45 +199,50 @@ class FlockRLGymEnv(gym.Env):
         else:
             readings = []
 
-        reading = readings[0] if readings else None
-        if reading:
-            ranges = reading.ranges.astype(np.float32)
-            hits = reading.hits.astype(np.float32)
-            neighbor_vectors = reading.neighbor_vectors.astype(np.float32)
-        else:
-            ranges = np.zeros(self._num_rays, dtype=np.float32)
-            hits = np.zeros(self._num_rays, dtype=np.float32)
-            neighbor_vectors = np.zeros((0, 6), dtype=np.float32)
+        # Build observations for all drones
+        observations = []
+        for i in range(self.num_drones):
+            reading = readings[i] if i < len(readings) else None
+            if reading:
+                ranges = reading.ranges.astype(np.float32)
+                hits = reading.hits.astype(np.float32)
+                neighbor_vectors = reading.neighbor_vectors.astype(np.float32)
+            else:
+                ranges = np.zeros(self._num_rays, dtype=np.float32)
+                hits = np.zeros(self._num_rays, dtype=np.float32)
+                neighbor_vectors = np.zeros((0, 6), dtype=np.float32)
 
-        neighbor_vectors = neighbor_vectors[: self.max_neighbors]
-        if neighbor_vectors.shape[0] < self.max_neighbors:
-            pad = np.zeros(
-                (self.max_neighbors - neighbor_vectors.shape[0], 6), dtype=np.float32
+            neighbor_vectors = neighbor_vectors[: self.max_neighbors]
+            if neighbor_vectors.shape[0] < self.max_neighbors:
+                pad = np.zeros(
+                    (self.max_neighbors - neighbor_vectors.shape[0], 6), dtype=np.float32
+                )
+                neighbor_vectors = (
+                    np.vstack([neighbor_vectors, pad])
+                    if neighbor_vectors.size
+                    else pad.astype(np.float32)
+                )
+
+            goal_vector = (state.goals[i] - state.pos[i]).astype(np.float32)
+            goal_distance = float(np.linalg.norm(goal_vector))
+            vel = (
+                state.vel[i].astype(np.float32)
+                if state.vel is not None
+                else np.zeros(3, dtype=np.float32)
             )
-            neighbor_vectors = (
-                np.vstack([neighbor_vectors, pad])
-                if neighbor_vectors.size
-                else pad.astype(np.float32)
-            )
 
-        goal_vector = (state.goals[0] - state.pos[0]).astype(np.float32)
-        goal_distance = float(np.linalg.norm(goal_vector))
-        vel = (
-            state.vel[0].astype(np.float32)
-            if state.vel is not None
-            else np.zeros(3, dtype=np.float32)
-        )
-
-        obs_parts = [
-            state.pos[0].astype(np.float32),
-            vel,
-            goal_vector,
-            np.array([goal_distance], dtype=np.float32),
-            ranges,
-            hits,
-            neighbor_vectors.flatten(),
-        ]
-        return np.concatenate(obs_parts, dtype=np.float32)
+            obs_parts = [
+                state.pos[i].astype(np.float32),
+                vel,
+                goal_vector,
+                np.array([goal_distance], dtype=np.float32),
+                ranges,
+                hits,
+                neighbor_vectors.flatten(),
+            ]
+            observations.append(np.concatenate(obs_parts, dtype=np.float32))
+        
+        return np.array(observations, dtype=np.float32)
 
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
@@ -225,9 +260,9 @@ class FlockRLGymEnv(gym.Env):
         self.reward_fn.reset(state)
         
         obs = self._build_observation(state)
-        goal_distance = float(np.linalg.norm(state.pos[0] - state.goals[0]))
+        goal_distances = np.linalg.norm(state.pos - state.goals, axis=1)
         info = {
-            "goal_distance": goal_distance,
+            "goal_distance": goal_distances,
             "termination_reason": None,
             "collisions": [],
         }
@@ -243,16 +278,16 @@ class FlockRLGymEnv(gym.Env):
 
     def step(
         self, action: np.ndarray
-    ) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
-        action = np.asarray(action, dtype=np.float32).reshape(-1)
-        if action.shape != (3,):
-            raise ValueError(f"Expected action shape (3,), got {action.shape}")
+    ) -> Tuple[np.ndarray, np.ndarray, bool, bool, Dict[str, Any]]:
+        action = np.asarray(action, dtype=np.float32)
+        if action.shape != (self.num_drones, 3):
+            raise ValueError(f"Expected action shape ({self.num_drones}, 3), got {action.shape}")
 
         clipped_action = np.clip(action, -self._action_limit, self._action_limit)
-        state, sim_info = self.simulator.step(clipped_action[None, :])
+        state, sim_info = self.simulator.step(clipped_action)
 
         obs = self._build_observation(state, sim_info)
-        reward = self.reward_fn.compute(state, clipped_action, sim_info)
+        rewards = self.reward_fn.compute(state, clipped_action, sim_info)
 
         terminated = bool(sim_info.get("done")) and (
             sim_info.get("termination_reason") != "timeout"
@@ -267,14 +302,14 @@ class FlockRLGymEnv(gym.Env):
             "collisions": sim_info.get("collisions", []),
         }
 
-        self._episode_reward += reward
+        self._episode_reward += rewards
 
         # End episode logging and save simulation run
         if (terminated or truncated) and self.logger:
             result = self.logger.end_episode(
                 termination_reason=sim_info.get("termination_reason"),
                 episode_stats=sim_info["episode_stats"],
-                total_reward=self._episode_reward,
+                total_reward=float(np.sum(self._episode_reward)),  # Log sum of all drone rewards
             )
             info["episode_result"] = result  # Add to info dict
             
@@ -284,7 +319,7 @@ class FlockRLGymEnv(gym.Env):
             
             self._episode_num += 1
 
-        return obs, reward, terminated, truncated, info
+        return obs, rewards, terminated, truncated, info
 
     def save_logs(self):
         """
