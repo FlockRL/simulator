@@ -11,7 +11,7 @@ This script demonstrates:
 
 import numpy as np
 from typing import Any, Dict
-from flockrl_sim import FlockRLGymEnv, RewardFunction, SwarmState, load_environment_from_spec
+from flockrl_sim import FlockRLGymEnv, RewardFunction, SwarmState, load_environment_from_spec, load_config
 import pandas as pd
 
 class SimpleRewardFunction(RewardFunction):
@@ -75,13 +75,16 @@ def random_policy(obs: np.ndarray) -> np.ndarray:
 
 
 def main():
+    # Load configuration
+    config = load_config()
+    
     # Create reward function
     reward_fn = SimpleRewardFunction(
         success_reward=100.0, collision_penalty=50.0, step_cost=0.1
     )
 
     # Load environment from spec
-    environment = load_environment_from_spec("simple")
+    environment = load_environment_from_spec("simple", config)
     # Create environment with logging enabled
     env = FlockRLGymEnv(
         reward_fn=reward_fn,

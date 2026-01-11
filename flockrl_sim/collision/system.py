@@ -43,8 +43,8 @@ class CollisionSystem:
     """
 
     environment: Environment
-    drone_radius: float = 1.0  # Hardcoded value for drone radius (can change)
-    restitution: float = 0.8  # Coefficient of restitution for collisions (1.0 = elastic, 0.0 = inelastic)
+    drone_radius: float
+    restitution: float
 
     def __call__(self, state: SwarmState) -> tuple[SwarmState, dict]:
         """

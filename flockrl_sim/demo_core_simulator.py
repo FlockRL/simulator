@@ -19,6 +19,7 @@ from .simulator import CoreSimulator
 from .state import SwarmState
 from .environment import Environment, EnvironmentBuilder
 from .environment.loader import EnvironmentSpecLoader
+from .gym_env import load_config
 from .environment.obstacles_types import Wall, Gate, RectangularPrism
 from .collision.system import CollisionSystem
 import yaml
@@ -56,7 +57,7 @@ def demo_basic_simulation():
         goal_threshold=config["goal_threshold"],
         max_acceleration=config["max_acceleration"],
         terminate_on_collision=config["terminate_on_collision"],
-        collision_system=CollisionSystem(env),
+        collision_system=CollisionSystem(env, drone_radius=1.0, restitution=1.0),
         environment=env,
     )
 
@@ -168,7 +169,7 @@ def demo_obstacles_and_collisions():
         goal_threshold=config["goal_threshold"],
         max_acceleration=config["max_acceleration"],
         terminate_on_collision=config["terminate_on_collision"],
-        collision_system=CollisionSystem(env, drone_radius=0.5),
+        collision_system=CollisionSystem(env, drone_radius=0.5, restitution=1.0),
         environment=env,
     )
 
@@ -261,7 +262,7 @@ def demo_perception_system():
         goal_threshold=0.5,
         max_acceleration=None,
         terminate_on_collision=True,
-        collision_system=CollisionSystem(env),
+        collision_system=CollisionSystem(env, drone_radius=1.0, restitution=1.0),
         environment=env,
     )
 
@@ -309,8 +310,14 @@ def demo_environment_loading():
     spec = loader.load("simple")
     print("\n✓ Loaded 'simple' preset")
 
+    # Load config for EnvironmentBuilder parameters
+    config = load_config()
+    env_config = config["environment"]
+    spawn_clearance = env_config["spawn_clearance"]
+    max_placement_attempts = env_config["max_placement_attempts"]
+
     # Build environment from spec
-    builder = EnvironmentBuilder.from_spec(spec)
+    builder = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts)
     env = builder.config
 
     print("✓ Built environment:")
@@ -333,7 +340,7 @@ def demo_environment_loading():
         goal_threshold=config["goal_threshold"],
         max_acceleration=config["max_acceleration"],
         terminate_on_collision=config["terminate_on_collision"],
-        collision_system=CollisionSystem(env),
+        collision_system=CollisionSystem(env, drone_radius=1.0, restitution=1.0),
         environment=env,
     )
 
@@ -370,7 +377,7 @@ def demo_episode_management():
         goal_threshold=config["goal_threshold"],
         max_acceleration=config["max_acceleration"],
         terminate_on_collision=config["terminate_on_collision"],
-        collision_system=CollisionSystem(env),
+        collision_system=CollisionSystem(env, drone_radius=1.0, restitution=1.0),
         environment=env,
     )
 
@@ -437,7 +444,7 @@ def demo_termination_conditions():
         goal_threshold=config["goal_threshold"],
         max_acceleration=config["max_acceleration"],
         terminate_on_collision=config["terminate_on_collision"],
-        collision_system=CollisionSystem(env),
+        collision_system=CollisionSystem(env, drone_radius=1.0, restitution=1.0),
         environment=env,
     )
 
@@ -481,7 +488,7 @@ def demo_termination_conditions():
         goal_threshold=config["goal_threshold"],
         max_acceleration=config["max_acceleration"],
         terminate_on_collision=True,
-        collision_system=CollisionSystem(env, drone_radius=0.5),
+        collision_system=CollisionSystem(env, drone_radius=0.5, restitution=1.0),
         environment=env,
     )
 
@@ -510,7 +517,7 @@ def demo_termination_conditions():
         goal_threshold=config["goal_threshold"],
         max_acceleration=config["max_acceleration"],
         terminate_on_collision=False,
-        collision_system=CollisionSystem(env),
+        collision_system=CollisionSystem(env, drone_radius=1.0, restitution=1.0),
         environment=env,
     )
 
@@ -546,7 +553,7 @@ def demo_save_and_record():
         goal_threshold=0.5,
         max_acceleration=None,
         terminate_on_collision=True,
-        collision_system=CollisionSystem(env),
+        collision_system=CollisionSystem(env, drone_radius=1.0, restitution=1.0),
         environment=env,
     )
 

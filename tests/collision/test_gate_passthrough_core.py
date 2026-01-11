@@ -49,7 +49,7 @@ def simple_environment():
 @pytest.fixture
 def collision_system(simple_environment):
     """Create a collision system with the simple environment."""
-    return CollisionSystem(environment=simple_environment, drone_radius=0.5)
+    return CollisionSystem(environment=simple_environment, drone_radius=0.5, restitution=1.0)
 
 
 class TestBasicGatePassThrough:
@@ -207,7 +207,7 @@ class TestWallWithoutGate:
             seed=42,
         )
 
-        collision_system = CollisionSystem(environment=env, drone_radius=0.5)
+        collision_system = CollisionSystem(environment=env, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),

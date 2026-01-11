@@ -25,7 +25,7 @@ from .simulator import CoreSimulator
 from .state import SwarmState
 
 
-def load_environment_from_spec(spec_name_or_path: Union[str, Path], spawn_clearance: Optional[float] = None) -> Environment:
+def load_environment_from_spec(spec_name_or_path: Union[str, Path], config: Dict[str, Any]) -> Environment:
     """Load an environment from a preset name or JSON file path.
     
     This is a convenience function that combines EnvironmentSpecLoader and
@@ -33,16 +33,24 @@ def load_environment_from_spec(spec_name_or_path: Union[str, Path], spawn_cleara
     
     Args:
         spec_name_or_path: Preset name (e.g., "simple") or path to JSON spec file.
-        spawn_clearance: Clearance distance for obstacle placement (meters). If None, uses default.
+        config: Configuration dictionary with 'environment' section containing 
+                'spawn_clearance' and 'max_placement_attempts'.
     
     Returns:
         Environment instance ready to use with FlockRLGymEnv.
     """
     loader = EnvironmentSpecLoader()
     spec = loader.load(spec_name_or_path)
-    if spawn_clearance is not None:
-        return EnvironmentBuilder.from_spec(spec, spawn_clearance=spawn_clearance).build()
-    return EnvironmentBuilder.from_spec(spec).build()
+    
+    env_config = config["environment"]
+    spawn_clearance = env_config["spawn_clearance"]
+    max_placement_attempts = env_config["max_placement_attempts"]
+    
+    return EnvironmentBuilder.from_spec(
+        spec, 
+        spawn_clearance=spawn_clearance,
+        max_placement_attempts=max_placement_attempts
+    ).build()
 
 
 def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
@@ -84,13 +92,13 @@ class FlockRLGymEnv(gym.Env):
         gym_config = config["gym"]
         sim_config = config["simulation"]
         collision_config = config["collision"]
-        perception_config = config.get("perception", {})
-        visualization_config = config.get("visualization", {})
+        perception_config = config["perception"]
+        visualization_config = config["visualization"]
         
         # Set metadata from config
         self.metadata = {
             "render_modes": ["none"],
-            "render_fps": visualization_config.get("fps", 60)
+            "render_fps": visualization_config["fps"]
         }
         
         self.environment = environment
@@ -101,7 +109,7 @@ class FlockRLGymEnv(gym.Env):
         collision_system = self._build_collision_system(collision_config)
         
         # Whether to save simulation runs for visualization
-        self._save_runs = gym_config.get("save_runs", False)
+        self._save_runs = gym_config["save_runs"]
         
         self.simulator = CoreSimulator(
             delta_t=sim_config["delta_t"],
@@ -116,9 +124,18 @@ class FlockRLGymEnv(gym.Env):
             reset_config=sim_config,
         )
 
-        self.num_drones = gym_config.get("num_drones", 1)
-        self.spawn_offset_range = gym_config.get("spawn_offset_range", 0.25)
-        self.max_neighbors = gym_config.get("max_neighbors", 4)
+        # Validate required gym config fields
+        required_gym_fields = ["num_drones", "spawn_offset_range", "max_neighbors"]
+        missing_fields = [field for field in required_gym_fields if field not in gym_config]
+        if missing_fields:
+            raise ValueError(
+                f"Missing required gym config fields: {missing_fields}. "
+                f"Please add them to your config.yml under 'gym' section."
+            )
+
+        self.num_drones = gym_config["num_drones"]
+        self.spawn_offset_range = gym_config["spawn_offset_range"]
+        self.max_neighbors = gym_config["max_neighbors"]
         self.reward_fn = reward_fn
         self._action_limit = float(sim_config["max_acceleration"])
         self._num_rays = (
@@ -153,12 +170,12 @@ class FlockRLGymEnv(gym.Env):
         self, collision_config: Dict[str, Any]
     ) -> Optional[CollisionSystem]:
         """Create a CollisionSystem instance when enabled in config."""
-        enable = collision_config.get("enable_collisions", True)
+        enable = collision_config["enable_collisions"]
         if not enable:
             return None
 
-        restitution = collision_config.get("restitution", 1.0)
-        drone_radius = collision_config.get("drone_radius", 1.0)
+        restitution = collision_config["restitution"]
+        drone_radius = collision_config["drone_radius"]
         return CollisionSystem(
             environment=self.environment,
             restitution=restitution,

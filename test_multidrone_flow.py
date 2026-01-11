@@ -1,5 +1,5 @@
 """
-Test script to verify the entire multi-drone flow.
+Test script to verify the multi-drone implementation.
 
 This test verifies:
 1. Configuration loading (num_drones, spawn_offset_range)
@@ -10,11 +10,12 @@ This test verifies:
 6. Step accepts (N, 3) actions and returns (N,) rewards
 7. Reward function computes rewards for all drones
 8. Episode termination behavior
+9. Old formats are properly rejected with clear errors
 """
 
 import numpy as np
 from typing import Any, Dict
-from flockrl_sim import FlockRLGymEnv, RewardFunction, SwarmState, load_environment_from_spec
+from flockrl_sim import FlockRLGymEnv, RewardFunction, SwarmState, load_environment_from_spec, load_config
 
 
 class TestRewardFunction(RewardFunction):
@@ -37,13 +38,14 @@ class TestRewardFunction(RewardFunction):
 
 
 def test_single_drone():
-    """Test with num_drones=1 (backward compatibility)."""
+    """Test with num_drones=1 (primary use case)."""
     print("\n" + "="*70)
-    print("TEST 1: Single Drone (Backward Compatibility)")
+    print("TEST 1: Single Drone (num_drones=1)")
     print("="*70)
     
     # Create environment with default config (num_drones=1)
-    env_spec = load_environment_from_spec("simple")
+    config = load_config()
+    env_spec = load_environment_from_spec("simple", config)
     reward_fn = TestRewardFunction()
     env = FlockRLGymEnv(reward_fn=reward_fn, environment=env_spec)
     
@@ -109,7 +111,8 @@ def test_multi_drone():
     
     try:
         # Create environment
-        env_spec = load_environment_from_spec("simple")
+        config["gym"]["num_drones"] = 3
+        env_spec = load_environment_from_spec("simple", config)
         reward_fn = TestRewardFunction()
         env = FlockRLGymEnv(reward_fn=reward_fn, environment=env_spec, config_path=temp_config_path)
         
@@ -198,25 +201,99 @@ def test_multi_drone():
 def test_shape_validation():
     """Test that incorrect action shapes are rejected."""
     print("\n" + "="*70)
-    print("TEST 3: Shape Validation")
+    print("TEST 3: Shape Validation - Old Formats Rejected")
     print("="*70)
     
-    env_spec = load_environment_from_spec("simple")
+    config = load_config()
+    env_spec = load_environment_from_spec("simple", config)
     reward_fn = TestRewardFunction()
     env = FlockRLGymEnv(reward_fn=reward_fn, environment=env_spec)
     
     env.reset(seed=42)
     
-    # Try wrong action shape
+    # Try wrong action shape - old single-drone format
     try:
         wrong_action = np.array([1, 2, 3])  # Shape (3,) instead of (1, 3)
         env.step(wrong_action)
         print("❌ Should have raised ValueError for wrong action shape!")
         assert False
     except ValueError as e:
-        print(f"✓ Correctly rejected wrong action shape: {e}")
+        print(f"✓ Correctly rejected old single-drone action format (3,): {e}")
+    
+    # Try another wrong shape
+    try:
+        wrong_action = np.array([[1, 2], [3, 4]])  # Shape (2, 2) instead of (1, 3)
+        env.step(wrong_action)
+        print("❌ Should have raised ValueError for wrong action shape!")
+        assert False
+    except ValueError as e:
+        print(f"✓ Correctly rejected wrong shape (2, 2): {e}")
     
     print("\n✅ Shape validation test PASSED!")
+
+
+def test_config_validation():
+    """Test that missing config fields are rejected."""
+    print("\n" + "="*70)
+    print("TEST 4: Config Validation - Required Fields")
+    print("="*70)
+    
+    import yaml
+    from pathlib import Path
+    import tempfile
+    
+    config = load_config()
+    env_spec = load_environment_from_spec("simple", config)
+    reward_fn = TestRewardFunction()
+    
+    # Test missing num_drones
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+        config = {
+            "simulation": {
+                "delta_t": 0.004166666666666667,
+                "max_steps": 1000,
+                "goal_threshold": 0.5,
+                "max_acceleration": 5.0,
+                "terminate_on_collision": True,
+                "reset_position_noise": 0.5,
+                "reset_velocity_noise": 0.1,
+            },
+            "gym": {
+                "spawn_offset_range": 0.25,
+                "max_neighbors": 4,
+                "log_dir": None,
+                "save_runs": False,
+                # Missing num_drones!
+            },
+            "collision": {
+                "restitution": 1.0,
+                "enable_collisions": True,
+                "drone_radius": 1.0,
+            },
+            "perception": {
+                "max_range": 50.0,
+                "num_rays": 128,
+                "max_neighbour_range": 10.0,
+            },
+            "visualization": {
+                "fps": 60,
+                "render_mode": "offline",
+                "save_path": None,
+            },
+        }
+        yaml.dump(config, f)
+        temp_config_path = Path(f.name)
+    
+    try:
+        env = FlockRLGymEnv(reward_fn=reward_fn, environment=env_spec, config_path=temp_config_path)
+        print("❌ Should have raised KeyError or ValueError for missing num_drones!")
+        assert False
+    except (ValueError, KeyError) as e:
+        print(f"✓ Correctly rejected missing num_drones config: {e}")
+    finally:
+        temp_config_path.unlink()
+    
+    print("\n✅ Config validation test PASSED!")
 
 
 if __name__ == "__main__":
@@ -228,13 +305,14 @@ if __name__ == "__main__":
         test_single_drone()
         test_multi_drone()
         test_shape_validation()
+        test_config_validation()
         
         print("\n" + "="*70)
         print("🎉 ALL TESTS PASSED! 🎉")
         print("="*70)
         print("\nVerified:")
-        print("  ✓ Configuration loading")
-        print("  ✓ Single drone (backward compatibility)")
+        print("  ✓ Configuration loading and validation")
+        print("  ✓ Single drone (num_drones=1)")
         print("  ✓ Multi-drone with N=3")
         print("  ✓ Random spawn offsets")
         print("  ✓ Action space shape (N, 3)")
@@ -242,7 +320,8 @@ if __name__ == "__main__":
         print("  ✓ Reward array shape (N,)")
         print("  ✓ Independent rewards per drone")
         print("  ✓ Global episode termination")
-        print("  ✓ Shape validation")
+        print("  ✓ Old formats properly rejected")
+        print("  ✓ Missing config fields rejected")
         print("\n")
         
     except Exception as e:

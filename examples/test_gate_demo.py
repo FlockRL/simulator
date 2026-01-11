@@ -55,7 +55,7 @@ def run_demo():
     print()
 
     env = create_gate_demo_environment()
-    collision_system = CollisionSystem(environment=env, drone_radius=0.5)
+    collision_system = CollisionSystem(environment=env, drone_radius=0.5, restitution=1.0)
 
     print("Environment setup:")
     print("  Wall: 10m x 8m x 0.2m at position (0, 0, 0)")

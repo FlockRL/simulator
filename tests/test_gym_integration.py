@@ -45,15 +45,30 @@ def create_test_env(
                     "goal_threshold": 0.5,
                     "max_acceleration": 5.0,
                     "terminate_on_collision": True,
+                    "reset_position_noise": 0.5,
+                    "reset_velocity_noise": 0.1,
                 },
                 "gym": {
+                    "num_drones": 1,
+                    "spawn_offset_range": 0.25,
                     "max_neighbors": 4,
                     "log_dir": str(log_dir),
                     "save_runs": True,  # Enable simulation run saving for tests
                 },
                 "collision": {
-                    "restitution": 0.8,
+                    "restitution": 1.0,
                     "enable_collisions": True,
+                    "drone_radius": 1.0,
+                },
+                "perception": {
+                    "max_range": 50.0,
+                    "num_rays": 128,
+                    "max_neighbour_range": 10.0,
+                },
+                "visualization": {
+                    "fps": 60,
+                    "render_mode": "offline",
+                    "save_path": None,
                 },
             }
             yaml.dump(config, f)
@@ -70,17 +85,17 @@ class SimpleReward(RewardFunction):
     """Simple reward function for testing."""
 
     def reset(self, state: SwarmState) -> None:
-        self._last_dist = float(np.linalg.norm(state.pos[0] - state.goals[0]))
+        self._last_dist = np.linalg.norm(state.pos - state.goals, axis=1)
 
     def compute(
         self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]
-    ) -> float:
-        current_dist = float(np.linalg.norm(state.pos[0] - state.goals[0]))
-        reward = self._last_dist - current_dist
+    ) -> np.ndarray:
+        current_dist = np.linalg.norm(state.pos - state.goals, axis=1)
+        rewards = self._last_dist - current_dist
         if sim_info.get("termination_reason") == "success":
-            reward += 100.0
+            rewards += 100.0
         self._last_dist = current_dist
-        return reward
+        return rewards
 
 
 class TestFlockRLGymEnvWithoutLogging:
@@ -92,7 +107,8 @@ class TestFlockRLGymEnvWithoutLogging:
 
         assert env.logger is None
         assert env._episode_num == 0
-        assert env._episode_reward == 0.0
+        assert isinstance(env._episode_reward, np.ndarray)
+        assert env._episode_reward.shape == (1,)
 
     def test_reset_without_logging(self):
         """Test reset works without logging."""
@@ -108,11 +124,12 @@ class TestFlockRLGymEnvWithoutLogging:
         env = create_test_env(SimpleReward())
         env.reset()
 
-        action = np.array([1.0, 0.0, 0.0])
+        action = np.array([[1.0, 0.0, 0.0]])
         obs, reward, terminated, truncated, info = env.step(action)
 
         assert obs.shape == env.observation_space.shape
-        assert isinstance(reward, (int, float))
+        assert isinstance(reward, np.ndarray)
+        assert reward.shape == (1,)
         assert isinstance(terminated, bool)
         assert isinstance(truncated, bool)
         assert "episode_result" not in info  # No logging
@@ -400,18 +417,18 @@ class TestRewardFunctions:
 
             def compute(
                 self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]
-            ) -> float:
-                return self.constant_value
+            ) -> np.ndarray:
+                return np.array([self.constant_value])
 
         reward_fn = ConstantReward(constant_value=5.0)
         env = create_test_env(reward_fn)
 
         obs, info = env.reset()
-        action = np.array([1.0, 0.0, 0.0])
+        action = np.array([[1.0, 0.0, 0.0]])
         obs, reward, terminated, truncated, info = env.step(action)
 
         # Should get constant reward
-        assert reward == 5.0
+        assert np.array_equal(reward, np.array([5.0]))
 
     def test_reward_function_reset_called(self):
         """Test that reward function reset is called on env reset."""
@@ -427,8 +444,8 @@ class TestRewardFunctions:
 
             def compute(
                 self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]
-            ) -> float:
-                return 0.0
+            ) -> np.ndarray:
+                return np.zeros(state.pos.shape[0])
 
         reward_fn = TrackingReward()
         env = create_test_env(reward_fn)
@@ -454,16 +471,16 @@ class TestRewardFunctions:
 
             def compute(
                 self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]
-            ) -> float:
+            ) -> np.ndarray:
                 # Just return a constant reward
-                return 1.0
+                return np.ones(state.pos.shape[0])
 
         reward_fn = StatelessReward()
         env = create_test_env(reward_fn)
 
         # Should work fine - reset() has default no-op implementation
         obs, info = env.reset()
-        action = np.array([1.0, 0.0, 0.0])
+        action = np.array([[1.0, 0.0, 0.0]])
         obs, reward, terminated, truncated, info = env.step(action)
 
-        assert reward == 1.0
+        assert np.array_equal(reward, np.array([1.0]))

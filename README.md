@@ -64,13 +64,13 @@ from flockrl_sim import FlockRLGymEnv, RewardFunction, Environment
 
 class MyRewardFunction(RewardFunction):
     def reset(self, state) -> None:
-        self._last_dist = float(np.linalg.norm(state.pos[0] - state.goals[0]))
+        self._last_dist = np.linalg.norm(state.pos - state.goals, axis=1)
 
-    def compute(self, state, action, sim_info) -> float:
-        current = float(np.linalg.norm(state.pos[0] - state.goals[0]))
-        reward = self._last_dist - current
+    def compute(self, state, action, sim_info) -> np.ndarray:
+        current = np.linalg.norm(state.pos - state.goals, axis=1)
+        rewards = self._last_dist - current
         self._last_dist = current
-        return reward
+        return rewards
 
 environment = Environment(
     bounds=(-100, 100, -100, 100, 0, 100),
@@ -90,18 +90,27 @@ env = FlockRLGymEnv(
 
 # Standard Gymnasium API
 obs, info = env.reset(seed=42)
-action = env.action_space.sample()  # 3D acceleration vector
-obs, reward, terminated, truncated, info = env.step(action)
+# Action shape: (num_drones, 3) - 3D acceleration vectors for each drone
+action = env.action_space.sample()  
+obs, rewards, terminated, truncated, info = env.step(action)
+# Returns: obs shape (num_drones, obs_dim), rewards shape (num_drones,)
 ```
+
+**Note on Multi-Drone Format:**
+- Actions: shape `(num_drones, 3)` - 3D acceleration for each drone
+- Observations: shape `(num_drones, obs_dim)` - observation for each drone
+- Rewards: shape `(num_drones,)` - independent reward per drone
+- Configure `num_drones` in `config.yml` (default: 1)
 
 ### Environment Setup
 
 You can build environments manually or from JSON specs. Preset specs live under `flockrl_sim/environment/specs`.
 
 ```python
-from flockrl_sim import load_environment_from_spec
+from flockrl_sim import load_environment_from_spec, load_config
 
-environment = load_environment_from_spec("simple")  # preset name or JSON path
+config = load_config()
+environment = load_environment_from_spec("simple", config)  # preset name or JSON path
 ```
 
 **Note on Learning Strategy:**
@@ -125,26 +134,30 @@ class MyRewardFunction(RewardFunction):
         self.success_reward = success_reward
         self.collision_penalty = collision_penalty
         self.step_cost = step_cost
-        self._last_distance = 0.0
+        self._last_distances = None
     
     def reset(self, state: SwarmState) -> None:
-        """Called when environment resets."""
-        self._last_distance = float(np.linalg.norm(state.pos[0] - state.goals[0]))
+        """Called when environment resets - track all drones."""
+        self._last_distances = np.linalg.norm(state.pos - state.goals, axis=1)
     
-    def compute(self, state: SwarmState, action: np.ndarray, sim_info: dict) -> float:
-        """Compute reward for current step."""
-        # Dense reward based on progress toward goal
-        current_dist = float(np.linalg.norm(state.pos[0] - state.goals[0]))
-        reward = (self._last_distance - current_dist) - self.step_cost
+    def compute(self, state: SwarmState, action: np.ndarray, sim_info: dict) -> np.ndarray:
+        """Compute independent rewards for each drone.
         
-        # Terminal rewards
+        Returns:
+            np.ndarray: Rewards of shape (N,) where N is number of drones
+        """
+        # Dense reward based on progress toward goal for each drone
+        current_distances = np.linalg.norm(state.pos - state.goals, axis=1)
+        rewards = (self._last_distances - current_distances) - self.step_cost
+        
+        # Terminal rewards (applied to all drones)
         if sim_info.get("termination_reason") == "success":
-            reward += self.success_reward
+            rewards += self.success_reward
         elif sim_info.get("termination_reason") == "collision":
-            reward -= self.collision_penalty
+            rewards -= self.collision_penalty
         
-        self._last_distance = current_dist
-        return reward
+        self._last_distances = current_distances
+        return rewards
 
 # Create environment with your reward function
 environment = Environment(
@@ -181,19 +194,23 @@ When logging is enabled, simulation runs are automatically saved as JSON files (
 
 ### Observation Space
 
-The observation includes:
+The observation includes per-drone state information with shape `(num_drones, obs_dim)`:
 - **Agent state**: position (3), velocity (3)
 - **Goal information**: goal vector (3), goal distance (1)
 - **Sensor data**: raycast ranges and hits
 - **Neighbor information**: relative positions and velocities of nearby agents (up to `max_neighbors`)
-  - Current Gym wrapper runs a single drone; neighbor features are zero-padded.
+  - Each drone observes other drones within sensor range
+
+Each drone receives its own observation independently for decentralized control.
 
 ### Action Space
 
-Actions are 3D acceleration vectors bounded by `max_acceleration`:
+Actions are 3D acceleration vectors for each drone, bounded by `max_acceleration`:
 ```python
-# Action is clipped to [-max_acceleration, max_acceleration] in each dimension
-action = np.array([ax, ay, az], dtype=np.float32)
+# Actions have shape (num_drones, 3)
+# Each action is clipped to [-max_acceleration, max_acceleration] in each dimension
+action = np.array([[ax, ay, az]], dtype=np.float32)  # For single drone (num_drones=1)
+action = np.array([[ax1, ay1, az1], [ax2, ay2, az2]], dtype=np.float32)  # For 2 drones
 ```
 
 ### Integration with RL Libraries

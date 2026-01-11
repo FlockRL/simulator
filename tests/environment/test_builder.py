@@ -3,6 +3,8 @@
 from math import hypot
 
 import pytest
+import yaml
+from pathlib import Path
 
 from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
 from flockrl_sim.environment.spec_models.environment import EnvironmentSpec
@@ -13,8 +15,16 @@ from flockrl_sim.environment.spec_models.obstacles import (
 )
 from flockrl_sim.environment.spec_models.random_values import UniformRandomConfig
 from flockrl_sim.environment.obstacles_types import Gate, Wall, RectangularPrism
-from flockrl_sim.environment.obstacles import SPAWN_CLEARANCE_METERS
 from flockrl_sim.environment.validation import check_overlap
+
+
+def _load_test_config():
+    """Load config values needed for EnvironmentBuilder."""
+    config_path = Path(__file__).parent.parent.parent / "config.yml"
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    env_config = config["environment"]
+    return env_config["spawn_clearance"], env_config["max_placement_attempts"]
 
 
 DEFAULT_SPEC_KWARGS = {
@@ -40,8 +50,9 @@ class TestBasicBuilding:
         """Test building environment from empty spec."""
         loader = EnvironmentSpecLoader()
         spec = loader.load("empty")
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
         assert len(env.obstacles) == 0
         assert env.bounds == spec.bounds
 
@@ -49,8 +60,9 @@ class TestBasicBuilding:
         """Test building environment with manual obstacles only."""
         loader = EnvironmentSpecLoader()
         spec = loader.load("manual_only")
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
         obstacle_ids = {obs.id for obs in env.obstacles}
         assert "wall1" in obstacle_ids
 
@@ -68,9 +80,10 @@ class TestRandomGeneration:
         """Test that random generation is reproducible with same seed."""
         loader = EnvironmentSpecLoader()
         spec = loader.load("random_only")
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env1 = EnvironmentBuilder.from_spec(spec).build()
-        env2 = EnvironmentBuilder.from_spec(spec).build()
+        env1 = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
+        env2 = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
 
         assert len(env1.obstacles) == len(env2.obstacles)
         for obs1, obs2 in zip(env1.obstacles, env2.obstacles):
@@ -81,8 +94,11 @@ class TestRandomGeneration:
         """Test that random obstacles respect spawn clearance."""
         loader = EnvironmentSpecLoader()
         spec = loader.load("random_only")
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
+        
+        expected_clearance = spawn_clearance
 
         spawn_positions = [
             pos for pos in (spec.start_position, spec.goal_position) if pos
@@ -91,14 +107,15 @@ class TestRandomGeneration:
         for obs in env.obstacles:
             for spawn in spawn_positions:
                 distance = hypot(obs.position[0] - spawn[0], obs.position[1] - spawn[1])
-                assert distance >= SPAWN_CLEARANCE_METERS
+                assert distance >= expected_clearance
 
     def test_random_no_overlaps(self):
         """Test that random obstacles don't overlap each other."""
         loader = EnvironmentSpecLoader()
         spec = loader.load("random_only")
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
 
         for i, obs1 in enumerate(env.obstacles):
             for obs2 in env.obstacles[i + 1 :]:
@@ -135,8 +152,9 @@ class TestRandomGeneration:
                 ],
             )
         )
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
         clutters = [obs for obs in env.obstacles if isinstance(obs, RectangularPrism)]
         assert len(clutters) == 4
 
@@ -168,8 +186,9 @@ class TestRandomGeneration:
                 ],
             )
         )
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
 
         clutters = [obs for obs in env.obstacles if isinstance(obs, RectangularPrism)]
         assert len(clutters) == 1
@@ -216,8 +235,9 @@ class TestGateGeneration:
                 ],
             )
         )
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
         walls = [obs for obs in env.obstacles if isinstance(obs, Wall)]
         assert len(walls) == 2
 
@@ -259,8 +279,9 @@ class TestGateGeneration:
                 ],
             )
         )
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
         walls = [obs for obs in env.obstacles if isinstance(obs, Wall)]
         gates = [obs for obs in env.obstacles if isinstance(obs, Gate)]
 
@@ -311,8 +332,9 @@ class TestGateGeneration:
                 ],
             )
         )
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
         walls = sorted(
             [obs for obs in env.obstacles if isinstance(obs, Wall)], key=lambda w: w.id
         )
@@ -328,8 +350,9 @@ class TestBuilderEdgeCases:
     def test_spawn_positions_persist(self):
         """Test that spawn positions are stored on environment."""
         spec = EnvironmentSpec(**spec_kwargs(name="spawn_persist"))
+        spawn_clearance, max_placement_attempts = _load_test_config()
 
-        env = EnvironmentBuilder.from_spec(spec).build()
+        env = EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
 
         assert env.start_position == spec.start_position
         assert env.goal_position == spec.goal_position
@@ -360,8 +383,9 @@ class TestBuilderEdgeCases:
             )
         )
 
+        spawn_clearance, max_placement_attempts = _load_test_config()
         with pytest.raises(ValueError) as exc_info:
-            EnvironmentBuilder.from_spec(spec).build()
+            EnvironmentBuilder.from_spec(spec, spawn_clearance, max_placement_attempts).build()
 
         assert "Unable to place wall" in str(exc_info.value)
         assert "without collisions" in str(exc_info.value)

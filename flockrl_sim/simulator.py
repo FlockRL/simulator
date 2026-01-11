@@ -108,9 +108,9 @@ class CoreSimulator:
             sensor_config = None
             if perception_config:
                 sensor_config = SensorConfig(
-                    max_range=perception_config.get("max_range", 50.0),
-                    num_rays=perception_config.get("num_rays", 128),
-                    max_neighbour_range=perception_config.get("max_neighbour_range", 10.0),
+                    max_range=perception_config["max_range"],
+                    num_rays=perception_config["num_rays"],
+                    max_neighbour_range=perception_config["max_neighbour_range"],
                 )
             self._perception_system = PerceptionSystem(
                 environment=self.environment,
@@ -489,8 +489,8 @@ class CoreSimulator:
             N = self._initial_state.pos.shape[0]
 
             # Get noise values from config
-            position_noise = self._reset_config.get("reset_position_noise", 0.5)
-            velocity_noise = self._reset_config.get("reset_velocity_noise", 0.1)
+            position_noise = self._reset_config["reset_position_noise"]
+            velocity_noise = self._reset_config["reset_velocity_noise"]
 
             # Randomize positions within some bounds
             # Add small perturbations to initial positions

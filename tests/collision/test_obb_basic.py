@@ -43,9 +43,7 @@ class TestAxisAlignedCollision:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -76,9 +74,7 @@ class TestAxisAlignedCollision:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -108,9 +104,7 @@ class TestAxisAlignedCollision:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -147,9 +141,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         # Drone along rotated -Y axis (world diagonal)
         state = SwarmState(
@@ -183,9 +175,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(wall)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -217,9 +207,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         # Drone at center - definitely collides
         state = SwarmState(
@@ -252,9 +240,7 @@ class TestSimpleRotations:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -288,9 +274,7 @@ class TestDroneInsideBox:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),
@@ -321,9 +305,7 @@ class TestDroneInsideBox:
         )
         basic_environment.obstacles.append(clutter)
 
-        collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
-        )
+        collision_system = CollisionSystem(environment=basic_environment, drone_radius=0.5, restitution=1.0)
 
         state = SwarmState(
             goals=np.zeros((1, 3)),

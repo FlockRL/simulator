@@ -42,7 +42,7 @@ class TestAxisAlignedNormals:
         basic_environment.obstacles.append(wall)
 
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         # Test each face
@@ -95,7 +95,7 @@ class TestRotatedNormals:
         basic_environment.obstacles.append(wall)
 
         collision_system = CollisionSystem(
-            environment=basic_environment, drone_radius=0.5
+            environment=basic_environment, drone_radius=0.5, restitution=1.0
         )
 
         # Drone approaching from +X (which is local Y after rotation)

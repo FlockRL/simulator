@@ -28,9 +28,9 @@ class SensorConfig:
         max_neighbour_range: Maximum distance to consider a drone as a neighbor (meters)
     """
 
-    max_range: float = 50.0
-    num_rays: int = 128
-    max_neighbour_range: float = 10.0
+    max_range: float
+    num_rays: int
+    max_neighbour_range: float
 
 
 @dataclass
@@ -82,21 +82,21 @@ class PerceptionSystem:
     def __init__(
         self,
         environment: Environment,
-        config: Optional[SensorConfig] = None,
+        config: SensorConfig,
         seed: Optional[int] = None,
     ) -> None:
         self.environment = environment
-        self.config = config or SensorConfig()
+        self.config = config
         self.rays = generate_rays(self.config.num_rays, seed)
 
     def reset(
-        self, config: Optional[SensorConfig] = None, seed: Optional[int] = None
+        self, config: SensorConfig, seed: Optional[int] = None
     ) -> None:
         """
         Reset the perception system with an optional updated sensor configuration.
         """
 
-        self.config = config or SensorConfig()
+        self.config = config
         self.rays = generate_rays(self.config.num_rays, seed)
 
     def _is_point_inside_gate(self, point: np.ndarray, gate) -> bool:
