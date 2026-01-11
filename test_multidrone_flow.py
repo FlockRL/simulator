@@ -267,7 +267,6 @@ def test_config_validation():
             },
             "collision": {
                 "restitution": 1.0,
-                "enable_collisions": True,
                 "drone_radius": 1.0,
             },
             "perception": {

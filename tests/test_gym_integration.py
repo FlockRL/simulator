@@ -20,7 +20,7 @@ from flockrl_sim import (
 def create_test_env(
     reward_fn,
     log_dir: Optional[Path] = None,
-    **kwargs
+    **kwargs,
 ):
     """Helper to create test environment with defaults."""
     environment = kwargs.pop(
@@ -57,7 +57,6 @@ def create_test_env(
                 },
                 "collision": {
                     "restitution": 1.0,
-                    "enable_collisions": True,
                     "drone_radius": 1.0,
                 },
                 "perception": {
@@ -138,6 +137,8 @@ class TestFlockRLGymEnvWithoutLogging:
         """Test that accessing logger requires logging to be enabled."""
         env = create_test_env(SimpleReward())
         assert env.logger is None
+
+
 
 
 class TestFlockRLGymEnvWithLogging:

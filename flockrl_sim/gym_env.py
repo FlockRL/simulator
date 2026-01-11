@@ -168,12 +168,8 @@ class FlockRLGymEnv(gym.Env):
 
     def _build_collision_system(
         self, collision_config: Dict[str, Any]
-    ) -> Optional[CollisionSystem]:
-        """Create a CollisionSystem instance when enabled in config."""
-        enable = collision_config["enable_collisions"]
-        if not enable:
-            return None
-
+    ) -> CollisionSystem:
+        """Create a CollisionSystem instance (collisions are always enabled)."""
         restitution = collision_config["restitution"]
         drone_radius = collision_config["drone_radius"]
         return CollisionSystem(

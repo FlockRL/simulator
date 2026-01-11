@@ -51,7 +51,6 @@ The simulator provides a Gymnasium-compatible environment (`FlockRLGymEnv`) that
 ### Config (required)
 
 `FlockRLGymEnv` loads `config.yml` and expects `simulation` and `gym` sections (see `config.yml` in this repo for defaults). If you store the config elsewhere, pass `config_path`.
-- Collisions are enabled by default via the `collision` section (`enable_collisions`, `restitution`). Set `collision.enable_collisions: false` if you need a no-collision sandbox run.
 
 ### Basic Usage
 
