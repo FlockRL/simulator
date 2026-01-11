@@ -54,7 +54,7 @@ class PlotlyRenderer:
         log.setLevel(logging.ERROR)
         
         app = dash.Dash(__name__)
-        initial_fig = self._create_figure(frame_idx=0, show_trajectories_up_to=0, camera=None)
+        initial_fig = self._create_figure(frame_idx=0, show_trajectories_up_to=0)
 
         app.layout = html.Div(
             [
@@ -134,7 +134,6 @@ class PlotlyRenderer:
                 ),
                 dcc.Store(id="is-playing", data=False),
                 dcc.Store(id="current-frame", data=0),
-                dcc.Store(id="camera-state", data=None),
             ]
         )
 
@@ -166,29 +165,20 @@ class PlotlyRenderer:
             return speed
 
         @app.callback(
-            Output("camera-state", "data"),
-            [Input("3d-graph", "relayoutData")],
-            [State("camera-state", "data")],
-        )
-        def update_camera_state(relayout_data, current_camera):
-            """Capture camera position when user interacts with the graph."""
-            if relayout_data and "scene.camera" in relayout_data:
-                # Plotly sends camera as a nested dict
-                return relayout_data["scene.camera"]
-            return current_camera
-
-        @app.callback(
             [
                 Output("3d-graph", "figure"),
                 Output("info-display", "children"),
                 Output("frame-slider", "value", allow_duplicate=True),
                 Output("current-frame", "data", allow_duplicate=True),
             ],
-            [Input("interval-component", "n_intervals"), Input("frame-slider", "value")],
-            [State("is-playing", "data"), State("current-frame", "data"), State("camera-state", "data")],
+            [
+                Input("interval-component", "n_intervals"), 
+                Input("frame-slider", "value"),
+            ],
+            [State("is-playing", "data"), State("current-frame", "data")],
             prevent_initial_call=True,
         )
-        def update_figure(n_intervals, slider_value, is_playing, current_frame, camera_state):
+        def update_figure(n_intervals, slider_value, is_playing, current_frame):
             ctx = dash.callback_context
 
             if not ctx.triggered:
@@ -204,7 +194,7 @@ class PlotlyRenderer:
                 else:
                     frame_idx = current_frame
 
-            fig = self._create_figure(frame_idx, show_trajectories_up_to=frame_idx, camera=camera_state)
+            fig = self._create_figure(frame_idx, show_trajectories_up_to=frame_idx)
 
             frame_state = self.frames[frame_idx]["state"]
             frame_time = frame_state.get("t", 0.0)
@@ -226,7 +216,7 @@ class PlotlyRenderer:
         
         app.run(host=host, port=port, debug=debug)
 
-    def _create_figure(self, frame_idx: int, show_trajectories_up_to: int, camera: Any = None) -> "go.Figure":
+    def _create_figure(self, frame_idx: int, show_trajectories_up_to: int) -> "go.Figure":
         fig = go.Figure()
 
         for obstacle in self.obstacles:
@@ -309,20 +299,17 @@ class PlotlyRenderer:
             )
         )
 
-        # Use stored camera position if available, otherwise use default
-        camera_dict = camera if camera is not None else dict(eye=dict(x=1.5, y=1.5, z=1.2))
-        
         fig.update_layout(
             scene=dict(
                 xaxis=dict(title="X", gridcolor="lightgray"),
                 yaxis=dict(title="Y", gridcolor="lightgray"),
                 zaxis=dict(title="Z", gridcolor="lightgray"),
                 aspectmode="data",
-                camera=camera_dict,
             ),
             showlegend=True,
             hovermode="closest",
             margin=dict(l=0, r=0, b=0, t=0),
+            uirevision="keep",  # Preserve user interactions (camera position, zoom, etc.) across updates
         )
 
         return fig
