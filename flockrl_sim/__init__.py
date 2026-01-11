@@ -1,10 +1,11 @@
 """FlockRL Simulator - Public API exports."""
 
 from .collision.system import CollisionInfo, CollisionSystem
-from .gym_env import FlockRLGymEnv, load_config
+from .gym_env import FlockRLGymEnv, load_config, load_environment_from_spec
 from .gym_logging import EpisodeLogger, EpisodeResult
 from .rewards import RewardFunction
 from .environment.obstacles import Environment, EnvironmentBuilder, Obstacle
+from .environment.loader import EnvironmentSpecLoader
 from .perception import PerceptionSystem, RayHit, SensorConfig, SensorReading
 from .simulator import CoreSimulator, SimulationFrame, SimulationRun
 from .state import SwarmState
@@ -22,6 +23,7 @@ __all__ = [
     # Environment
     "Environment",
     "EnvironmentBuilder",
+    "EnvironmentSpecLoader",
     "Obstacle",
     # Collision
     "CollisionSystem",
@@ -35,6 +37,7 @@ __all__ = [
     "OfflineVisualizer",
     # Config
     "load_config",
+    "load_environment_from_spec",
     # Gymnasium
     "FlockRLGymEnv",
     # Gymnasium logging

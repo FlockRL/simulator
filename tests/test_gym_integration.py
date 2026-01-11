@@ -8,11 +8,13 @@ import numpy as np
 import pytest
 import yaml
 
-from flockrl_sim import FlockRLGymEnv
-from flockrl_sim.environment import Environment
-from flockrl_sim.rewards import RewardFunction
-from flockrl_sim.state import SwarmState
-from flockrl_sim.gym_logging import EpisodeResult
+from flockrl_sim import (
+    FlockRLGymEnv,
+    Environment,
+    RewardFunction,
+    SwarmState,
+    EpisodeResult,
+)
 
 
 def create_test_env(

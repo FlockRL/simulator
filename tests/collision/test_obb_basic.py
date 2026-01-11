@@ -9,10 +9,8 @@ Tests verify fundamental OBB collision detection for:
 
 import numpy as np
 import pytest
-from flockrl_sim.collision.system import CollisionSystem
+from flockrl_sim import CollisionSystem, Environment, SwarmState
 from flockrl_sim.environment.obstacles_types import Wall, RectangularPrism
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 import sys
 import matplotlib.pyplot as plt
-from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
+from flockrl_sim import EnvironmentBuilder, EnvironmentSpecLoader
 from collections import Counter
 from visualization_utils import (
     get_obstacle_props,

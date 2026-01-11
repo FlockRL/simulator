@@ -10,13 +10,9 @@ This script demonstrates:
 """
 
 import numpy as np
-from pathlib import Path
 from typing import Any, Dict
-from flockrl_sim import FlockRLGymEnv, RewardFunction
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
+from flockrl_sim import FlockRLGymEnv, RewardFunction, SwarmState, load_environment_from_spec
 import pandas as pd
-from dataclasses import asdict
 
 class SimpleRewardFunction(RewardFunction):
     """Simple dense reward function for training."""
@@ -75,14 +71,8 @@ def main():
         success_reward=100.0, collision_penalty=50.0, step_cost=0.1
     )
 
-    # Create environment configuration
-    environment = Environment(
-        bounds=(-100, 100, -100, 100, 0, 100),
-        obstacles=[],
-        start_position=(0.0, 0.0, 1.0),
-        goal_position=(0.0, 0.0, 10.0),
-        seed=0,
-    )
+    # Load environment from spec
+    environment = load_environment_from_spec("simple")
     # Create environment with logging enabled
     env = FlockRLGymEnv(
         reward_fn=reward_fn,
@@ -92,6 +82,11 @@ def main():
     print("=" * 60)
     print("FlockRL Simple Training Example")
     print("=" * 60)
+    print(f"Environment: simple")
+    print(f"Bounds: {environment.bounds}")
+    print(f"Obstacles: {len(environment.obstacles)}")
+    print(f"Start position: {environment.start_position}")
+    print(f"Goal position: {environment.goal_position}")
     print(f"Action space: {env.action_space}")
     print(f"Observation space: {env.observation_space}")
     print(f"Logging to: logs/simple_training")

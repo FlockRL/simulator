@@ -8,7 +8,7 @@ RL tooling that expects the Gymnasium API.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import gymnasium as gym
 import numpy as np
@@ -17,10 +17,29 @@ from gymnasium import spaces
 
 from .collision.system import CollisionSystem
 from .environment import Environment
+from .environment.loader import EnvironmentSpecLoader
+from .environment.obstacles import EnvironmentBuilder
 from .gym_logging import EpisodeLogger
 from .rewards import RewardFunction
 from .simulator import CoreSimulator
 from .state import SwarmState
+
+
+def load_environment_from_spec(spec_name_or_path: Union[str, Path]) -> Environment:
+    """Load an environment from a preset name or JSON file path.
+    
+    This is a convenience function that combines EnvironmentSpecLoader and
+    EnvironmentBuilder to create an Environment in one call.
+    
+    Args:
+        spec_name_or_path: Preset name (e.g., "simple") or path to JSON spec file.
+    
+    Returns:
+        Environment instance ready to use with FlockRLGymEnv.
+    """
+    loader = EnvironmentSpecLoader()
+    spec = loader.load(spec_name_or_path)
+    return EnvironmentBuilder.from_spec(spec).build()
 
 
 def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:

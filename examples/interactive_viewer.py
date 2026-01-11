@@ -4,7 +4,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
-from flockrl_sim.environment import EnvironmentSpecLoader, EnvironmentBuilder
+from flockrl_sim import EnvironmentBuilder, EnvironmentSpecLoader
 from visualization_utils import (
     get_obstacle_props,
     draw_spawn_markers,

@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from flockrl_sim.gym_logging import EpisodeLogger, EpisodeResult
+from flockrl_sim import EpisodeLogger, EpisodeResult
 
 
 class TestEpisodeResult:

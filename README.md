@@ -42,22 +42,6 @@ source venv/bin/activate
 
 # Install the package
 pip install -e .
-
-# Now you can use flockrl from anywhere (while venv is active)
-flockrl generate -n 10 -o output.json
-```
-
-### Command-Line Interface
-
-```bash
-# Show help
-flockrl --help
-
-# Generate sample simulation data
-flockrl generate -n 10 -f 200 -o my_simulation.json
-
-# All options
-flockrl generate -n 5 -f 100 -d 10.0 -s 42 -o output.json
 ```
 
 ## Gymnasium environment (RL)
@@ -76,8 +60,7 @@ from pathlib import Path
 
 import numpy as np
 
-from flockrl_sim import FlockRLGymEnv, RewardFunction
-from flockrl_sim.environment import Environment
+from flockrl_sim import FlockRLGymEnv, RewardFunction, Environment
 
 class MyRewardFunction(RewardFunction):
     def reset(self, state) -> None:
@@ -116,10 +99,9 @@ obs, reward, terminated, truncated, info = env.step(action)
 You can build environments manually or from JSON specs. Preset specs live under `flockrl_sim/environment/specs`.
 
 ```python
-from flockrl_sim.environment import EnvironmentBuilder, EnvironmentSpecLoader
+from flockrl_sim import load_environment_from_spec
 
-spec = EnvironmentSpecLoader().load("simple")  # preset name or JSON path
-environment = EnvironmentBuilder.from_spec(spec).config
+environment = load_environment_from_spec("simple")  # preset name or JSON path
 ```
 
 **Note on Learning Strategy:**
@@ -135,9 +117,7 @@ Once you have a working solution, you can then progress to randomized environmen
 The environment requires a custom reward function. Define your own by subclassing `RewardFunction`:
 
 ```python
-from flockrl_sim import FlockRLGymEnv, RewardFunction
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
+from flockrl_sim import FlockRLGymEnv, RewardFunction, Environment, SwarmState
 import numpy as np
 
 class MyRewardFunction(RewardFunction):
@@ -221,8 +201,7 @@ action = np.array([ax, ay, az], dtype=np.float32)
 **Stable-Baselines3:**
 ```python
 from stable_baselines3 import PPO
-from flockrl_sim import FlockRLGymEnv
-from flockrl_sim.environment import Environment
+from flockrl_sim import FlockRLGymEnv, Environment
 
 environment = Environment(
     bounds=(-100, 100, -100, 100, 0, 100),

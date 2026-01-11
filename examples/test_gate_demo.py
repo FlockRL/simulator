@@ -7,10 +7,8 @@ and simulates drones passing through the gate and colliding with the wall.
 """
 
 import numpy as np
-from flockrl_sim.collision.system import CollisionSystem
+from flockrl_sim import CollisionSystem, Environment, SwarmState
 from flockrl_sim.environment.obstacles_types import Wall, Gate
-from flockrl_sim.environment import Environment
-from flockrl_sim.state import SwarmState
 
 
 def create_gate_demo_environment():
