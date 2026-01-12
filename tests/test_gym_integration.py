@@ -299,7 +299,7 @@ class TestFlockRLGymEnvWithLogging:
             assert np.isfinite(avg_reward)
 
     def test_save_logs(self):
-        """Test manual save_logs method."""
+        """Test manual save_episode_logs method."""
         with tempfile.TemporaryDirectory() as tmpdir:
             env = create_test_env(
                 SimpleReward(),
@@ -316,7 +316,7 @@ class TestFlockRLGymEnvWithLogging:
                 done = terminated or truncated
 
             # Manually save logs
-            env.save_logs()
+            env.save_episode_logs()
 
             # Check that file was created
             json_path = Path(tmpdir) / "episode_results.json"

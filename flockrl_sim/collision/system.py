@@ -62,19 +62,8 @@ class CollisionSystem:
 
         collisions: List[CollisionInfo] = []
 
-        bounds = None
-        if hasattr(self.environment, "bounds"):
-            b = self.environment.bounds
-            bounds = b() if callable(b) else b
-        elif hasattr(self.environment, "get_bounds"):
-            bounds = self.environment.get_bounds()
-
-        obstacles = []
-        if hasattr(self.environment, "obstacles"):
-            obs = self.environment.obstacles
-            obstacles = obs() if callable(obs) else obs
-        elif hasattr(self.environment, "get_obstacles"):
-            obstacles = self.environment.get_obstacles()
+        bounds = self.environment.bounds
+        obstacles = self.environment.obstacles
 
         # Run collision checks
 
@@ -192,8 +181,8 @@ class CollisionSystem:
         """
         collisions = []
 
-        walls = [obs for obs in obstacles if getattr(obs, "type", None) == "wall"]
-        gates = [obs for obs in obstacles if getattr(obs, "type", None) == "gate"]
+        walls = [obs for obs in obstacles if obs.type == "wall"]
+        gates = [obs for obs in obstacles if obs.type == "gate"]
 
         gate_map = {gate.id: gate for gate in gates}
 
@@ -238,7 +227,8 @@ class CollisionSystem:
         """
         collisions: List[CollisionInfo] = []
         prisms = [
-            obs for obs in obstacles if getattr(obs, "type", None) == "RectangularPrism"
+            obs for obs in obstacles 
+            if obs.type == "clutter" and obs.subtype == "rectangular_prism"
         ]
         r = self.drone_radius
 
@@ -269,7 +259,7 @@ class CollisionSystem:
         spheres = [
             obs
             for obs in obstacles
-            if getattr(obs, "type", None) == "sphere" or hasattr(obs, "radius")
+            if obs.type == "sphere" or hasattr(obs, "radius")
         ]
 
         for i, pos in enumerate(state.pos):

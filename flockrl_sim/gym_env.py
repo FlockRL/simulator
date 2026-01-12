@@ -198,7 +198,7 @@ class FlockRLGymEnv(gym.Env):
     def _build_observation(
         self, state: SwarmState, sim_info: Optional[Dict[str, Any]] = None
     ) -> np.ndarray:
-        if sim_info is not None and sim_info.get("observations"):
+        if sim_info is not None and sim_info["observations"]:
             readings = sim_info["observations"]
         elif self.simulator._perception_system is not None:
             readings = self.simulator._perception_system.observe(state)
@@ -295,18 +295,18 @@ class FlockRLGymEnv(gym.Env):
         obs = self._build_observation(state, sim_info)
         rewards = self.reward_fn.compute(state, clipped_action, sim_info)
 
-        terminated = bool(sim_info.get("done")) and (
-            sim_info.get("termination_reason") != "timeout"
+        terminated = bool(sim_info["done"]) and (
+            sim_info["termination_reason"] != "timeout"
         )
-        truncated = bool(sim_info.get("done")) and (
-            sim_info.get("termination_reason") == "timeout"
+        truncated = bool(sim_info["done"]) and (
+            sim_info["termination_reason"] == "timeout"
         )
 
         goal_distances = np.linalg.norm(state.pos - state.goals, axis=1)
         info = {
             "goal_distance": goal_distances,
-            "termination_reason": sim_info.get("termination_reason"),
-            "collisions": sim_info.get("collisions", []),
+            "termination_reason": sim_info["termination_reason"],
+            "collisions": sim_info["collisions"],
         }
 
         self._episode_reward += rewards
@@ -314,7 +314,7 @@ class FlockRLGymEnv(gym.Env):
         # End episode logging and save simulation run
         if (terminated or truncated) and self.logger:
             result = self.logger.end_episode(
-                termination_reason=sim_info.get("termination_reason"),
+                termination_reason=sim_info["termination_reason"],
                 episode_stats=sim_info["episode_stats"],
                 total_reward=float(np.sum(self._episode_reward)),  # Log sum of all drone rewards
             )
@@ -328,19 +328,15 @@ class FlockRLGymEnv(gym.Env):
 
         return obs, rewards, terminated, truncated, info
 
-    def save_logs(self):
+    def save_episode_logs(self):
         """
-        Manually trigger save of episode logs to disk.
+        Save the collection of episode logs to disk.
 
-        Call this when you want to checkpoint (e.g., after training steps or at the end).
+        Call this when you want to checkpoint episode results (e.g., after training steps or at the end).
         Does nothing if log_dir was not specified.
         """
         if self.logger:
             self.logger.save_to_disk()
-            
-            # Also save current simulation run if enabled and it exists
-            if self._save_runs and self.simulator.current_run and self.simulator.current_run.frames:
-                self._save_episode_run()
     
     def _save_episode_run(self, episode_num: Optional[int] = None):
         """Save the current simulation run to disk."""

@@ -188,7 +188,7 @@ env = FlockRLGymEnv(
 )
 
 # Save logs manually (I recommend doing so when checkpointing your model)
-env.save_logs()
+env.save_episode_logs()
 ```
 
 When logging is enabled, simulation runs are automatically saved as JSON files (`episode_XXXXXX.json`) in the log directory after each episode completes. These files can be visualized using the `OfflineVisualizer` (see Visualization section).

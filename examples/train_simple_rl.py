@@ -133,7 +133,7 @@ def main():
 
     # Save final logs
     print("\nSaving logs to disk...")
-    env.save_logs()
+    env.save_episode_logs()
 
     # Print summary statistics
     if env.logger:

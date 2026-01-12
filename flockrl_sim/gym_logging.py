@@ -106,15 +106,15 @@ class EpisodeLogger:
         # Create episode result
         result = EpisodeResult(
             episode_num=self._current_episode_num,
-            steps=episode_stats.get("total_steps", 0),
-            termination_reason=termination_reason or "unknown",
+            steps=episode_stats["total_steps"],
+            termination_reason=termination_reason,
             total_reward=total_reward,
-            final_goal_distance=episode_stats.get("final_goal_distance", float("inf")),
-            min_goal_distance=episode_stats.get("min_goal_distance", float("inf")),
-            collision_count=episode_stats.get("collision_count", 0),
-            start_time=self._current_episode_start_time or 0.0,
+            final_goal_distance=episode_stats["final_goal_distance"],
+            min_goal_distance=episode_stats["min_goal_distance"],
+            collision_count=episode_stats["collision_count"],
+            start_time=self._current_episode_start_time,
             end_time=time.time(),
-            metadata=self._current_episode_metadata or {},
+            metadata=self._current_episode_metadata,
         )
 
         # Store result
@@ -136,15 +136,38 @@ class EpisodeLogger:
         self._save_results_json()
 
     def _save_results_json(self, force: bool = False):
-        """Save episode results as JSON (human-readable)."""
+        """Save episode results as JSON (human-readable), appending to existing file if it exists."""
         if not self.log_dir:
             return
 
         if not self._results:
             return
 
-        results_dict = [asdict(r) for r in self._results]
         output_path = self.log_dir / "episode_results.json"
-
+        
+        # Load existing results if file exists
+        existing_results = []
+        if output_path.exists():
+            try:
+                with open(output_path, "r") as f:
+                    existing_results = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                # If file is corrupted or unreadable, start fresh
+                existing_results = []
+        
+        # Convert existing results to dict format for comparison
+        existing_dict = {(r["episode_num"], r["start_time"]): r for r in existing_results}
+        
+        # Add new results, replacing any duplicates (same episode_num + start_time)
+        new_results_dict = [asdict(r) for r in self._results]
+        for new_result in new_results_dict:
+            key = (new_result["episode_num"], new_result["start_time"])
+            existing_dict[key] = new_result
+        
+        # Convert back to list and sort by episode_num, then start_time
+        all_results = list(existing_dict.values())
+        all_results.sort(key=lambda x: (x["episode_num"], x["start_time"]))
+        
+        # Save combined results
         with open(output_path, "w") as f:
-            json.dump(results_dict, f, indent=2)
+            json.dump(all_results, f, indent=2)

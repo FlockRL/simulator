@@ -138,12 +138,7 @@ class CoreSimulator:
             The initialized SwarmState
         """
         # Determine goal position
-        goal_pos = np.array([0.0, 0.0, 10.0], dtype=float)  # Default goal
-        if (
-            hasattr(self.environment, "goal_position")
-            and self.environment.goal_position is not None
-        ):
-            goal_pos = np.array(self.environment.goal_position, dtype=float)
+        goal_pos = np.array(self.environment.goal_position, dtype=float)
 
         if initial_state is None:
             # Create default state with single drone at origin
@@ -248,7 +243,7 @@ class CoreSimulator:
         final_state, info_dict = self.collision_system(proposed_state)
 
         # Apply collision responses
-        collisions = info_dict.get("collisions", [])
+        collisions = info_dict["collisions"]
         if collisions:
             # Group collisions by drone_id to handle multiple simultaneous collisions
             collisions_by_drone = defaultdict(list)
@@ -325,10 +320,6 @@ class CoreSimulator:
             observations = self._perception_system.observe(self.state)
 
         # 10. Build comprehensive info dict
-        # Ensure collisions key always exists
-        if "collisions" not in info_dict:
-            info_dict["collisions"] = []
-
         info_dict.update(
             {
                 "step": self._step_count,
@@ -590,25 +581,20 @@ class CoreSimulator:
             return True, "success"
 
         # Check out-of-bounds
-        if hasattr(self.environment, "bounds"):
-            bounds = self.environment.bounds
-            if callable(bounds):
-                bounds = bounds()
+        bounds = self.environment.bounds
+        x_min, x_max, y_min, y_max, z_min, z_max = bounds
+        pos = self.state.pos
 
-            if bounds is not None:
-                x_min, x_max, y_min, y_max, z_min, z_max = bounds
-                pos = self.state.pos
+        out_of_bounds = (
+            np.any(pos[:, 0] < x_min)
+            or np.any(pos[:, 0] > x_max)
+            or np.any(pos[:, 1] < y_min)
+            or np.any(pos[:, 1] > y_max)
+            or np.any(pos[:, 2] < z_min)
+            or np.any(pos[:, 2] > z_max)
+        )
 
-                out_of_bounds = (
-                    np.any(pos[:, 0] < x_min)
-                    or np.any(pos[:, 0] > x_max)
-                    or np.any(pos[:, 1] < y_min)
-                    or np.any(pos[:, 1] > y_max)
-                    or np.any(pos[:, 2] < z_min)
-                    or np.any(pos[:, 2] > z_max)
-                )
-
-                if out_of_bounds:
-                    return True, "out_of_bounds"
+        if out_of_bounds:
+            return True, "out_of_bounds"
 
         return False, None
