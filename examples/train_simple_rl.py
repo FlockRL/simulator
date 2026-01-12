@@ -48,9 +48,9 @@ class SimpleRewardFunction(RewardFunction):
         rewards = (self._last_distances - current_distances) - self.step_cost
 
         # Terminal rewards (applied to all drones when episode ends)
-        if sim_info.get("termination_reason") == "success":
+        if sim_info["termination_reason"] == "success":
             rewards += self.success_reward
-        elif sim_info.get("termination_reason") == "collision":
+        elif sim_info["termination_reason"] == "collision":
             rewards -= self.collision_penalty
 
         self._last_distances = current_distances

@@ -38,8 +38,8 @@ class OfflineVisualizer:
         with open(self.log_path, "r") as f:
             data = json.load(f)
 
-        self.metadata = data.get("metadata", {})
-        self.frames = data.get("frames", [])
+        self.metadata = data["metadata"]
+        self.frames = data["frames"]
 
         if not self.frames:
             raise ValueError("No frames found in log file")
@@ -87,15 +87,19 @@ class OfflineVisualizer:
 
     @staticmethod
     def _extract_obstacles(metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
-        obstacles = metadata.get("obstacles")
-        if isinstance(obstacles, list):
-            return obstacles
+        if "obstacles" in metadata:
+            obstacles = metadata["obstacles"]
+            if isinstance(obstacles, list):
+                return obstacles
 
-        environment = metadata.get("environment")
+        if "environment" not in metadata:
+            return []
+        environment = metadata["environment"]
         if isinstance(environment, dict):
-            env_obstacles = environment.get("obstacles")
-            if isinstance(env_obstacles, list):
-                return env_obstacles
+            if "obstacles" in environment:
+                env_obstacles = environment["obstacles"]
+                if isinstance(env_obstacles, list):
+                    return env_obstacles
 
         return []
 

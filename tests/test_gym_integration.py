@@ -91,7 +91,7 @@ class SimpleReward(RewardFunction):
     ) -> np.ndarray:
         current_dist = np.linalg.norm(state.pos - state.goals, axis=1)
         rewards = self._last_dist - current_dist
-        if sim_info.get("termination_reason") == "success":
+        if sim_info["termination_reason"] == "success":
             rewards += 100.0
         self._last_dist = current_dist
         return rewards

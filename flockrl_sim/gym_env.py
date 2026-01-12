@@ -206,7 +206,7 @@ class FlockRLGymEnv(gym.Env):
     def _build_observation(
         self, state: SwarmState, sim_info: Optional[Dict[str, Any]] = None
     ) -> np.ndarray:
-        if sim_info is not None and sim_info["observations"]:
+        if sim_info is not None:
             readings = sim_info["observations"]
         elif self.simulator._perception_system is not None:
             readings = self.simulator._perception_system.observe(state)

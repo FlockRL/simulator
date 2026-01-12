@@ -549,10 +549,7 @@ class CollisionSystem:
             return False
 
         for gate_id in gate_ids:
-            gate = gate_map.get(gate_id)
-            if gate is None:
-                continue
-
+            gate = gate_map[gate_id]
             if self._is_point_inside_gate(drone_pos, gate):
                 return True
 

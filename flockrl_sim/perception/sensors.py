@@ -176,8 +176,8 @@ class PerceptionSystem:
                         gate_ids = obst.gate_ids
                         is_in_gate = False
                         for gate_id in gate_ids:
-                            gate = gate_map.get(gate_id)
-                            if gate is not None and self._is_point_inside_gate(hit_point, gate):
+                            gate = gate_map[gate_id]
+                            if self._is_point_inside_gate(hit_point, gate):
                                 is_in_gate = True
                                 break
                         # Skip this wall hit if it's inside a gate (ray passes through)

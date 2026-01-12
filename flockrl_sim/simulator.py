@@ -98,18 +98,15 @@ class CoreSimulator:
 
         # Perception system - enabled by default for RL
         self._perception_system = None
-        if self.environment is not None:
-            # Create SensorConfig from perception_config dict
-            sensor_config = None
-            if perception_config:
-                sensor_config = SensorConfig(
-                    max_range=perception_config["max_range"],
-                    num_rays=perception_config["num_rays"],
-                    max_neighbour_range=perception_config["max_neighbour_range"],
-                )
+        if perception_config is not None:
+            sensor_config = SensorConfig(
+                max_range=perception_config["max_range"],
+                num_rays=perception_config["num_rays"],
+                max_neighbour_range=perception_config["max_neighbour_range"],
+            )
             self._perception_system = PerceptionSystem(
                 environment=self.environment,
-                config=sensor_config,  # Use config from perception_config or defaults
+                config=sensor_config,
                 seed=None,
             )
 
@@ -527,7 +524,7 @@ class CoreSimulator:
         Returns:
             Validated/clipped action array
         """
-        N = self.state.pos.shape[0] if self.state.pos is not None else 0
+        N = self.state.pos.shape[0]
 
         # Check shape
         expected_shape = (N, 3)

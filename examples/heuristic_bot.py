@@ -87,12 +87,12 @@ def main():
         step += 1
         
         if step % 50 == 0:
-            distance = info.get("goal_distance", [float('inf')])[0]
+            distance = info["goal_distance"][0]
             print(f"Step {step}: distance to goal = {distance:.2f}m")
     
     # Print result
-    reason = info.get("termination_reason", "unknown")
-    distance = info.get("goal_distance", [float('inf')])[0]
+    reason = info["termination_reason"]
+    distance = info["goal_distance"][0]
     print(f"\nEpisode finished: {reason}, final distance = {distance:.2f}m")
     
     # Save logs
