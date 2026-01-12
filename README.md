@@ -25,7 +25,6 @@ flockrl_sim/
   visualization/
     __init__.py
     renderer.py              # Offline visualization placeholders
-main.py                      # Placeholder entry point
 INTEGRATION_NOTES.md         # Critical team coordination points
 ```
 

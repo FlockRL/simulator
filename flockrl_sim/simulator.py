@@ -17,14 +17,9 @@ from .environment import Environment
 import json
 from .perception.sensors import PerceptionSystem, SensorConfig
 from collections import defaultdict
-from .environment import Environment
 
 CollisionHandler = Callable[[SwarmState], Tuple[SwarmState, dict]]
 RenderHook = Callable[[SwarmState, dict], None]
-
-
-
-
 @dataclass
 class SimulationFrame:
     """

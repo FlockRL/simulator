@@ -66,8 +66,6 @@ class EpisodeLogger:
         self._current_episode_start_time: Optional[float] = None
         self._current_episode_metadata: Optional[Dict] = None
 
-        # Total episodes processed (for save interval)
-        self._total_episodes = 0
 
     def start_episode(
         self, episode_num: int, metadata: Optional[Dict[str, Any]] = None
@@ -120,9 +118,6 @@ class EpisodeLogger:
         # Store result
         self._results.append(result)
 
-        # Increment total episodes counter
-        self._total_episodes += 1
-
         # Reset current episode tracking
         self._current_episode_num = None
         self._current_episode_start_time = None
@@ -135,7 +130,7 @@ class EpisodeLogger:
         # Save episode results as JSON (human-readable)
         self._save_results_json()
 
-    def _save_results_json(self, force: bool = False):
+    def _save_results_json(self) -> None:
         """Save episode results as JSON (human-readable), appending to existing file if it exists."""
         if not self.log_dir:
             return
