@@ -1,0 +1,90 @@
+{
+  "name": "obstacles_only",
+  "description": "Environment with obstacles only - no walls or gates, useful for testing obstacle avoidance",
+  "bounds": [-8.0, 8.0, -8.0, 8.0, -8.0, 8.0],
+  "random_seed": 42,
+  "obstacles": [
+    {
+      "id": "obstacle_1",
+      "type": "clutter",
+      "position": [-4.0, -3.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 0.8,
+      "width": 0.6,
+      "height": 1.2
+    },
+    {
+      "id": "obstacle_2",
+      "type": "clutter",
+      "position": [2.0, -4.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 0.5,
+      "width": 0.5,
+      "height": 0.8
+    },
+    {
+      "id": "obstacle_3",
+      "type": "clutter",
+      "position": [0.0, 0.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 1.0,
+      "width": 1.0,
+      "height": 1.5
+    },
+    {
+      "id": "obstacle_4",
+      "type": "clutter",
+      "position": [-2.5, 2.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 0.7,
+      "width": 0.9,
+      "height": 1.0
+    },
+    {
+      "id": "obstacle_5",
+      "type": "clutter",
+      "position": [4.5, 1.5, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 0.6,
+      "width": 0.8,
+      "height": 1.3
+    },
+    {
+      "id": "obstacle_6",
+      "type": "clutter",
+      "position": [-1.0, -5.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 0.9,
+      "width": 0.4,
+      "height": 0.9
+    },
+    {
+      "id": "obstacle_7",
+      "type": "clutter",
+      "position": [3.0, 4.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 0.5,
+      "width": 0.7,
+      "height": 1.1
+    },
+    {
+      "id": "obstacle_8",
+      "type": "clutter",
+      "position": [-5.5, 1.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 0.8,
+      "width": 0.6,
+      "height": 0.7
+    }
+  ],
+  "start_position": [-6.0, -6.0, 0.0],
+  "goal_position": [6.0, 6.0, 0.0]
+}
