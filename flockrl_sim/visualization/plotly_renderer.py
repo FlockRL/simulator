@@ -36,6 +36,8 @@ class PlotlyRenderer:
         self.metadata = metadata
         self.obstacles = obstacles
         self.playback_speed = playback_speed
+        # Match the simulator's success radius (goal_threshold)
+        self.goal_threshold = metadata["config"]["simulation"]["goal_threshold"]
 
     def render(self, host: str = "127.0.0.1", port: int = 8050, debug: bool = False) -> None:
         """
@@ -266,18 +268,14 @@ class PlotlyRenderer:
             drone_ids = current_state.get("ids", list(range(len(goals))))
 
             for i, (goal, drone_id) in enumerate(zip(goals_array, drone_ids)):
-                goal_box_traces = self._create_box_mesh(
+                goal_traces = self._create_goal_mesh(
                     cx=goal[0],
                     cy=goal[1],
                     cz=goal[2],
-                    dx=0.5,
-                    dy=0.5,
-                    dz=0.5,
+                    radius=self.goal_threshold,
                     name=f"Goal (Drone {drone_id})",
                 )
-                for trace in goal_box_traces:
-                    trace.color = "green"
-                    trace.opacity = 0.2
+                for trace in goal_traces:
                     trace.showlegend = i == 0
                     if i == 0:
                         trace.name = "Goals"
@@ -353,6 +351,60 @@ class PlotlyRenderer:
         return self._create_box_mesh(
             pos_x, pos_y, pos_z, width, depth, height, "Obstacle"
         )
+
+    def _create_goal_mesh(
+        self, cx: float, cy: float, cz: float, radius: float, name: str
+    ) -> List["go.Mesh3d"]:
+        """
+        Render the goal as a translucent sphere whose radius matches the goal_threshold.
+        """
+        n_theta = 12
+        n_phi = 24
+        theta = np.linspace(0, np.pi, n_theta)
+        phi = np.linspace(0, 2 * np.pi, n_phi, endpoint=False)
+
+        vertices = []
+        for t in theta:
+            for p in phi:
+                x = cx + radius * np.sin(t) * np.cos(p)
+                y = cy + radius * np.sin(t) * np.sin(p)
+                z = cz + radius * np.cos(t)
+                vertices.append((x, y, z))
+        vertices = np.array(vertices)
+
+        i: List[int] = []
+        j: List[int] = []
+        k: List[int] = []
+
+        for t in range(n_theta - 1):
+            for p in range(n_phi):
+                p_next = (p + 1) % n_phi
+                v00 = t * n_phi + p
+                v01 = t * n_phi + p_next
+                v10 = (t + 1) * n_phi + p
+                v11 = (t + 1) * n_phi + p_next
+
+                # Two triangles per quad on the sphere surface
+                i.extend([v00, v00])
+                j.extend([v10, v11])
+                k.extend([v11, v01])
+
+        mesh = go.Mesh3d(
+            x=vertices[:, 0],
+            y=vertices[:, 1],
+            z=vertices[:, 2],
+            i=i,
+            j=j,
+            k=k,
+            color="green",
+            opacity=0.2,
+            name=name,
+            showlegend=False,
+            hoverinfo="name",
+            flatshading=True,
+        )
+
+        return [mesh]
 
     def _create_box_mesh(
         self, cx: float, cy: float, cz: float, dx: float, dy: float, dz: float, name: str

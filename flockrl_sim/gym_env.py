@@ -97,6 +97,7 @@ class FlockRLGymEnv(gym.Env):
         self.environment = environment
         self.sim_config = sim_config
         self.perception_config = perception_config
+        self.config = config 
         
         # Create collision system
         collision_system = self._build_collision_system(collision_config)
@@ -377,6 +378,9 @@ class FlockRLGymEnv(gym.Env):
             self.simulator.current_run.metadata["environment"]["goal_position"] = (
                 list(self.environment.goal_position)
             )
+            
+            # Store entire config for visualization and reproducibility
+            self.simulator.current_run.metadata["config"] = self.config
             
             # Save to same directory as episode results
             output_path = self.logger.log_dir / f"episode_{episode_num:06d}.json"
