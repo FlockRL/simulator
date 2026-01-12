@@ -182,17 +182,24 @@ class FlockRLGymEnv(gym.Env):
         base_start = np.array(self.environment.start_position, dtype=float)
         base_goal = np.array(self.environment.goal_position, dtype=float)
         
-        # Generate random offsets for each drone (uniform in [-spawn_offset_range, spawn_offset_range])
-        offsets = np.random.uniform(
-            -self.spawn_offset_range, 
-            self.spawn_offset_range, 
-            size=(self.num_drones, 3)
-        )
+        # For multi-drone scenarios, add random offsets to prevent collisions at spawn.
+        # For single drone, start exactly at the specified position for deterministic behavior.
+        if self.num_drones > 1 and self.spawn_offset_range > 0:
+            # Generate random offsets for each drone (uniform in [-spawn_offset_range, spawn_offset_range])
+            # Use the seeded RNG to ensure deterministic behavior
+            offsets = self._rng.uniform(
+                -self.spawn_offset_range, 
+                self.spawn_offset_range, 
+                size=(self.num_drones, 3)
+            )
+            pos = base_start[None, :] + offsets
+            goals = base_goal[None, :] + offsets  # Same offset for goals to maintain relative positioning
+        else:
+            # Single drone or zero offset: use exact positions
+            pos = base_start[None, :].repeat(self.num_drones, axis=0)
+            goals = base_goal[None, :].repeat(self.num_drones, axis=0)
         
-        pos = base_start[None, :] + offsets
         ids = np.arange(self.num_drones, dtype=int)
-        goals = base_goal[None, :] + offsets  # Same offset for goals to maintain relative positioning
-        
         return SwarmState.from_initial_positions(pos, ids, goals)
 
     def _build_observation(
@@ -254,8 +261,13 @@ class FlockRLGymEnv(gym.Env):
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         super().reset(seed=seed)
+        # Only seed if explicitly provided, otherwise use pure random
         if seed is not None:
             np.random.seed(seed)
+            self._rng = np.random.RandomState(seed)
+        else:
+            # Pure random - don't seed, use system randomness
+            self._rng = np.random.RandomState()  # No seed = uses system entropy
 
         state = self.simulator.start_run(
             initial_state=self._initial_state(),
