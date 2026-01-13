@@ -30,7 +30,7 @@ Shared fields:
 
 ### Gates
 
-Gates are embedded inside walls and use a partial position. Any `null` component inherits the corresponding wall coordinate.
+Gates are embedded inside walls and use a partial position. Any `null` component inherits the corresponding wall coordinate. Gate orientation always matches the parent wall orientation, and gate thickness is inherited from the wall thickness.
 
 ```json
 {

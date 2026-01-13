@@ -6,6 +6,7 @@ The perception module generates per-drone observations using raycasting and neig
 
 - `SensorConfig` defines `max_range`, `num_rays`, and `max_neighbour_range`.
 - `SensorReading` holds `ranges`, `hits`, `neighbor_vectors`, plus optional metadata.
+- `RayHit` is a tuple type `(distance, hit_point, obstacle)` representing a ray intersection result.
 
 ## Ray generation and filtering
 

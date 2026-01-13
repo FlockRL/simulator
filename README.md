@@ -24,6 +24,9 @@ flockrl_sim/
     obstacles.py             Environment, EnvironmentBuilder
     loader.py                EnvironmentSpecLoader
     spec_models/             Pydantic models + random value resolvers
+      environment.py         EnvironmentSpec model
+      obstacles.py           WallSpec, ClutterSpec, GateSpec models
+      random_values.py       Random value resolution (uniform, discrete)
     validation.py            Geometry/overlap/gate checks
     specs/                   JSON environment presets
   collision/

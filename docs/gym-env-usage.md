@@ -60,7 +60,11 @@ env = load_environment_from_spec("simple", config)
 - `perception`: `max_range`, `num_rays`, `max_neighbour_range`
 - `visualization`: `fps`
 
-Reset noise is applied on every `reset()` using `reset_position_noise` and `reset_velocity_noise` (set them to `0.0` to disable).
+## Initial spawn and reset behavior
+
+For multi-drone scenarios (`num_drones > 1`), each drone is spawned with a random offset sampled uniformly from `[-spawn_offset_range, spawn_offset_range]` in each dimension. The same offset is applied to both the start and goal positions to maintain relative positioning and prevent collisions at spawn. For single-drone scenarios, the drone spawns exactly at the environment's start position.
+
+Reset noise is applied on every `reset()` using `reset_position_noise` and `reset_velocity_noise` from the `simulation` section (set them to `0.0` to disable).
 
 ## Observation layout
 
