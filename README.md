@@ -1,243 +1,58 @@
 # FlockRL Simulator
 
-This repository holds the simulator FlockRL will be using to train our drones.
+This repository contains the `flockrl_sim` Python package used for FlockRL training and offline analysis. The implementation centers on a fixed-timestep physics step, collision response against bounds and obstacles, optional perception sampling, and JSON run logging for visualization.
 
-## Project layout
+## Runtime pipeline
+
+- `FlockRLGymEnv` loads `config.yml`, constructs `CoreSimulator` and `CollisionSystem`, and exposes the Gymnasium API.
+- `CoreSimulator.step()` validates actions, integrates velocity/position with constant acceleration, runs collision detection, applies per-drone corrections, updates episode stats, and checks termination (goal, bounds, timeout, collision).
+- If perception is enabled, `PerceptionSystem.observe()` produces raycast ranges/hits and neighbor vectors, which are packed into the observation tensor in `FlockRLGymEnv`.
+
+## Package layout (implementation)
 
 ```
 flockrl_sim/
-  __init__.py                # Public package exports
-  state.py                   # Shared SwarmState container
-  simulator.py               # Core simulator API (methods use pass)
-  gym_env.py                 # Gymnasium wrapper around CoreSimulator
-  rewards.py                 # Reward function base class
-  config.py                  # Configuration models using Pydantic
+  __init__.py                Public API exports
+  state.py                   SwarmState container and cloning
+  simulator.py               CoreSimulator, SimulationRun/Frame, JSON logging
+  gym_env.py                 Gymnasium wrapper and observation assembly
+  gym_logging.py             EpisodeLogger/EpisodeResult
+  rewards.py                 RewardFunction base class
+  geometry.py                OBB math and intersection helpers
   environment/
-    __init__.py
-    obstacles.py             # Environment and obstacle data structures
+    obstacles_types.py       Obstacle dataclasses + ray_intersect implementations
+    obstacles.py             Environment, EnvironmentBuilder
+    loader.py                EnvironmentSpecLoader
+    spec_models/             Pydantic models + random value resolvers
+    validation.py            Geometry/overlap/gate checks
+    specs/                   JSON environment presets
   collision/
-    __init__.py
-    system.py                # Collision detection and response stubs
+    system.py                CollisionSystem and CollisionInfo
   perception/
-    __init__.py
-    sensors.py               # Observation generation scaffolding
-    raycast.py
+    sensors.py               PerceptionSystem, SensorConfig/Reading
+    raycast.py               Raycast helpers
   visualization/
-    __init__.py
-    renderer.py              # Offline visualization placeholders
-INTEGRATION_NOTES.md         # Critical team coordination points
+    renderer.py              OfflineVisualizer entry point
+    plotly_renderer.py       Dash/Plotly renderer
+    pyvista_renderer.py      PyVista renderer
 ```
 
-## Getting started
+## Documentation
 
-### Installation
-```bash
+- `docs/gym-env-usage.md` Gymnasium environment usage, configuration, and logging
+- `docs/core-simulator.md` Core simulator engine and logging format
+- `docs/collision-system.md` Collision detection and response details
+- `docs/perception-system.md` Raycasting and neighbor observation logic
+- `docs/environment-model.md` Environment data model and spec build flow
+- `docs/environment-specs.md` JSON spec schema and validation rules
+- `docs/offline-visualization.md` Offline visualizer backends and log structure
 
-cd /path/to/flockrl-sim
+## Environment specs
 
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate
+Preset environments live in `flockrl_sim/environment/specs`. Specs are validated with Pydantic models, resolved into concrete obstacles by `EnvironmentBuilder`, and checked for bounds, overlaps, and gate embedding before being returned as an `Environment` instance.
 
-# Install the package
-pip install -e .
-```
+## Logging and visualization
 
-## Gymnasium environment (RL)
-
-The simulator provides a Gymnasium-compatible environment (`FlockRLGymEnv`) that can be used with standard RL libraries like Stable-Baselines3, RLlib, or custom training loops. The Gym env reads simulation and logging settings from `config.yml` in the project root by default (or a custom path you provide).
-
-**Current limitation:** Only single-drone training is supported (`gym.num_drones: 1`). Multi-drone support is not yet complete.
-
-### Config (required)
-
-`FlockRLGymEnv` loads `config.yml` and expects `simulation` and `gym` sections (see `config.yml` in this repo for defaults). If you store the config elsewhere, pass `config_path`.
-
-### Basic Usage
-
-```python
-from pathlib import Path
-
-import numpy as np
-
-from flockrl_sim import FlockRLGymEnv, RewardFunction, Environment
-
-class MyRewardFunction(RewardFunction):
-    def reset(self, state) -> None:
-        self._last_dist = np.linalg.norm(state.pos - state.goals, axis=1)
-
-    def compute(self, state, action, sim_info) -> np.ndarray:
-        current = np.linalg.norm(state.pos - state.goals, axis=1)
-        rewards = self._last_dist - current
-        self._last_dist = current
-        return rewards
-
-environment = Environment(
-    bounds=(-100, 100, -100, 100, 0, 100),
-    obstacles=[],
-    start_position=(0.0, 0.0, 1.0),
-    goal_position=(0.0, 0.0, 10.0),
-    seed=0,
-)
-reward_fn = MyRewardFunction()
-
-# Create environment (reward_fn is required - see Reward Functions section)
-env = FlockRLGymEnv(
-    reward_fn=reward_fn,
-    environment=environment,
-    config_path=Path("config.yml"),  # optional if using repo root config.yml
-)
-
-# Standard Gymnasium API
-obs, info = env.reset(seed=42)
-# Action shape: (num_drones, 3) - 3D acceleration vectors for each drone
-action = env.action_space.sample()  
-obs, rewards, terminated, truncated, info = env.step(action)
-# Returns: obs shape (num_drones, obs_dim), rewards shape (num_drones,)
-```
-
-**Note on Multi-Drone Format:**
-- Actions: shape `(num_drones, 3)` - 3D acceleration for each drone
-- Observations: shape `(num_drones, obs_dim)` - observation for each drone
-- Rewards: shape `(num_drones,)` - independent reward per drone
-- Configure `num_drones` in `config.yml` (default: 1)
-  
-**Note:** Although the API is vectorized, only `num_drones = 1` is supported at the moment.
-
-### Environment Setup
-
-You can build environments manually or from JSON specs. Preset specs live under `flockrl_sim/environment/specs`.
-
-```python
-from flockrl_sim import load_environment_from_spec, load_config
-
-config = load_config()
-environment = load_environment_from_spec("simple", config)  # preset name or JSON path
-```
-
-**Note on Learning Strategy:**
-When learning RL, we recommend starting by overfitting to a specific, fixed environment. This helps with:
-- Debugging and understanding what your agent is learning
-- Building confidence with simpler problems first
-- Isolating issues (algorithm vs. environment complexity)
-
-Once you have a working solution, you can then progress to randomized environments for better generalization.
-
-### Reward Functions
-
-The environment requires a custom reward function. Define your own by subclassing `RewardFunction`:
-
-```python
-from flockrl_sim import FlockRLGymEnv, RewardFunction, Environment, SwarmState
-import numpy as np
-
-class MyRewardFunction(RewardFunction):
-    def __init__(self, success_reward=100.0, collision_penalty=50.0, step_cost=0.1):
-        self.success_reward = success_reward
-        self.collision_penalty = collision_penalty
-        self.step_cost = step_cost
-        self._last_distances = None
-    
-    def reset(self, state: SwarmState) -> None:
-        """Called when environment resets - track all drones."""
-        self._last_distances = np.linalg.norm(state.pos - state.goals, axis=1)
-    
-    def compute(self, state: SwarmState, action: np.ndarray, sim_info: dict) -> np.ndarray:
-        """Compute independent rewards for each drone.
-        
-        Returns:
-            np.ndarray: Rewards of shape (N,) where N is number of drones
-        """
-        # Dense reward based on progress toward goal for each drone
-        current_distances = np.linalg.norm(state.pos - state.goals, axis=1)
-        rewards = (self._last_distances - current_distances) - self.step_cost
-        
-        # Terminal rewards (applied to all drones)
-        if sim_info.get("termination_reason") == "success":
-            rewards += self.success_reward
-        elif sim_info.get("termination_reason") == "collision":
-            rewards -= self.collision_penalty
-        
-        self._last_distances = current_distances
-        return rewards
-
-# Create environment with your reward function
-environment = Environment(
-    bounds=(-100, 100, -100, 100, 0, 100),
-    obstacles=[],
-    start_position=(0.0, 0.0, 1.0),
-    goal_position=(0.0, 0.0, 10.0),
-    seed=0,
-)
-reward_fn = MyRewardFunction(success_reward=100.0, collision_penalty=50.0)
-env = FlockRLGymEnv(
-    reward_fn=reward_fn,
-    environment=environment,
-)
-```
-
-### Episode Logging
-
-Episode logging is configured via `config.yml` under `gym`. Set `log_dir` (string path) to enable logging. Simulation runs are automatically saved as JSON files for visualization.
-
-```python
-env = FlockRLGymEnv(
-    reward_fn=my_reward_fn,
-    environment=environment,
-)
-
-# Save logs manually (I recommend doing so when checkpointing your model)
-env.save_episode_logs()
-```
-
-When logging is enabled, simulation runs are automatically saved as JSON files (`episode_XXXXXX.json`) in the log directory after each episode completes. These files can be visualized using the `OfflineVisualizer` (see Visualization section).
-
-**Important:** Set `gym.save_runs: true` in `config.yml` **only when you need data to visualize your model**, not training/eval. Saving full simulation runs for every episode during training can consume significant disk space (up to several MB per episode for long episodes). For training, keep `save_runs: false` to only save lightweight episode statistics (`episode_results.json`).
-
-### Observation Space
-
-The observation includes per-drone state information with shape `(num_drones, obs_dim)`:
-- **Agent state**: position (3), velocity (3)
-- **Goal information**: goal vector (3), goal distance (1)
-- **Sensor data**: raycast ranges and hits
-- **Neighbor information**: relative positions and velocities of nearby agents (up to `max_neighbors`)
-  - Each drone observes other drones within sensor range
-
-Each drone receives its own observation independently for decentralized control.
-
-### Action Space
-
-Actions are 3D acceleration vectors for each drone, bounded by `max_acceleration`:
-```python
-# Actions have shape (num_drones, 3)
-# Each action is clipped to [-max_acceleration, max_acceleration] in each dimension
-action = np.array([[ax, ay, az]], dtype=np.float32)  # For single drone (num_drones=1)
-action = np.array([[ax1, ay1, az1], [ax2, ay2, az2]], dtype=np.float32)  # For 2 drones
-```
-
-### Integration with RL Libraries
-
-**Stable-Baselines3:**
-```python
-from stable_baselines3 import PPO
-from flockrl_sim import FlockRLGymEnv, Environment
-
-environment = Environment(
-    bounds=(-100, 100, -100, 100, 0, 100),
-    obstacles=[],
-    start_position=(0.0, 0.0, 1.0),
-    goal_position=(0.0, 0.0, 10.0),
-    seed=0,
-)
-
-env = FlockRLGymEnv(
-    reward_fn=my_reward_fn,
-    environment=environment,
-)
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=100000)
-```
-
-### Complete Example
-
-See `examples/train_simple_rl.py` for a complete training example with logging and statistics.
+- `EpisodeLogger` writes lightweight episode summaries to `episode_results.json` when enabled.
+- If `gym.save_runs` is true, `CoreSimulator.save_run()` writes full frame data as JSON with metadata (environment, obstacles, and config) for offline rendering.
+- `OfflineVisualizer` loads these JSON logs and dispatches to the Plotly or PyVista backends.
