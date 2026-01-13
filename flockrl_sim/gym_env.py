@@ -97,10 +97,13 @@ class FlockRLGymEnv(gym.Env):
         self.environment = environment
         self.sim_config = sim_config
         self.perception_config = perception_config
-        self.config = config 
+        self.config = config
+        env_config = config["environment"]
+        self._max_spawn_attempts = int(env_config["max_placement_attempts"])
         
         # Create collision system
         collision_system = self._build_collision_system(collision_config)
+        self._collision_system = collision_system
         
         log_dir = gym_config["log_dir"]
         self._save_runs = bool(gym_config["save_runs"])
@@ -179,43 +182,58 @@ class FlockRLGymEnv(gym.Env):
         sensor = self._num_rays * 2  # ranges + hits
         neighbors = self.max_neighbors * 6  # relative position + velocity per neighbor
         return base + sensor + neighbors
+    
+    def _reset_perception(self, seed: int) -> None:
+        if self.simulator._perception_system is None:
+            return
+        self.simulator._perception_system.reset(
+            config=self.simulator._perception_system.config,
+            seed=seed,
+        )
+
+    def _is_spawn_state_valid(self, state: SwarmState) -> bool:
+        _, info = self._collision_system(state)
+        return not info.get("collisions")
 
     def _initial_state(self) -> SwarmState:
         base_start = np.array(self.environment.start_position, dtype=float)
         base_goal = np.array(self.environment.goal_position, dtype=float)
-        
-        # For multi-drone scenarios, add random offsets to prevent collisions at spawn.
-        # For single drone, start exactly at the specified position for deterministic behavior.
-        if self.num_drones > 1 and self.spawn_offset_range > 0:
-            # Generate random offsets for each drone (uniform in [-spawn_offset_range, spawn_offset_range])
-            # Use the seeded RNG to ensure deterministic behavior
-            offsets = self._rng.uniform(
-                -self.spawn_offset_range, 
-                self.spawn_offset_range, 
-                size=(self.num_drones, 3)
-            )
-            pos = base_start[None, :] + offsets
-            goals = base_goal[None, :] + offsets  # Same offset for goals to maintain relative positioning
-        else:
-            # Single drone or zero offset: use exact positions
-            pos = base_start[None, :].repeat(self.num_drones, axis=0)
-            goals = base_goal[None, :].repeat(self.num_drones, axis=0)
-        
         ids = np.arange(self.num_drones, dtype=int)
-        state = SwarmState.from_initial_positions(pos, ids, goals)
-
         position_noise = float(self.sim_config.get("reset_position_noise", 0.0) or 0.0)
         velocity_noise = float(self.sim_config.get("reset_velocity_noise", 0.0) or 0.0)
-        if position_noise > 0.0:
-            state.pos = state.pos + self._rng.normal(
-                0.0, position_noise, size=state.pos.shape
-            )
-        if velocity_noise > 0.0:
-            state.vel = state.vel + self._rng.normal(
-                0.0, velocity_noise, size=state.vel.shape
-            )
+        attempts = max(1, self._max_spawn_attempts)
+        for _ in range(attempts):
+            # For multi-drone scenarios, add random offsets to prevent collisions at spawn.
+            # For single drone, start exactly at the specified position for deterministic behavior.
+            if self.num_drones > 1 and self.spawn_offset_range > 0:
+                offsets = self._rng.uniform(
+                    -self.spawn_offset_range,
+                    self.spawn_offset_range,
+                    size=(self.num_drones, 3),
+                )
+            else:
+                offsets = np.zeros((self.num_drones, 3), dtype=float)
 
-        return state
+            pos = base_start[None, :] + offsets
+            goals = base_goal[None, :] + offsets  # Same offset for goals to maintain relative positioning
+
+            state = SwarmState.from_initial_positions(pos, ids, goals)
+            if position_noise > 0.0:
+                state.pos = state.pos + self._rng.normal(
+                    0.0, position_noise, size=state.pos.shape
+                )
+            if velocity_noise > 0.0:
+                state.vel = state.vel + self._rng.normal(
+                    0.0, velocity_noise, size=state.vel.shape
+                )
+
+            if self._is_spawn_state_valid(state):
+                return state
+
+        raise ValueError(
+            f"Unable to sample a valid spawn state after {attempts} attempts. "
+            "Check spawn_offset_range, reset noise, or environment layout."
+        )
 
     def _build_observation(
         self, state: SwarmState, sim_info: Optional[Dict[str, Any]] = None
@@ -276,6 +294,8 @@ class FlockRLGymEnv(gym.Env):
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         super().reset(seed=seed)
         self._rng = self.np_random
+        if seed is not None:
+            self._reset_perception(seed)
 
         state = self.simulator.start_run(
             initial_state=self._initial_state(),
@@ -300,6 +320,39 @@ class FlockRLGymEnv(gym.Env):
 
         self._episode_reward = 0.0
 
+        return obs, info
+
+    def reset_simulator(
+        self, *, randomize: bool = False, seed: Optional[int] = None
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Reset using CoreSimulator.reset to reuse the stored initial state.
+        Call reset() at least once before this.
+        """
+        if self.simulator.current_run is None:
+            raise RuntimeError("Call reset() before reset_simulator().")
+
+        super().reset(seed=seed)
+        self._rng = self.np_random
+        if seed is not None:
+            self._reset_perception(seed)
+
+        state = self.simulator.reset(randomize=randomize, seed=seed)
+        self.reward_fn.reset(state)
+
+        obs = self._build_observation(state)
+        goal_distances = np.linalg.norm(state.pos - state.goals, axis=1)
+        info = {
+            "goal_distance": goal_distances,
+            "termination_reason": None,
+            "collisions": [],
+        }
+
+        if self.logger:
+            metadata = {"seed": seed, "randomize": randomize}
+            self.logger.start_episode(self._episode_num, metadata)
+
+        self._episode_reward = 0.0
         return obs, info
 
     def step(

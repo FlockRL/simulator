@@ -64,6 +64,10 @@ def create_test_env(
                     "num_rays": 128,
                     "max_neighbour_range": 10.0,
                 },
+                "environment": {
+                    "spawn_clearance": 2.0,
+                    "max_placement_attempts": 50,
+                },
                 "visualization": {
                     "fps": 60,
                     "render_mode": "offline",
