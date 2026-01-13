@@ -364,6 +364,8 @@ class TestBuilderEdgeCases:
                 name="impossible_placement",
                 random_seed=42,
                 bounds=(-1.0, 1.0, -1.0, 1.0, 0.0, 2.0),
+                start_position=(0.0, 0.0, 1.0),
+                goal_position=(0.5, 0.0, 1.0),
                 obstacles=[
                     WallSpec(
                         id="wall_template",

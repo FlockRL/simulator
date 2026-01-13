@@ -5,6 +5,7 @@ Tests for multiple gates, rotated gates, and error handling.
 """
 
 import numpy as np
+import pytest
 from flockrl_sim import CollisionSystem, Environment, SwarmState
 from flockrl_sim.environment.obstacles_types import Wall, Gate
 
@@ -246,27 +247,11 @@ class TestErrorHandling:
             gate_ids=("nonexistent_gate",),
         )
 
-        env = Environment(
-            bounds=(-10.0, 10.0, -10.0, 10.0, -10.0, 10.0),
-            obstacles=[wall],
-            start_position=(-5.0, -5.0, 0.0),
-            goal_position=(5.0, 5.0, 0.0),
-            seed=42,
-        )
-
-        collision_system = CollisionSystem(environment=env, drone_radius=0.5, restitution=1.0)
-
-        state = SwarmState(
-            goals=np.zeros((1, 3)),
-            pos=np.array([[0.0, 0.0, 0.0]]),
-            vel=np.array([[0.0, 1.0, 0.0]]),
-            acc=np.array([[0.0, 0.0, 0.0]]),
-            ids=np.array([0]),
-            t=0.0,
-        )
-
-        _, info = collision_system(state)
-        collisions = info["collisions"]
-
-        wall_collisions = [c for c in collisions if c.collision_type == "wall"]
-        assert len(wall_collisions) == 1
+        with pytest.raises(ValueError, match="non-existent gate"):
+            Environment(
+                bounds=(-10.0, 10.0, -10.0, 10.0, -10.0, 10.0),
+                obstacles=[wall],
+                start_position=(-5.0, -5.0, 0.0),
+                goal_position=(5.0, 5.0, 0.0),
+                seed=42,
+            )
