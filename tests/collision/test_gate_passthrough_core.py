@@ -98,7 +98,7 @@ class TestGateBoundaries:
         """Drone near gate edge but still inside should not collide."""
         state = SwarmState(
             goals=np.zeros((1, 3)),
-            pos=np.array([[0.9, 0.0, 0.9]]),
+            pos=np.array([[0.45, 0.0, 0.45]]),
             vel=np.array([[0.0, 1.0, 0.0]]),
             acc=np.array([[0.0, 0.0, 0.0]]),
             ids=np.array([0]),

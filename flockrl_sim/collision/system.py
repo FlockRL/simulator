@@ -7,7 +7,7 @@ import numpy as np
 
 from ..environment import Environment
 from ..environment.obstacles_types import RectangularPrism
-from ..geometry import OBB, sphere_intersect_obb, point_in_obb
+from ..geometry import OBB, sphere_intersect_obb
 from ..state import SwarmState
 
 
@@ -626,7 +626,7 @@ class CollisionSystem:
             gate_map: Dictionary mapping gate IDs to gate objects
 
         Returns:
-            True if drone is inside any gate volume, False otherwise
+            True if drone sphere fits inside any gate volume, False otherwise
         """
         gate_ids = getattr(wall, "gate_ids", ())
         if not gate_ids:
@@ -634,24 +634,27 @@ class CollisionSystem:
 
         for gate_id in gate_ids:
             gate = gate_map[gate_id]
-            if self._is_point_inside_gate(drone_pos, gate):
+            if self._is_sphere_inside_gate(drone_pos, self.drone_radius, gate):
                 return True
 
         return False
 
-    def _is_point_inside_gate(self, point: np.ndarray, gate: Any) -> bool:
+    def _is_sphere_inside_gate(
+        self, center: np.ndarray, radius: float, gate: Any
+    ) -> bool:
         """
-        Check if a point is inside a gate's bounding volume.
+        Check if a sphere fits entirely inside a gate's bounding volume.
 
         Gates are rectangular volumes defined by (width, thickness, height).
         For axis-aligned gates, this is a simple AABB test.
 
         Args:
-            point: 3D point to test, shape (3,)
+            center: Sphere center to test, shape (3,)
+            radius: Sphere radius to test
             gate: Gate obstacle with position, width, height, thickness, orientation
 
         Returns:
-            True if point is inside gate volume, False otherwise
+            True if sphere is inside gate volume, False otherwise
         """
         gate_pos = np.array(gate.position, dtype=float)
 
@@ -660,8 +663,17 @@ class CollisionSystem:
             [gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float
         )
 
+        if half_extents[0] < radius or half_extents[2] < radius:
+            return False
+
         obb = OBB(
             center=gate_pos, half_extents=half_extents, orientation=gate.orientation
         )
+        local_center = obb.rotation_matrix.T @ (center - obb.center)
 
-        return point_in_obb(point, obb)
+        tol = 1e-9
+        within_width = abs(local_center[0]) <= (half_extents[0] - radius + tol)
+        within_thickness = abs(local_center[1]) <= (half_extents[1] + tol)
+        within_height = abs(local_center[2]) <= (half_extents[2] - radius + tol)
+
+        return within_width and within_thickness and within_height

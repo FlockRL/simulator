@@ -176,7 +176,7 @@ class TestDroneRadiusConsideration:
 
         collision_system = CollisionSystem(environment=env, drone_radius=0.6, restitution=1.0)
 
-        # Drone center at gate edge
+        # Drone center at gate edge with radius larger than gate clearance
         state = SwarmState(
             goals=np.zeros((1, 3)),
             pos=np.array([[0.5, 0.0, 0.0]]),
@@ -190,7 +190,7 @@ class TestDroneRadiusConsideration:
         collisions = info["collisions"]
 
         wall_collisions = [c for c in collisions if c.collision_type == "wall"]
-        assert len(wall_collisions) == 0
+        assert len(wall_collisions) == 1
 
 
 class TestErrorHandling:
