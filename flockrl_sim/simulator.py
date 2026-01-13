@@ -538,16 +538,9 @@ class CoreSimulator:
             warnings.warn("Actions contain NaN or Inf values. Clipping to zero.")
             actions = np.nan_to_num(actions, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # Clip to max acceleration if configured
+        # Clip per-axis to max acceleration if configured
         if self.max_acceleration is not None:
-            action_mags = np.linalg.norm(actions, axis=1)
-            exceeded = action_mags > self.max_acceleration
-            if np.any(exceeded):
-                # Normalize and scale
-                scale = np.minimum(
-                    1.0, self.max_acceleration / (action_mags + 1e-12)
-                )
-                actions = actions * scale[:, np.newaxis]
+            actions = np.clip(actions, -self.max_acceleration, self.max_acceleration)
 
         return actions
 
