@@ -54,5 +54,5 @@ Preset environments live in `flockrl_sim/environment/specs`. Specs are validated
 ## Logging and visualization
 
 - `EpisodeLogger` writes lightweight episode summaries to `episode_results.json` when enabled.
-- If `gym.save_runs` is true, `CoreSimulator.save_run()` writes full frame data as JSON with metadata (environment, obstacles, and config) for offline rendering.
+- If `gym.save_runs` is true and `gym.log_dir` is set, `CoreSimulator.save_run()` writes full frame data as JSON with metadata (environment, obstacles, and config) for offline rendering for each episode.
 - `OfflineVisualizer` loads these JSON logs and dispatches to the Plotly or PyVista backends.

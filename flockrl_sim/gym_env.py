@@ -102,9 +102,11 @@ class FlockRLGymEnv(gym.Env):
         # Create collision system
         collision_system = self._build_collision_system(collision_config)
         
-        # Whether to save simulation runs for visualization
-        self._save_runs = gym_config["save_runs"]
-        
+        log_dir = gym_config["log_dir"]
+        self._save_runs = bool(gym_config["save_runs"])
+        if self._save_runs and not log_dir:
+            raise ValueError("gym.save_runs requires gym.log_dir to be set.")
+
         self.simulator = CoreSimulator(
             delta_t=sim_config["delta_t"],
             max_steps=sim_config["max_steps"],
@@ -140,7 +142,6 @@ class FlockRLGymEnv(gym.Env):
 
         # Episode logger (only enabled if log_dir is provided)
         self.logger: Optional[EpisodeLogger] = None
-        log_dir = gym_config["log_dir"]
         if log_dir:
             self.logger = EpisodeLogger(log_dir=Path(log_dir))
 
@@ -201,7 +202,20 @@ class FlockRLGymEnv(gym.Env):
             goals = base_goal[None, :].repeat(self.num_drones, axis=0)
         
         ids = np.arange(self.num_drones, dtype=int)
-        return SwarmState.from_initial_positions(pos, ids, goals)
+        state = SwarmState.from_initial_positions(pos, ids, goals)
+
+        position_noise = float(self.sim_config.get("reset_position_noise", 0.0) or 0.0)
+        velocity_noise = float(self.sim_config.get("reset_velocity_noise", 0.0) or 0.0)
+        if position_noise > 0.0:
+            state.pos = state.pos + self._rng.normal(
+                0.0, position_noise, size=state.pos.shape
+            )
+        if velocity_noise > 0.0:
+            state.vel = state.vel + self._rng.normal(
+                0.0, velocity_noise, size=state.vel.shape
+            )
+
+        return state
 
     def _build_observation(
         self, state: SwarmState, sim_info: Optional[Dict[str, Any]] = None
@@ -262,13 +276,7 @@ class FlockRLGymEnv(gym.Env):
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         super().reset(seed=seed)
-        # Only seed if explicitly provided, otherwise use pure random
-        if seed is not None:
-            np.random.seed(seed)
-            self._rng = np.random.RandomState(seed)
-        else:
-            # Pure random - don't seed, use system randomness
-            self._rng = np.random.RandomState()  # No seed = uses system entropy
+        self._rng = self.np_random
 
         state = self.simulator.start_run(
             initial_state=self._initial_state(),

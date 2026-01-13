@@ -60,6 +60,8 @@ env = load_environment_from_spec("simple", config)
 - `perception`: `max_range`, `num_rays`, `max_neighbour_range`
 - `visualization`: `fps`
 
+Reset noise is applied on every `reset()` using `reset_position_noise` and `reset_velocity_noise` (set them to `0.0` to disable).
+
 ## Observation layout
 
 Per drone, the observation vector concatenates:
@@ -80,4 +82,4 @@ Actions are per-drone accelerations with shape `(num_drones, 3)`. Actions are cl
 
 ## Episode logging
 
-If `gym.log_dir` is set, `EpisodeLogger` will store summary statistics. Call `env.save_episode_logs()` to flush `episode_results.json`. If `gym.save_runs` is `true`, full frame logs are saved as `episode_XXXXXX.json` files, suitable for `OfflineVisualizer`.
+If `gym.log_dir` is set, `EpisodeLogger` will store summary statistics. Call `env.save_episode_logs()` to flush `episode_results.json`. If `gym.save_runs` is `true` (and `gym.log_dir` is set), full frame logs are saved as `episode_XXXXXX.json` files, suitable for `OfflineVisualizer`.
