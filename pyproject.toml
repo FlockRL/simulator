@@ -15,16 +15,14 @@ dependencies = [
     "gymnasium>=0.29",
     "pyyaml>=6.0",
     "simple-term-menu>=1.6.1",
+    "dash>=2.14",
+    "plotly>=5.18",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-]
-visualization = [
-    "dash>=2.14",
-    "plotly>=5.18",
 ]
 
 [tool.setuptools]
