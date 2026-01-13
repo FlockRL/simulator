@@ -174,8 +174,8 @@ class FlockRLGymEnv(gym.Env):
         )
 
     def _observation_dim(self) -> int:
-        # pos(3) + vel(3) + goal vector(3) + goal distance(1)
-        base = 10
+        # vel(3) + goal vector(3) + goal distance(1)
+        base = 7
         sensor = self._num_rays * 2  # ranges + hits
         neighbors = self.max_neighbors * 6  # relative position + velocity per neighbor
         return base + sensor + neighbors
@@ -260,7 +260,6 @@ class FlockRLGymEnv(gym.Env):
             )
 
             obs_parts = [
-                state.pos[i].astype(np.float32),
                 vel,
                 goal_vector,
                 np.array([goal_distance], dtype=np.float32),

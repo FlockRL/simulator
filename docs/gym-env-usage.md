@@ -66,7 +66,6 @@ Reset noise is applied on every `reset()` using `reset_position_noise` and `rese
 
 Per drone, the observation vector concatenates:
 
-- position (3)
 - velocity (3)
 - goal vector (3)
 - goal distance (1)

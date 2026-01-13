@@ -33,7 +33,6 @@ def simple_policy(obs: np.ndarray, config: dict) -> np.ndarray:
     Super simple policy: just move toward the goal.
     
     Observation structure (for single drone):
-    - pos (3): position
     - vel (3): velocity  
     - goal_vector (3): vector from position to goal
     - goal_distance (1): distance to goal
@@ -42,9 +41,9 @@ def simple_policy(obs: np.ndarray, config: dict) -> np.ndarray:
     if obs.ndim == 2:
         obs = obs[0]  # Handle (1, obs_dim) shape
     
-    # Extract goal vector and distance (indices 6-9 after pos and vel)
-    goal_vector = obs[6:9]
-    goal_distance = obs[9]
+    # Extract goal vector and distance (indices 3-6 after vel)
+    goal_vector = obs[3:6]
+    goal_distance = obs[6]
     
     # Normalize to unit direction vector (environment handles scaling)
     goal_direction = goal_vector / (goal_distance + 1e-6)
