@@ -36,6 +36,8 @@ class PlotlyRenderer:
         self.metadata = metadata
         self.obstacles = obstacles
         self.playback_speed = playback_speed
+        # Match the simulator's success radius (goal_threshold)
+        self.goal_threshold = metadata["config"]["simulation"]["goal_threshold"]
 
     def render(self, host: str = "127.0.0.1", port: int = 8050, debug: bool = False) -> None:
         """
@@ -197,7 +199,7 @@ class PlotlyRenderer:
             fig = self._create_figure(frame_idx, show_trajectories_up_to=frame_idx)
 
             frame_state = self.frames[frame_idx]["state"]
-            frame_time = frame_state.get("t", 0.0)
+            frame_time = frame_state["t"]
             info_text = (
                 f"Frame: {frame_idx} / {len(self.frames) - 1} | "
                 f"Time: {frame_time:.3f}s | Drones: {len(frame_state['pos'])}"
@@ -234,12 +236,8 @@ class PlotlyRenderer:
 
                 prev_positions = np.array(prev_state["pos"])
                 curr_positions = np.array(curr_state["pos"])
-                prev_ids = np.array(
-                    prev_state.get("ids", list(range(len(prev_positions))))
-                )
-                curr_ids = np.array(
-                    curr_state.get("ids", list(range(len(curr_positions))))
-                )
+                prev_ids = np.array(prev_state["ids"])
+                curr_ids = np.array(curr_state["ids"])
 
                 for i, drone_id in enumerate(curr_ids):
                     if i < len(curr_positions):
@@ -260,31 +258,27 @@ class PlotlyRenderer:
                             )
 
         current_state = self.frames[frame_idx]["state"]
-        goals = current_state.get("goals")
-        if goals is not None and len(goals) > 0:
+        goals = current_state["goals"]
+        if len(goals) > 0:
             goals_array = np.array(goals)
-            drone_ids = current_state.get("ids", list(range(len(goals))))
+            drone_ids = current_state["ids"]
 
             for i, (goal, drone_id) in enumerate(zip(goals_array, drone_ids)):
-                goal_box_traces = self._create_box_mesh(
+                goal_traces = self._create_goal_mesh(
                     cx=goal[0],
                     cy=goal[1],
                     cz=goal[2],
-                    dx=0.5,
-                    dy=0.5,
-                    dz=0.5,
+                    radius=self.goal_threshold,
                     name=f"Goal (Drone {drone_id})",
                 )
-                for trace in goal_box_traces:
-                    trace.color = "green"
-                    trace.opacity = 0.2
+                for trace in goal_traces:
                     trace.showlegend = i == 0
                     if i == 0:
                         trace.name = "Goals"
                     fig.add_trace(trace)
 
         positions = np.array(current_state["pos"])
-        drone_ids = current_state.get("ids", list(range(len(positions))))
+        drone_ids = current_state["ids"]
 
         fig.add_trace(
             go.Scatter3d(
@@ -315,44 +309,80 @@ class PlotlyRenderer:
         return fig
 
     def _create_obstacle_mesh(self, obstacle: Dict[str, Any]) -> List["go.Mesh3d"]:
-        obs_type = obstacle.get("type", "").lower()
-        position = obstacle.get("position", (0, 0, 0))
-
-        if isinstance(position, (list, tuple)) and len(position) == 3:
-            pos_x, pos_y, pos_z = position
-        else:
-            pos_x = obstacle.get("posx", 0)
-            pos_y = obstacle.get("posy", 0)
-            pos_z = obstacle.get("posz", 0)
+        obs_type = obstacle["type"].lower()
+        obstacle_id = obstacle["id"]
+        pos_x, pos_y, pos_z = obstacle["position"]
 
         if obs_type == "wall":
-            length = obstacle.get("length", 1.0)
-            height = obstacle.get("height", 1.0)
-            thickness = obstacle.get("thickness", 0.1)
             return self._create_box_mesh(
-                pos_x, pos_y, pos_z, length, thickness, height, "Wall"
+                pos_x, pos_y, pos_z, obstacle["length"], obstacle["thickness"], obstacle["height"], "Wall"
             )
         if obs_type == "gate":
-            width = obstacle.get("width", 1.0)
-            height = obstacle.get("height", 1.0)
-            thickness = obstacle.get("thickness", 0.1)
             return self._create_box_mesh(
-                pos_x, pos_y, pos_z, width, thickness, height, "Gate"
+                pos_x, pos_y, pos_z, obstacle["width"], obstacle["thickness"], obstacle["height"], "Gate"
             )
         if obs_type in ["clutter", "rectangularprism", "rectangular_prism"]:
-            length = obstacle.get("length", obstacle.get("width", 1.0))
-            width = obstacle.get("width", obstacle.get("depth", 1.0))
-            height = obstacle.get("height", 1.0)
             return self._create_box_mesh(
-                pos_x, pos_y, pos_z, length, width, height, "Clutter"
+                pos_x, pos_y, pos_z, obstacle["length"], obstacle["width"], obstacle["height"], "Clutter"
             )
 
-        width = obstacle.get("width", obstacle.get("length", 1.0))
-        depth = obstacle.get("depth", obstacle.get("width", 1.0))
-        height = obstacle.get("height", 1.0)
-        return self._create_box_mesh(
-            pos_x, pos_y, pos_z, width, depth, height, "Obstacle"
+        # Unknown obstacle type - log warning and skip
+        logging.warning(f"Unknown obstacle type '{obstacle.get('type', 'unknown')}' (id: {obstacle.get('id', 'unknown')}), skipping visualization")
+        return []
+
+    def _create_goal_mesh(
+        self, cx: float, cy: float, cz: float, radius: float, name: str
+    ) -> List["go.Mesh3d"]:
+        """
+        Render the goal as a translucent sphere whose radius matches the goal_threshold.
+        """
+        n_theta = 12
+        n_phi = 24
+        theta = np.linspace(0, np.pi, n_theta)
+        phi = np.linspace(0, 2 * np.pi, n_phi, endpoint=False)
+
+        vertices = []
+        for t in theta:
+            for p in phi:
+                x = cx + radius * np.sin(t) * np.cos(p)
+                y = cy + radius * np.sin(t) * np.sin(p)
+                z = cz + radius * np.cos(t)
+                vertices.append((x, y, z))
+        vertices = np.array(vertices)
+
+        i: List[int] = []
+        j: List[int] = []
+        k: List[int] = []
+
+        for t in range(n_theta - 1):
+            for p in range(n_phi):
+                p_next = (p + 1) % n_phi
+                v00 = t * n_phi + p
+                v01 = t * n_phi + p_next
+                v10 = (t + 1) * n_phi + p
+                v11 = (t + 1) * n_phi + p_next
+
+                # Two triangles per quad on the sphere surface
+                i.extend([v00, v00])
+                j.extend([v10, v11])
+                k.extend([v11, v01])
+
+        mesh = go.Mesh3d(
+            x=vertices[:, 0],
+            y=vertices[:, 1],
+            z=vertices[:, 2],
+            i=i,
+            j=j,
+            k=k,
+            color="green",
+            opacity=0.2,
+            name=name,
+            showlegend=False,
+            hoverinfo="name",
+            flatshading=True,
         )
+
+        return [mesh]
 
     def _create_box_mesh(
         self, cx: float, cy: float, cz: float, dx: float, dy: float, dz: float, name: str

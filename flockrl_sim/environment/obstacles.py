@@ -44,6 +44,15 @@ class Environment:
     goal_position: Tuple[float, float, float]
     seed: int
 
+    def __post_init__(self) -> None:
+        validation_result = validate_environment(
+            self.obstacles, self.bounds, self.start_position, self.goal_position
+        )
+        if not validation_result.is_valid():
+            raise ValueError(f"Environment validation failed:\n{validation_result}")
+        if validation_result.warnings:
+            logger.warning(f"Environment validation warnings:\n{validation_result}")
+
     def set_bounds(self, bounds: Bounds) -> None:
         self.bounds = bounds
         logger.debug(f"Environment bounds set to {self.bounds}")

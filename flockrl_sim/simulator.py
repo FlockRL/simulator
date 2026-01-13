@@ -17,14 +17,9 @@ from .environment import Environment
 import json
 from .perception.sensors import PerceptionSystem, SensorConfig
 from collections import defaultdict
-from .environment import Environment
 
 CollisionHandler = Callable[[SwarmState], Tuple[SwarmState, dict]]
 RenderHook = Callable[[SwarmState, dict], None]
-
-
-
-
 @dataclass
 class SimulationFrame:
     """
@@ -103,18 +98,15 @@ class CoreSimulator:
 
         # Perception system - enabled by default for RL
         self._perception_system = None
-        if self.environment is not None:
-            # Create SensorConfig from perception_config dict
-            sensor_config = None
-            if perception_config:
-                sensor_config = SensorConfig(
-                    max_range=perception_config["max_range"],
-                    num_rays=perception_config["num_rays"],
-                    max_neighbour_range=perception_config["max_neighbour_range"],
-                )
+        if perception_config is not None:
+            sensor_config = SensorConfig(
+                max_range=perception_config["max_range"],
+                num_rays=perception_config["num_rays"],
+                max_neighbour_range=perception_config["max_neighbour_range"],
+            )
             self._perception_system = PerceptionSystem(
                 environment=self.environment,
-                config=sensor_config,  # Use config from perception_config or defaults
+                config=sensor_config,
                 seed=None,
             )
 
@@ -138,12 +130,7 @@ class CoreSimulator:
             The initialized SwarmState
         """
         # Determine goal position
-        goal_pos = np.array([0.0, 0.0, 10.0], dtype=float)  # Default goal
-        if (
-            hasattr(self.environment, "goal_position")
-            and self.environment.goal_position is not None
-        ):
-            goal_pos = np.array(self.environment.goal_position, dtype=float)
+        goal_pos = np.array(self.environment.goal_position, dtype=float)
 
         if initial_state is None:
             # Create default state with single drone at origin
@@ -248,7 +235,7 @@ class CoreSimulator:
         final_state, info_dict = self.collision_system(proposed_state)
 
         # Apply collision responses
-        collisions = info_dict.get("collisions", [])
+        collisions = info_dict["collisions"]
         if collisions:
             # Group collisions by drone_id to handle multiple simultaneous collisions
             collisions_by_drone = defaultdict(list)
@@ -325,10 +312,6 @@ class CoreSimulator:
             observations = self._perception_system.observe(self.state)
 
         # 10. Build comprehensive info dict
-        # Ensure collisions key always exists
-        if "collisions" not in info_dict:
-            info_dict["collisions"] = []
-
         info_dict.update(
             {
                 "step": self._step_count,
@@ -541,7 +524,7 @@ class CoreSimulator:
         Returns:
             Validated/clipped action array
         """
-        N = self.state.pos.shape[0] if self.state.pos is not None else 0
+        N = self.state.pos.shape[0]
 
         # Check shape
         expected_shape = (N, 3)
@@ -555,16 +538,9 @@ class CoreSimulator:
             warnings.warn("Actions contain NaN or Inf values. Clipping to zero.")
             actions = np.nan_to_num(actions, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # Clip to max acceleration if configured
+        # Clip per-axis to max acceleration if configured
         if self.max_acceleration is not None:
-            action_mags = np.linalg.norm(actions, axis=1)
-            exceeded = action_mags > self.max_acceleration
-            if np.any(exceeded):
-                # Normalize and scale
-                scale = np.minimum(
-                    1.0, self.max_acceleration / (action_mags + 1e-12)
-                )
-                actions = actions * scale[:, np.newaxis]
+            actions = np.clip(actions, -self.max_acceleration, self.max_acceleration)
 
         return actions
 
@@ -590,25 +566,20 @@ class CoreSimulator:
             return True, "success"
 
         # Check out-of-bounds
-        if hasattr(self.environment, "bounds"):
-            bounds = self.environment.bounds
-            if callable(bounds):
-                bounds = bounds()
+        bounds = self.environment.bounds
+        x_min, x_max, y_min, y_max, z_min, z_max = bounds
+        pos = self.state.pos
 
-            if bounds is not None:
-                x_min, x_max, y_min, y_max, z_min, z_max = bounds
-                pos = self.state.pos
+        out_of_bounds = (
+            np.any(pos[:, 0] < x_min)
+            or np.any(pos[:, 0] > x_max)
+            or np.any(pos[:, 1] < y_min)
+            or np.any(pos[:, 1] > y_max)
+            or np.any(pos[:, 2] < z_min)
+            or np.any(pos[:, 2] > z_max)
+        )
 
-                out_of_bounds = (
-                    np.any(pos[:, 0] < x_min)
-                    or np.any(pos[:, 0] > x_max)
-                    or np.any(pos[:, 1] < y_min)
-                    or np.any(pos[:, 1] > y_max)
-                    or np.any(pos[:, 2] < z_min)
-                    or np.any(pos[:, 2] > z_max)
-                )
-
-                if out_of_bounds:
-                    return True, "out_of_bounds"
+        if out_of_bounds:
+            return True, "out_of_bounds"
 
         return False, None

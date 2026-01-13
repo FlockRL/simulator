@@ -6,7 +6,8 @@ from typing import Any, List
 import numpy as np
 
 from ..environment import Environment
-from ..geometry import OBB, sphere_intersect_obb, point_in_obb
+from ..environment.obstacles_types import RectangularPrism
+from ..geometry import OBB, sphere_intersect_obb
 from ..state import SwarmState
 
 
@@ -62,19 +63,8 @@ class CollisionSystem:
 
         collisions: List[CollisionInfo] = []
 
-        bounds = None
-        if hasattr(self.environment, "bounds"):
-            b = self.environment.bounds
-            bounds = b() if callable(b) else b
-        elif hasattr(self.environment, "get_bounds"):
-            bounds = self.environment.get_bounds()
-
-        obstacles = []
-        if hasattr(self.environment, "obstacles"):
-            obs = self.environment.obstacles
-            obstacles = obs() if callable(obs) else obs
-        elif hasattr(self.environment, "get_obstacles"):
-            obstacles = self.environment.get_obstacles()
+        bounds = self.environment.bounds
+        obstacles = self.environment.obstacles
 
         # Run collision checks
 
@@ -82,7 +72,10 @@ class CollisionSystem:
         if bounds is not None:
             collisions.extend(self.check_bounds_collision(state, bounds))
 
-        # 2. Wall + clutter collisions
+        # 2. Drone-drone collisions
+        collisions.extend(self.check_drone_collision(state))
+
+        # 3. Wall + clutter collisions
         if obstacles:
             collisions.extend(self.check_wall_collision(state, obstacles))
             collisions.extend(self.check_clutter_collision(state, obstacles))
@@ -181,6 +174,89 @@ class CollisionSystem:
 
         return collisions
 
+    def check_drone_collision(self, state: SwarmState) -> List[CollisionInfo]:
+        """
+        Check for collisions between drones (sphere-sphere).
+        """
+        collisions: List[CollisionInfo] = []
+        r = self.drone_radius
+        min_dist = 2.0 * r
+        min_dist_sq = min_dist * min_dist
+
+        num_drones = state.pos.shape[0]
+        for i in range(num_drones):
+            for j in range(i + 1, num_drones):
+                pos_i = state.pos[i]
+                pos_j = state.pos[j]
+                diff = pos_i - pos_j
+                dist_sq = float(np.dot(diff, diff))
+                if dist_sq >= min_dist_sq: # Equivalent to dx^2 + dy^2 + dz^2 >= (2r)^2
+                    continue
+
+                dist = np.sqrt(dist_sq)
+                if dist > 1e-12:
+                    normal = diff / dist
+                else:
+                    rel_vel = state.vel[i] - state.vel[j]
+                    rel_speed = float(np.linalg.norm(rel_vel))
+                    if rel_speed > 1e-12:
+                        normal = rel_vel / rel_speed
+                    else:
+                        normal = np.array([1.0, 0.0, 0.0], dtype=float)
+
+                penetration = min_dist - dist
+                correction = 0.5 * penetration * normal
+                new_pos_i = pos_i + correction
+                new_pos_j = pos_j - correction
+
+                vel_i = state.vel[i]
+                vel_j = state.vel[j]
+                v1n = float(np.dot(vel_i, normal))
+                v2n = float(np.dot(vel_j, normal))
+                rel_n = v1n - v2n
+
+                if rel_n < 0.0:
+                    impulse = -(1.0 + self.restitution) * rel_n * 0.5
+                    v1n_after = v1n + impulse
+                    v2n_after = v2n - impulse
+                else:
+                    v1n_after = v1n
+                    v2n_after = v2n
+
+                v1_t = vel_i - v1n * normal
+                v2_t = vel_j - v2n * normal
+                rebound_vel_i = v1_t + v1n_after * normal
+                rebound_vel_j = v2_t + v2n_after * normal
+
+                contact_i = pos_i - normal * r
+                contact_j = pos_j + normal * r
+                per_drone_penetration = 0.5 * penetration
+
+                collisions.append(
+                    CollisionInfo(
+                        drone_id=int(state.ids[i]),
+                        collision_type="drone",
+                        normal_vector=normal.astype(float),
+                        contact_point=contact_i.astype(float),
+                        penetration_depth=float(per_drone_penetration),
+                        rebound_velocity=rebound_vel_i.astype(float),
+                        new_position=new_pos_i.astype(float),
+                    )
+                )
+                collisions.append(
+                    CollisionInfo(
+                        drone_id=int(state.ids[j]),
+                        collision_type="drone",
+                        normal_vector=(-normal).astype(float),
+                        contact_point=contact_j.astype(float),
+                        penetration_depth=float(per_drone_penetration),
+                        rebound_velocity=rebound_vel_j.astype(float),
+                        new_position=new_pos_j.astype(float),
+                    )
+                )
+
+        return collisions
+
     def check_wall_collision(
         self, state: SwarmState, obstacles: List[Any]
     ) -> List[CollisionInfo]:
@@ -192,8 +268,8 @@ class CollisionSystem:
         """
         collisions = []
 
-        walls = [obs for obs in obstacles if getattr(obs, "type", None) == "wall"]
-        gates = [obs for obs in obstacles if getattr(obs, "type", None) == "gate"]
+        walls = [obs for obs in obstacles if obs.type == "wall"]
+        gates = [obs for obs in obstacles if obs.type == "gate"]
 
         gate_map = {gate.id: gate for gate in gates}
 
@@ -237,9 +313,7 @@ class CollisionSystem:
         penetration depths, and rebound velocities for each collision.
         """
         collisions: List[CollisionInfo] = []
-        prisms = [
-            obs for obs in obstacles if getattr(obs, "type", None) == "RectangularPrism"
-        ]
+        prisms = [obs for obs in obstacles if isinstance(obs, RectangularPrism)]
         r = self.drone_radius
 
         for i, pos in enumerate(state.pos):
@@ -269,7 +343,7 @@ class CollisionSystem:
         spheres = [
             obs
             for obs in obstacles
-            if getattr(obs, "type", None) == "sphere" or hasattr(obs, "radius")
+            if obs.type == "sphere" or hasattr(obs, "radius")
         ]
 
         for i, pos in enumerate(state.pos):
@@ -552,35 +626,35 @@ class CollisionSystem:
             gate_map: Dictionary mapping gate IDs to gate objects
 
         Returns:
-            True if drone is inside any gate volume, False otherwise
+            True if drone sphere fits inside any gate volume, False otherwise
         """
         gate_ids = getattr(wall, "gate_ids", ())
         if not gate_ids:
             return False
 
         for gate_id in gate_ids:
-            gate = gate_map.get(gate_id)
-            if gate is None:
-                continue
-
-            if self._is_point_inside_gate(drone_pos, gate):
+            gate = gate_map[gate_id]
+            if self._is_sphere_inside_gate(drone_pos, self.drone_radius, gate):
                 return True
 
         return False
 
-    def _is_point_inside_gate(self, point: np.ndarray, gate: Any) -> bool:
+    def _is_sphere_inside_gate(
+        self, center: np.ndarray, radius: float, gate: Any
+    ) -> bool:
         """
-        Check if a point is inside a gate's bounding volume.
+        Check if a sphere fits entirely inside a gate's bounding volume.
 
         Gates are rectangular volumes defined by (width, thickness, height).
         For axis-aligned gates, this is a simple AABB test.
 
         Args:
-            point: 3D point to test, shape (3,)
+            center: Sphere center to test, shape (3,)
+            radius: Sphere radius to test
             gate: Gate obstacle with position, width, height, thickness, orientation
 
         Returns:
-            True if point is inside gate volume, False otherwise
+            True if sphere is inside gate volume, False otherwise
         """
         gate_pos = np.array(gate.position, dtype=float)
 
@@ -589,8 +663,17 @@ class CollisionSystem:
             [gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float
         )
 
+        if half_extents[0] < radius or half_extents[2] < radius:
+            return False
+
         obb = OBB(
             center=gate_pos, half_extents=half_extents, orientation=gate.orientation
         )
+        local_center = obb.rotation_matrix.T @ (center - obb.center)
 
-        return point_in_obb(point, obb)
+        tol = 1e-9
+        within_width = abs(local_center[0]) <= (half_extents[0] - radius + tol)
+        within_thickness = abs(local_center[1]) <= (half_extents[1] + tol)
+        within_height = abs(local_center[2]) <= (half_extents[2] - radius + tol)
+
+        return within_width and within_thickness and within_height

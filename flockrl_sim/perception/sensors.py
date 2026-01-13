@@ -132,7 +132,7 @@ class PerceptionSystem:
         M = self.config.num_rays
 
         # Build gate map for filtering wall hits that pass through gates
-        gates = [obs for obs in self.environment.obstacles if getattr(obs, "type", None) == "gate"]
+        gates = [obs for obs in self.environment.obstacles if obs.type == "gate"]
         gate_map = {gate.id: gate for gate in gates}
 
         # for each drone, calculate relative position/velocity of other drones in the swarm
@@ -170,14 +170,14 @@ class PerceptionSystem:
                 filtered_hits = []
                 for obst, hit_info in hits:
                     # Check if this is a wall hit
-                    if getattr(obst, "type", None) == "wall":
+                    if obst.type == "wall":
                         _, hit_point, _ = hit_info
                         # Check if hit point is inside any of this wall's gates
-                        gate_ids = getattr(obst, "gate_ids", ())
+                        gate_ids = obst.gate_ids
                         is_in_gate = False
                         for gate_id in gate_ids:
-                            gate = gate_map.get(gate_id)
-                            if gate is not None and self._is_point_inside_gate(hit_point, gate):
+                            gate = gate_map[gate_id]
+                            if self._is_point_inside_gate(hit_point, gate):
                                 is_in_gate = True
                                 break
                         # Skip this wall hit if it's inside a gate (ray passes through)
@@ -185,7 +185,7 @@ class PerceptionSystem:
                             continue
 
                     # Also filter out gate hits (gates should be transparent to rays)
-                    if getattr(obst, "type", None) == "gate":
+                    if obst.type == "gate":
                         continue
 
                     filtered_hits.append(hit_info)

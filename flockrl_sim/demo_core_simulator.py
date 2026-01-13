@@ -202,7 +202,7 @@ def demo_obstacles_and_collisions():
             )
             print(f"  Final position: {state.pos[0]}")
             print(f"  Collisions: {info['episode_stats']['collision_count']}")
-            if info.get("collisions"):
+            if info["collisions"]:
                 for col in info["collisions"]:
                     print(
                         f"    - Collision with {col.collision_type} (drone {col.drone_id})"
@@ -280,7 +280,7 @@ def demo_perception_system():
     actions = np.zeros((3, 3))
     state, info = simulator.step(actions)
 
-    observations = info.get("observations", [])
+    observations = info["observations"]
     print(f"\n✓ Generated {len(observations)} observations (one per drone)")
 
     for i, obs in enumerate(observations):

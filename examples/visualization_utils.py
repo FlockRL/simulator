@@ -110,7 +110,7 @@ def draw_spawn_markers(ax, env, is_3d=False):
                 )
 
 
-def draw_top_face(ax, obs, dims, color, alpha, **kwargs):
+def draw_top_face(ax, obs, dims, color, alpha, edgecolor="black", linewidth=1):
     """Draw the obstacle's top face projected onto XY plane."""
     vertices = create_box_vertices(obs.position, dims, obs.orientation)
     coords = vertices[[0, 1, 2, 3], :2]
@@ -119,8 +119,8 @@ def draw_top_face(ax, obs, dims, color, alpha, **kwargs):
         coords[:, 1],
         facecolor=color,
         alpha=alpha,
-        edgecolor=kwargs.get("edgecolor", "black"),
-        linewidth=kwargs.get("linewidth", 1),
+        edgecolor=edgecolor,
+        linewidth=linewidth,
     )
 
 

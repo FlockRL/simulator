@@ -33,8 +33,6 @@ __all__ = [
     "SensorConfig",
     "SensorReading",
     "RayHit",
-    # Visualization
-    "OfflineVisualizer",
     # Config
     "load_config",
     "load_environment_from_spec",

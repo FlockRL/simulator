@@ -97,13 +97,19 @@ class FlockRLGymEnv(gym.Env):
         self.environment = environment
         self.sim_config = sim_config
         self.perception_config = perception_config
+        self.config = config
+        env_config = config["environment"]
+        self._max_spawn_attempts = int(env_config["max_placement_attempts"])
         
         # Create collision system
         collision_system = self._build_collision_system(collision_config)
+        self._collision_system = collision_system
         
-        # Whether to save simulation runs for visualization
-        self._save_runs = gym_config["save_runs"]
-        
+        log_dir = gym_config["log_dir"]
+        self._save_runs = bool(gym_config["save_runs"])
+        if self._save_runs and not log_dir:
+            raise ValueError("gym.save_runs requires gym.log_dir to be set.")
+
         self.simulator = CoreSimulator(
             delta_t=sim_config["delta_t"],
             max_steps=sim_config["max_steps"],
@@ -139,7 +145,6 @@ class FlockRLGymEnv(gym.Env):
 
         # Episode logger (only enabled if log_dir is provided)
         self.logger: Optional[EpisodeLogger] = None
-        log_dir = gym_config["log_dir"]
         if log_dir:
             self.logger = EpisodeLogger(log_dir=Path(log_dir))
 
@@ -172,33 +177,68 @@ class FlockRLGymEnv(gym.Env):
         )
 
     def _observation_dim(self) -> int:
-        # pos(3) + vel(3) + goal vector(3) + goal distance(1)
-        base = 10
+        # vel(3) + goal vector(3) + goal distance(1)
+        base = 7
         sensor = self._num_rays * 2  # ranges + hits
         neighbors = self.max_neighbors * 6  # relative position + velocity per neighbor
         return base + sensor + neighbors
+    
+    def _reset_perception(self, seed: int) -> None:
+        if self.simulator._perception_system is None:
+            return
+        self.simulator._perception_system.reset(
+            config=self.simulator._perception_system.config,
+            seed=seed,
+        )
+
+    def _is_spawn_state_valid(self, state: SwarmState) -> bool:
+        _, info = self._collision_system(state)
+        return not info.get("collisions")
 
     def _initial_state(self) -> SwarmState:
         base_start = np.array(self.environment.start_position, dtype=float)
         base_goal = np.array(self.environment.goal_position, dtype=float)
-        
-        # Generate random offsets for each drone (uniform in [-spawn_offset_range, spawn_offset_range])
-        offsets = np.random.uniform(
-            -self.spawn_offset_range, 
-            self.spawn_offset_range, 
-            size=(self.num_drones, 3)
-        )
-        
-        pos = base_start[None, :] + offsets
         ids = np.arange(self.num_drones, dtype=int)
-        goals = base_goal[None, :] + offsets  # Same offset for goals to maintain relative positioning
-        
-        return SwarmState.from_initial_positions(pos, ids, goals)
+        position_noise = float(self.sim_config.get("reset_position_noise", 0.0) or 0.0)
+        velocity_noise = float(self.sim_config.get("reset_velocity_noise", 0.0) or 0.0)
+        attempts = max(1, self._max_spawn_attempts)
+        for _ in range(attempts):
+            # For multi-drone scenarios, add random offsets to prevent collisions at spawn.
+            # For single drone, start exactly at the specified position for deterministic behavior.
+            if self.num_drones > 1 and self.spawn_offset_range > 0:
+                offsets = self._rng.uniform(
+                    -self.spawn_offset_range,
+                    self.spawn_offset_range,
+                    size=(self.num_drones, 3),
+                )
+            else:
+                offsets = np.zeros((self.num_drones, 3), dtype=float)
+
+            pos = base_start[None, :] + offsets
+            goals = base_goal[None, :] + offsets  # Same offset for goals to maintain relative positioning
+
+            state = SwarmState.from_initial_positions(pos, ids, goals)
+            if position_noise > 0.0:
+                state.pos = state.pos + self._rng.normal(
+                    0.0, position_noise, size=state.pos.shape
+                )
+            if velocity_noise > 0.0:
+                state.vel = state.vel + self._rng.normal(
+                    0.0, velocity_noise, size=state.vel.shape
+                )
+
+            if self._is_spawn_state_valid(state):
+                return state
+
+        raise ValueError(
+            f"Unable to sample a valid spawn state after {attempts} attempts. "
+            "Check spawn_offset_range, reset noise, or environment layout."
+        )
 
     def _build_observation(
         self, state: SwarmState, sim_info: Optional[Dict[str, Any]] = None
     ) -> np.ndarray:
-        if sim_info is not None and sim_info.get("observations"):
+        if sim_info is not None:
             readings = sim_info["observations"]
         elif self.simulator._perception_system is not None:
             readings = self.simulator._perception_system.observe(state)
@@ -238,7 +278,6 @@ class FlockRLGymEnv(gym.Env):
             )
 
             obs_parts = [
-                state.pos[i].astype(np.float32),
                 vel,
                 goal_vector,
                 np.array([goal_distance], dtype=np.float32),
@@ -254,8 +293,9 @@ class FlockRLGymEnv(gym.Env):
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         super().reset(seed=seed)
+        self._rng = self.np_random
         if seed is not None:
-            np.random.seed(seed)
+            self._reset_perception(seed)
 
         state = self.simulator.start_run(
             initial_state=self._initial_state(),
@@ -282,6 +322,39 @@ class FlockRLGymEnv(gym.Env):
 
         return obs, info
 
+    def reset_simulator(
+        self, *, randomize: bool = False, seed: Optional[int] = None
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Reset using CoreSimulator.reset to reuse the stored initial state.
+        Call reset() at least once before this.
+        """
+        if self.simulator.current_run is None:
+            raise RuntimeError("Call reset() before reset_simulator().")
+
+        super().reset(seed=seed)
+        self._rng = self.np_random
+        if seed is not None:
+            self._reset_perception(seed)
+
+        state = self.simulator.reset(randomize=randomize, seed=seed)
+        self.reward_fn.reset(state)
+
+        obs = self._build_observation(state)
+        goal_distances = np.linalg.norm(state.pos - state.goals, axis=1)
+        info = {
+            "goal_distance": goal_distances,
+            "termination_reason": None,
+            "collisions": [],
+        }
+
+        if self.logger:
+            metadata = {"seed": seed, "randomize": randomize}
+            self.logger.start_episode(self._episode_num, metadata)
+
+        self._episode_reward = 0.0
+        return obs, info
+
     def step(
         self, action: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray, bool, bool, Dict[str, Any]]:
@@ -295,18 +368,18 @@ class FlockRLGymEnv(gym.Env):
         obs = self._build_observation(state, sim_info)
         rewards = self.reward_fn.compute(state, clipped_action, sim_info)
 
-        terminated = bool(sim_info.get("done")) and (
-            sim_info.get("termination_reason") != "timeout"
+        terminated = bool(sim_info["done"]) and (
+            sim_info["termination_reason"] != "timeout"
         )
-        truncated = bool(sim_info.get("done")) and (
-            sim_info.get("termination_reason") == "timeout"
+        truncated = bool(sim_info["done"]) and (
+            sim_info["termination_reason"] == "timeout"
         )
 
         goal_distances = np.linalg.norm(state.pos - state.goals, axis=1)
         info = {
             "goal_distance": goal_distances,
-            "termination_reason": sim_info.get("termination_reason"),
-            "collisions": sim_info.get("collisions", []),
+            "termination_reason": sim_info["termination_reason"],
+            "collisions": sim_info["collisions"],
         }
 
         self._episode_reward += rewards
@@ -314,7 +387,7 @@ class FlockRLGymEnv(gym.Env):
         # End episode logging and save simulation run
         if (terminated or truncated) and self.logger:
             result = self.logger.end_episode(
-                termination_reason=sim_info.get("termination_reason"),
+                termination_reason=sim_info["termination_reason"],
                 episode_stats=sim_info["episode_stats"],
                 total_reward=float(np.sum(self._episode_reward)),  # Log sum of all drone rewards
             )
@@ -328,19 +401,15 @@ class FlockRLGymEnv(gym.Env):
 
         return obs, rewards, terminated, truncated, info
 
-    def save_logs(self):
+    def save_episode_logs(self):
         """
-        Manually trigger save of episode logs to disk.
+        Save the collection of episode logs to disk.
 
-        Call this when you want to checkpoint (e.g., after training steps or at the end).
+        Call this when you want to checkpoint episode results (e.g., after training steps or at the end).
         Does nothing if log_dir was not specified.
         """
         if self.logger:
             self.logger.save_to_disk()
-            
-            # Also save current simulation run if enabled and it exists
-            if self._save_runs and self.simulator.current_run and self.simulator.current_run.frames:
-                self._save_episode_run()
     
     def _save_episode_run(self, episode_num: Optional[int] = None):
         """Save the current simulation run to disk."""
@@ -369,6 +438,9 @@ class FlockRLGymEnv(gym.Env):
             self.simulator.current_run.metadata["environment"]["goal_position"] = (
                 list(self.environment.goal_position)
             )
+            
+            # Store entire config for visualization and reproducibility
+            self.simulator.current_run.metadata["config"] = self.config
             
             # Save to same directory as episode results
             output_path = self.logger.log_dir / f"episode_{episode_num:06d}.json"

@@ -64,6 +64,10 @@ def create_test_env(
                     "num_rays": 128,
                     "max_neighbour_range": 10.0,
                 },
+                "environment": {
+                    "spawn_clearance": 2.0,
+                    "max_placement_attempts": 50,
+                },
                 "visualization": {
                     "fps": 60,
                     "render_mode": "offline",
@@ -91,7 +95,7 @@ class SimpleReward(RewardFunction):
     ) -> np.ndarray:
         current_dist = np.linalg.norm(state.pos - state.goals, axis=1)
         rewards = self._last_dist - current_dist
-        if sim_info.get("termination_reason") == "success":
+        if sim_info["termination_reason"] == "success":
             rewards += 100.0
         self._last_dist = current_dist
         return rewards
@@ -299,7 +303,7 @@ class TestFlockRLGymEnvWithLogging:
             assert np.isfinite(avg_reward)
 
     def test_save_logs(self):
-        """Test manual save_logs method."""
+        """Test manual save_episode_logs method."""
         with tempfile.TemporaryDirectory() as tmpdir:
             env = create_test_env(
                 SimpleReward(),
@@ -316,7 +320,7 @@ class TestFlockRLGymEnvWithLogging:
                 done = terminated or truncated
 
             # Manually save logs
-            env.save_logs()
+            env.save_episode_logs()
 
             # Check that file was created
             json_path = Path(tmpdir) / "episode_results.json"
