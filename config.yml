@@ -2,7 +2,6 @@ collision:
   drone_radius: 0.2
   restitution: 1.0
 environment:
-  bounds: null
   max_placement_attempts: 50
   seed: null
   spawn_clearance: 2.0
