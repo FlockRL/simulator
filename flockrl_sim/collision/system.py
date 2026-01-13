@@ -6,6 +6,7 @@ from typing import Any, List
 import numpy as np
 
 from ..environment import Environment
+from ..environment.obstacles_types import RectangularPrism
 from ..geometry import OBB, sphere_intersect_obb, point_in_obb
 from ..state import SwarmState
 
@@ -226,10 +227,7 @@ class CollisionSystem:
         penetration depths, and rebound velocities for each collision.
         """
         collisions: List[CollisionInfo] = []
-        prisms = [
-            obs for obs in obstacles 
-            if obs.type == "clutter" and obs.subtype == "rectangular_prism"
-        ]
+        prisms = [obs for obs in obstacles if isinstance(obs, RectangularPrism)]
         r = self.drone_radius
 
         for i, pos in enumerate(state.pos):
