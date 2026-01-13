@@ -72,7 +72,10 @@ class CollisionSystem:
         if bounds is not None:
             collisions.extend(self.check_bounds_collision(state, bounds))
 
-        # 2. Wall + clutter collisions
+        # 2. Drone-drone collisions
+        collisions.extend(self.check_drone_collision(state))
+
+        # 3. Wall + clutter collisions
         if obstacles:
             collisions.extend(self.check_wall_collision(state, obstacles))
             collisions.extend(self.check_clutter_collision(state, obstacles))
@@ -166,6 +169,89 @@ class CollisionSystem:
                         penetration_depth=float(abs(pen)),
                         rebound_velocity=rebound_vel,
                         new_position=new_pos,
+                    )
+                )
+
+        return collisions
+
+    def check_drone_collision(self, state: SwarmState) -> List[CollisionInfo]:
+        """
+        Check for collisions between drones (sphere-sphere).
+        """
+        collisions: List[CollisionInfo] = []
+        r = self.drone_radius
+        min_dist = 2.0 * r
+        min_dist_sq = min_dist * min_dist
+
+        num_drones = state.pos.shape[0]
+        for i in range(num_drones):
+            for j in range(i + 1, num_drones):
+                pos_i = state.pos[i]
+                pos_j = state.pos[j]
+                diff = pos_i - pos_j
+                dist_sq = float(np.dot(diff, diff))
+                if dist_sq >= min_dist_sq: # Equivalent to dx^2 + dy^2 + dz^2 >= (2r)^2
+                    continue
+
+                dist = np.sqrt(dist_sq)
+                if dist > 1e-12:
+                    normal = diff / dist
+                else:
+                    rel_vel = state.vel[i] - state.vel[j]
+                    rel_speed = float(np.linalg.norm(rel_vel))
+                    if rel_speed > 1e-12:
+                        normal = rel_vel / rel_speed
+                    else:
+                        normal = np.array([1.0, 0.0, 0.0], dtype=float)
+
+                penetration = min_dist - dist
+                correction = 0.5 * penetration * normal
+                new_pos_i = pos_i + correction
+                new_pos_j = pos_j - correction
+
+                vel_i = state.vel[i]
+                vel_j = state.vel[j]
+                v1n = float(np.dot(vel_i, normal))
+                v2n = float(np.dot(vel_j, normal))
+                rel_n = v1n - v2n
+
+                if rel_n < 0.0:
+                    impulse = -(1.0 + self.restitution) * rel_n * 0.5
+                    v1n_after = v1n + impulse
+                    v2n_after = v2n - impulse
+                else:
+                    v1n_after = v1n
+                    v2n_after = v2n
+
+                v1_t = vel_i - v1n * normal
+                v2_t = vel_j - v2n * normal
+                rebound_vel_i = v1_t + v1n_after * normal
+                rebound_vel_j = v2_t + v2n_after * normal
+
+                contact_i = pos_i - normal * r
+                contact_j = pos_j + normal * r
+                per_drone_penetration = 0.5 * penetration
+
+                collisions.append(
+                    CollisionInfo(
+                        drone_id=int(state.ids[i]),
+                        collision_type="drone",
+                        normal_vector=normal.astype(float),
+                        contact_point=contact_i.astype(float),
+                        penetration_depth=float(per_drone_penetration),
+                        rebound_velocity=rebound_vel_i.astype(float),
+                        new_position=new_pos_i.astype(float),
+                    )
+                )
+                collisions.append(
+                    CollisionInfo(
+                        drone_id=int(state.ids[j]),
+                        collision_type="drone",
+                        normal_vector=(-normal).astype(float),
+                        contact_point=contact_j.astype(float),
+                        penetration_depth=float(per_drone_penetration),
+                        rebound_velocity=rebound_vel_j.astype(float),
+                        new_position=new_pos_j.astype(float),
                     )
                 )
 

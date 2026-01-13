@@ -6,7 +6,7 @@ This module implements collision detection and response for drones represented a
 
 Each contact includes:
 - `drone_id`
-- `collision_type` ("bounds", "wall", "clutter", or "sphere")
+- `collision_type` ("bounds", "wall", "clutter", "sphere", or "drone")
 - `normal_vector`, `contact_point`, `penetration_depth`
 - `rebound_velocity` and `new_position`
 
@@ -15,6 +15,7 @@ Each contact includes:
 ## Detection paths
 
 - **Bounds**: checks each drone sphere against the configured environment bounds; collisions are generated per violated face.
+- **Drones**: checks pairwise sphere-sphere overlap between drones and resolves both drones symmetrically.
 - **Walls and gates**: walls are treated as rectangular prisms. Collisions are skipped if the drone center is inside any gate volume linked to the wall.
 - **Clutter**: rectangular prisms (subtype `rectangular_prism`) are tested against the drone sphere.
 - **Spheres**: any obstacle with a `radius` attribute is treated as a sphere for collision checks.
