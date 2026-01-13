@@ -92,12 +92,12 @@ def main():
     # Print result
     reason = info["termination_reason"]
     distance = info["goal_distance"][0]
-    print(f"\nEpisode finished: {reason}, final distance = {distance:.2f}m")
+    print(f"Episode finished: {reason}, final distance = {distance:.2f}m")
     
     # Save logs
     if env.logger:
         env.save_episode_logs()
-        print(f"\nLogs saved to: {env.logger.log_dir}")
+        print(f"Logs saved to: {env.logger.log_dir}")
 
 if __name__ == "__main__":
     main()
