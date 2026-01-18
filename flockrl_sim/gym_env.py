@@ -72,14 +72,14 @@ class FlockRLGymEnv(gym.Env):
         reward_fn: RewardFunction,
         environment: Environment,
         config_path: Optional[Path] = None,
-        save_perception_hits: bool = False,
+        save_observations: bool = False,
     ) -> None:
         """
         Args:
             reward_fn: Reward function instance.
             environment: Environment instance.
             config_path: Optional path to config.yml file. If None, uses default location.
-            save_perception_hits: If True, saves perception hits in logged frames. Defaults to False to reduce log size.
+            save_observations: If True, saves observations in logged frames. Defaults to False since observations are not helpful for rendering.
         """
         super().__init__()
         
@@ -112,8 +112,8 @@ class FlockRLGymEnv(gym.Env):
         if self._save_runs and not log_dir:
             raise ValueError("gym.save_runs requires gym.log_dir to be set.")
         
-        # Store save_perception_hits for use when saving runs
-        self._save_perception_hits = save_perception_hits
+        # Store save_observations for use when saving runs
+        self._save_observations = save_observations
 
         self.simulator = CoreSimulator(
             delta_t=sim_config["delta_t"],
@@ -455,7 +455,8 @@ class FlockRLGymEnv(gym.Env):
             
             # Save to same directory as episode results
             output_path = self.logger.log_dir / f"episode_{episode_num:06d}.json"
-            self.simulator.save_run(output_path, save_perception_hits=self._save_perception_hits)
+
+            self.simulator.save_run(output_path, save_observations=self._save_observations)
 
     def render(self) -> None:
         # Offline rendering is handled by the simulator's logger/visualizer.

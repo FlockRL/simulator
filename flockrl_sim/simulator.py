@@ -162,6 +162,14 @@ class CoreSimulator:
             "total_steps": 0,
         }
 
+        # Calculate initial goal distances for the initial frame
+        if self.state.pos is not None and self.state.goals is not None:
+            goal_distances = np.linalg.norm(self.state.pos - self.state.goals, axis=1)
+            if len(goal_distances) > 0:
+                min_dist = float(np.min(goal_distances))
+                self._episode_stats["min_goal_distance"] = min_dist
+                self._episode_stats["final_goal_distance"] = min_dist
+
         # Creating a run:
         self.current_run = SimulationRun(frames=[], metadata=metadata or {})
 
@@ -347,13 +355,13 @@ class CoreSimulator:
         )
         self.current_run.frames.append(frame)
 
-    def save_run(self, output_path: Path, save_perception_hits: bool = False) -> None:
+    def save_run(self, output_path: Path, save_observations: bool = False) -> None:
         """
         Persist the current simulation run to disk for offline visualization.
 
         Args:
             output_path: Path where the SimulationRun will be saved
-            save_perception_hits: If True, saves perception hits in logged frames. Defaults to False to reduce log size.
+            save_observations: If True, saves observations in logged frames. Defaults to False since observations are not helpful for rendering.
         """
         if self.current_run is None:
             raise RuntimeError("No run to save. Call start_run() first.")
@@ -380,19 +388,20 @@ class CoreSimulator:
                         for c in value
                     ]
                 elif key == "observations":
-                    # Convert SensorReading objects to dicts
-                    serialized[key] = [
-                        {
-                            "ranges": obs.ranges.tolist(),
-                            **({"hits": obs.hits.tolist()} if save_perception_hits else {}),
-                            "neighbor_vectors": obs.neighbor_vectors.tolist(),
-                            "metadata": {
-                                k: v.tolist() if hasattr(v, "tolist") else v
-                                for k, v in obs.metadata.items()
-                            },
-                        }
-                        for obs in value
-                    ]
+                    # Convert SensorReading objects to dicts (only if save_observations is True)
+                    if save_observations:
+                        serialized[key] = [
+                            {
+                                "ranges": obs.ranges.tolist(),
+                                "hits": obs.hits.tolist(),
+                                "neighbor_vectors": obs.neighbor_vectors.tolist(),
+                                "metadata": {
+                                    k: v.tolist() if hasattr(v, "tolist") else v
+                                    for k, v in obs.metadata.items()
+                                },
+                            }
+                            for obs in value
+                        ]
                 elif key == "obstacles":
                     # Convert Obstacle objects to dicts
                     serialized[key] = []
