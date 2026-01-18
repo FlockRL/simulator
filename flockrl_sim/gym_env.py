@@ -72,12 +72,14 @@ class FlockRLGymEnv(gym.Env):
         reward_fn: RewardFunction,
         environment: Environment,
         config_path: Optional[Path] = None,
+        save_perception_hits: bool = False,
     ) -> None:
         """
         Args:
             reward_fn: Reward function instance.
             environment: Environment instance.
             config_path: Optional path to config.yml file. If None, uses default location.
+            save_perception_hits: If True, saves perception hits in logged frames. Defaults to False to reduce log size.
         """
         super().__init__()
         
@@ -109,6 +111,9 @@ class FlockRLGymEnv(gym.Env):
         self._save_runs = bool(gym_config["save_runs"])
         if self._save_runs and not log_dir:
             raise ValueError("gym.save_runs requires gym.log_dir to be set.")
+        
+        # Store save_perception_hits for use when saving runs
+        self._save_perception_hits = save_perception_hits
 
         self.simulator = CoreSimulator(
             delta_t=sim_config["delta_t"],
@@ -297,9 +302,15 @@ class FlockRLGymEnv(gym.Env):
         if seed is not None:
             self._reset_perception(seed)
 
+        # Include full config in metadata for reproducibility
+        metadata = {
+            "reset_seed": seed,
+            "reset_options": options or {},
+            "config": self.config,
+        }
         state = self.simulator.start_run(
             initial_state=self._initial_state(),
-            metadata={"reset_seed": seed, "reset_options": options or {}},
+            metadata=metadata,
         )
         
         # Initialize reward function
@@ -444,7 +455,7 @@ class FlockRLGymEnv(gym.Env):
             
             # Save to same directory as episode results
             output_path = self.logger.log_dir / f"episode_{episode_num:06d}.json"
-            self.simulator.save_run(output_path)
+            self.simulator.save_run(output_path, save_perception_hits=self._save_perception_hits)
 
     def render(self) -> None:
         # Offline rendering is handled by the simulator's logger/visualizer.

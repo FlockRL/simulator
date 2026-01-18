@@ -347,12 +347,13 @@ class CoreSimulator:
         )
         self.current_run.frames.append(frame)
 
-    def save_run(self, output_path: Path) -> None:
+    def save_run(self, output_path: Path, save_perception_hits: bool = False) -> None:
         """
         Persist the current simulation run to disk for offline visualization.
 
         Args:
             output_path: Path where the SimulationRun will be saved
+            save_perception_hits: If True, saves perception hits in logged frames. Defaults to False to reduce log size.
         """
         if self.current_run is None:
             raise RuntimeError("No run to save. Call start_run() first.")
@@ -383,7 +384,7 @@ class CoreSimulator:
                     serialized[key] = [
                         {
                             "ranges": obs.ranges.tolist(),
-                            "hits": obs.hits.tolist(),
+                            **({"hits": obs.hits.tolist()} if save_perception_hits else {}),
                             "neighbor_vectors": obs.neighbor_vectors.tolist(),
                             "metadata": {
                                 k: v.tolist() if hasattr(v, "tolist") else v
