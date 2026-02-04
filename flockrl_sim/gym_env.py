@@ -368,7 +368,7 @@ class FlockRLGymEnv(gym.Env):
 
     def step(
         self, action: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, bool, bool, Dict[str, Any]]:
+    ) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         action = np.asarray(action, dtype=np.float32)
         if action.shape != (self.num_drones, 3):
             raise ValueError(f"Expected action shape ({self.num_drones}, 3), got {action.shape}")
@@ -410,7 +410,11 @@ class FlockRLGymEnv(gym.Env):
             
             self._episode_num += 1
 
-        return obs, rewards, terminated, truncated, info
+        # Convert reward array to scalar for single-agent RL libraries like Stable-Baselines3
+        # Sum rewards across all drones (for multi-drone) or extract single value (for single drone)
+        reward_scalar = float(rewards.sum())
+        
+        return obs, reward_scalar, terminated, truncated, info
 
     def save_episode_logs(self):
         """

@@ -150,15 +150,14 @@ def _axis_aligned_size(
 
 
 def _get_dims(obs: Obstacle) -> Tuple[float, float, float]:
-    match obs:
-        case Wall():
-            return obs.length, obs.thickness, obs.height
-        case Gate():
-            return obs.width, obs.thickness, obs.height
-        case RectangularPrism():
-            return obs.length, obs.width, obs.height
-        case _:
-            raise ValueError(f"Unsupported obstacle type: {type(obs)}")
+    if isinstance(obs, Wall):
+        return obs.length, obs.thickness, obs.height
+    elif isinstance(obs, Gate):
+        return obs.width, obs.thickness, obs.height
+    elif isinstance(obs, RectangularPrism):
+        return obs.length, obs.width, obs.height
+    else:
+        raise ValueError(f"Unsupported obstacle type: {type(obs)}")
 
 
 def check_overlap(obs1: Obstacle, obs2: Obstacle) -> bool:
