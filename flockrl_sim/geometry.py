@@ -212,6 +212,76 @@ def point_in_obb(point: np.ndarray, obb: OBB) -> bool:
     return np.all(np.abs(local_point) <= obb.half_extents)
 
 
+def ray_intersect_obb_batch(
+    origins: np.ndarray,
+    directions: np.ndarray,
+    obb_center: np.ndarray,
+    obb_half_extents: np.ndarray,
+    obb_rotation: np.ndarray,
+    max_distance: float,
+) -> np.ndarray:
+    """
+    Batch ray-OBB intersection using vectorized slab method.
+
+    Tests K rays against a single OBB simultaneously.
+
+    Args:
+        origins: Ray origins, shape (K, 3)
+        directions: Normalized ray directions, shape (K, 3)
+        obb_center: OBB center, shape (3,)
+        obb_half_extents: OBB half extents, shape (3,)
+        obb_rotation: OBB rotation matrix, shape (3, 3)
+        max_distance: Maximum ray distance
+
+    Returns:
+        Distances to hit for each ray, shape (K,). max_distance for misses.
+    """
+    # Transform rays to OBB local space
+    # R.T @ v for column vector v == v @ R for row vector v
+    o_local = (origins - obb_center) @ obb_rotation  # (K, 3)
+    d_local = directions @ obb_rotation  # (K, 3)
+
+    # Slab method for AABB in local space
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t1 = (-obb_half_extents - o_local) / d_local  # (K, 3)
+        t2 = (obb_half_extents - o_local) / d_local  # (K, 3)
+
+    tmin = np.max(np.minimum(t1, t2), axis=1)  # (K,)
+    tmax = np.min(np.maximum(t1, t2), axis=1)  # (K,)
+
+    # Hit distance: use entry point if in front of ray, else exit point
+    t_hit = np.where(tmin >= 0, tmin, tmax)
+
+    # Valid hits: box not behind ray, slabs overlap, within max distance
+    valid = (tmax >= 0) & (tmin <= tmax) & (t_hit <= max_distance)
+
+    result = np.full(origins.shape[0], max_distance)
+    result[valid] = t_hit[valid]
+    return result
+
+
+def points_in_obb_batch(
+    points: np.ndarray,
+    obb_center: np.ndarray,
+    obb_half_extents: np.ndarray,
+    obb_rotation: np.ndarray,
+) -> np.ndarray:
+    """
+    Batch check if points are inside an OBB.
+
+    Args:
+        points: Points to test, shape (K, 3)
+        obb_center: OBB center, shape (3,)
+        obb_half_extents: OBB half extents, shape (3,)
+        obb_rotation: OBB rotation matrix, shape (3, 3)
+
+    Returns:
+        Boolean mask, shape (K,). True if point is inside OBB.
+    """
+    local_points = (points - obb_center) @ obb_rotation  # (K, 3)
+    return np.all(np.abs(local_points) <= obb_half_extents, axis=1)
+
+
 def _compute_internal_collision(
     pos_local: np.ndarray, half_extents: np.ndarray, sphere_radius: float
 ) -> Tuple[np.ndarray, np.ndarray, float]:
