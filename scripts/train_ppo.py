@@ -3,20 +3,18 @@
 Train a PPO policy on a FlockRL environment.
 
 All settings come from config.yml. Each run creates an experiment directory
-under experiments/ with a snapshot of the config and all outputs.
+under experiments/<name>/ with a snapshot of the config and all outputs.
 
 Usage:
-    python scripts/train_ppo.py                          # uses config.yml defaults
-    python scripts/train_ppo.py --name my_experiment     # custom experiment name
-    python scripts/train_ppo.py --config my_config.yml   # use a different config
-    python scripts/train_ppo.py --timesteps 1000000      # override total timesteps
+    python scripts/train_ppo.py my_experiment                         # basic run
+    python scripts/train_ppo.py my_experiment --config my_config.yml  # different config
+    python scripts/train_ppo.py my_experiment --timesteps 1000000     # override timesteps
 """
 
 import argparse
 import shutil
 import sys
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -124,8 +122,8 @@ def make_env(rank: int, config: dict, config_path: Path, exp_dir: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Train PPO on FlockRL")
+    parser.add_argument("name", type=str, help="Experiment name (saved under experiments/<name>/)")
     parser.add_argument("--config", type=Path, default=Path("config.yml"), help="Path to config.yml")
-    parser.add_argument("--name", type=str, default=None, help="Experiment name (default: auto-generated)")
     parser.add_argument("--timesteps", type=int, default=None, help="Override total_timesteps from config")
     parser.add_argument("--num-envs", type=int, default=None, help="Override num_envs from config")
     args = parser.parse_args()
@@ -140,9 +138,8 @@ def main():
     num_envs = args.num_envs or int(train_cfg["num_envs"])
 
     # Create experiment directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     env_spec = config["environment"]["spec"]
-    name = args.name or f"{env_spec}_{timestamp}"
+    name = args.name
     exp_dir = Path("experiments") / name
     exp_dir.mkdir(parents=True, exist_ok=True)
     (exp_dir / "checkpoints").mkdir(exist_ok=True)

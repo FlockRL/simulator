@@ -6,12 +6,14 @@ Uses the config.yml snapshot saved during training so the environment
 matches exactly what the model was trained on. Always saves flight logs
 for visualization regardless of config settings.
 
+The experiment argument can be a name (searched in experiments/) or a full path.
+
 Usage:
-    python scripts/run_ppo.py experiments/my_run          # run 1 episode
-    python scripts/run_ppo.py experiments/my_run -n 5     # run 5 episodes
-    python scripts/run_ppo.py experiments/my_run --viz     # run and visualize
-    python scripts/run_ppo.py experiments/my_run --env rand_3_obstacles  # different env
-    python scripts/run_ppo.py experiments/my_run --model checkpoints/ppo_100000_steps.zip  # specific checkpoint
+    python scripts/run_ppo.py my_run                                              # run 1 episode
+    python scripts/run_ppo.py my_run -n 5                                        # run 5 episodes
+    python scripts/run_ppo.py my_run --viz                                       # run and visualize
+    python scripts/run_ppo.py my_run --env rand_3_obstacles                      # different env
+    python scripts/run_ppo.py my_run --model checkpoints/ppo_100000_steps.zip   # specific checkpoint
 """
 
 import argparse
@@ -119,9 +121,32 @@ def run(exp_dir: Path, model_rel: str, env_spec: str | None, episodes: int, seed
     return saved_logs
 
 
+def resolve_experiment(name: str) -> Path:
+    """Resolve experiment name to a directory, searching experiments/ if needed."""
+    p = Path(name)
+    if p.exists():
+        return p
+    candidate = Path("experiments") / name
+    if candidate.exists():
+        return candidate
+    # Fuzzy: look for any subdir containing the name
+    experiments_dir = Path("experiments")
+    if experiments_dir.is_dir():
+        matches = sorted(experiments_dir.iterdir())
+        exact = [d for d in matches if d.name == name]
+        if exact:
+            return exact[0]
+        partial = [d for d in matches if name in d.name]
+        if len(partial) == 1:
+            return partial[0]
+        if len(partial) > 1:
+            sys.exit(f"Ambiguous experiment name '{name}'. Matches:\n" + "\n".join(f"  {d.name}" for d in partial))
+    sys.exit(f"Experiment '{name}' not found (checked ./{name} and experiments/{name})")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run a trained PPO policy")
-    parser.add_argument("experiment", type=Path, help="Path to experiment directory")
+    parser.add_argument("experiment", type=str, help="Experiment name (in experiments/) or full path")
     parser.add_argument("--model", type=str, default="model.zip", help="Model file relative to experiment dir (default: model.zip)")
     parser.add_argument("--env", type=str, default=None, help="Override environment spec")
     parser.add_argument("-n", "--episodes", type=int, default=1, help="Number of episodes (default: 1)")
@@ -129,7 +154,8 @@ def main():
     parser.add_argument("--viz", action="store_true", help="Visualize first episode after running")
     args = parser.parse_args()
 
-    run(args.experiment, args.model, args.env, args.episodes, args.seed, args.viz)
+    exp_dir = resolve_experiment(args.experiment)
+    run(exp_dir, args.model, args.env, args.episodes, args.seed, args.viz)
 
 
 if __name__ == "__main__":
