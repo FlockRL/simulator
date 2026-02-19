@@ -12,3 +12,4 @@ build/
 logs/
 models/
 eval_logs/
+experiments/*
