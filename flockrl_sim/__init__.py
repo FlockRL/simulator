@@ -3,7 +3,8 @@
 from .collision.system import CollisionInfo, CollisionSystem
 from .gym_env import FlockRLGymEnv, load_config, load_environment_from_spec
 from .gym_logging import EpisodeLogger, EpisodeResult
-from .rewards import RewardFunction
+from .rewards import RewardFunction, ProgressReward
+from .wrappers import SingleDroneWrapper
 from .environment.obstacles import Environment, EnvironmentBuilder, Obstacle
 from .environment.loader import EnvironmentSpecLoader
 from .perception import PerceptionSystem, RayHit, SensorConfig, SensorReading
@@ -43,4 +44,7 @@ __all__ = [
     "EpisodeResult",
     # Reward functions
     "RewardFunction",
+    "ProgressReward",
+    # Wrappers
+    "SingleDroneWrapper",
 ]
