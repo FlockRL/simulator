@@ -13,66 +13,6 @@
       "length": 2.5,
       "width": 2.5,
       "height": 16.0
-    },
-    {
-      "id": "obstacle_2",
-      "type": "clutter",
-      "position": [6.5, -5.5, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "subtype": "rectangular_prism",
-      "length": 2.5,
-      "width": 2.5,
-      "height": 16.0
-    },
-    {
-      "id": "obstacle_3",
-      "type": "clutter",
-      "position": [-1.0, 3.5, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "subtype": "rectangular_prism",
-      "length": 2.5,
-      "width": 2.5,
-      "height": 16.0
-    },
-    {
-      "id": "obstacle_4",
-      "type": "clutter",
-      "position": [4.0, -2.0, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "subtype": "rectangular_prism",
-      "length": 2.5,
-      "width": 2.5,
-      "height": 16.0
-    },
-    {
-      "id": "obstacle_5",
-      "type": "clutter",
-      "position": [-6.5, -1.5, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "subtype": "rectangular_prism",
-      "length": 2.5,
-      "width": 2.5,
-      "height": 16.0
-    },
-    {
-      "id": "obstacle_6",
-      "type": "clutter",
-      "position": [2.5, 5.5, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "subtype": "rectangular_prism",
-      "length": 2.5,
-      "width": 2.5,
-      "height": 16.0
-    },
-    {
-      "id": "obstacle_7",
-      "type": "clutter",
-      "position": [0.0, 0.0, 0.0],
-      "orientation": [0.0, 0.0, 0.0],
-      "subtype": "rectangular_prism",
-      "length": 2.5,
-      "width": 2.5,
-      "height": 16.0
     }
   ],
   "start_position": [-6.0, -6.0, 0.0],

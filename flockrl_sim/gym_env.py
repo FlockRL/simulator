@@ -71,7 +71,7 @@ class FlockRLGymEnv(gym.Env):
         self,
         reward_fn: RewardFunction,
         environment: Environment,
-        config_path: Optional[Path] = None,
+        config_path: Path = Path(__file__).parent.parent / "config.yml",
         save_observations: bool = False,
     ) -> None:
         """

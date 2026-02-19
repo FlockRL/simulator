@@ -1,0 +1,43 @@
+{
+  "name": "rand_large_obstacles_only",
+  "description": "Environment with large obstacles only - no walls or gates, useful for testing obstacle avoidance with larger objects",
+  "bounds": [-8.0, 8.0, -8.0, 8.0, -8.0, 8.0],
+  "random_seed": null,
+  "obstacles": [
+    {
+      "id": "obstacle_1",
+      "type": "clutter",
+      "random": true,
+      "position": [-4.0, {"uniform": [-6.0, 6.0]}, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 2.5,
+      "width": 2.5,
+      "height": 5
+    },
+    {
+      "id": "obstacle_2",
+      "type": "clutter",
+      "random": true,
+      "position": [0.0, {"uniform": [-6.0, 6.0]}, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 2.5,
+      "width": 2.5,
+      "height": 5
+    },
+    {
+      "id": "obstacle_3",
+      "type": "clutter",
+      "random": true,
+      "position": [6.0, {"uniform": [-6.0, 3.0]}, 0.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "subtype": "rectangular_prism",
+      "length": 2.5,
+      "width": 2.5,
+      "height": 5
+    }
+  ],
+  "start_position": [-6.0, -6.0, 0.0],
+  "goal_position": [6.0, 6.0, 0.0]
+}
