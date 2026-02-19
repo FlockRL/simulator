@@ -1,6 +1,6 @@
 {
-  "name": "rand_3_balloons",
-  "description": "A realistic room environment with 3 balloons floating at various positions",
+  "name": "rand_2_balloons",
+  "description": "A realistic room environment with 2 balloons floating at various positions",
   "bounds": [-2.0, 2.0, -2.0, 2.0, 0.0, 3.0],
   "random_seed": null,
   "obstacles": [
@@ -8,7 +8,7 @@
       "id": "balloon_1",
       "type": "clutter",
       "random": true,
-      "position": [{"uniform": [-0.5, 1.5]}, -1.5, 1.5],
+      "position": [{"uniform": [-1.5, 1.5]}, -0.5, 1.5],
       "orientation": [0.0, 0.0, 0.0],
       "subtype": "rectangular_prism",
       "length": 0.5,
@@ -19,18 +19,7 @@
       "id": "balloon_2",
       "type": "clutter",
       "random": true,
-      "position": [{"uniform": [-1.5, 1.5]}, 0, 1.5],
-      "orientation": [0.0, 0.0, 0.0],
-      "subtype": "rectangular_prism",
-      "length": 0.5,
-      "width": 0.5,
-      "height": 0.5
-    },
-    {
-      "id": "balloon_3",
-      "type": "clutter",
-      "random": true,
-      "position": [{"uniform": [-1.5, 0.5]}, 1.5, 1.5],
+      "position": [{"uniform": [-1.5, 1.5]}, 0.5, 1.5],
       "orientation": [0.0, 0.0, 0.0],
       "subtype": "rectangular_prism",
       "length": 0.5,
