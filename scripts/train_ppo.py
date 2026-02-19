@@ -8,7 +8,6 @@ under experiments/<name>/ with a snapshot of the config and all outputs.
 Usage:
     python scripts/train_ppo.py my_experiment                         # basic run
     python scripts/train_ppo.py my_experiment --config my_config.yml  # different config
-    python scripts/train_ppo.py my_experiment --timesteps 1000000     # override timesteps
 """
 
 import argparse
@@ -124,8 +123,6 @@ def main():
     parser = argparse.ArgumentParser(description="Train PPO on FlockRL")
     parser.add_argument("name", type=str, help="Experiment name (saved under experiments/<name>/)")
     parser.add_argument("--config", type=Path, default=Path("config.yml"), help="Path to config.yml")
-    parser.add_argument("--timesteps", type=int, default=None, help="Override total_timesteps from config")
-    parser.add_argument("--num-envs", type=int, default=None, help="Override num_envs from config")
     args = parser.parse_args()
 
     # Load config
@@ -134,8 +131,8 @@ def main():
     train_cfg = config["training"]
     ppo_cfg = train_cfg["ppo"]
 
-    total_timesteps = args.timesteps or int(train_cfg["total_timesteps"])
-    num_envs = args.num_envs or int(train_cfg["num_envs"])
+    total_timesteps = int(train_cfg["total_timesteps"])
+    num_envs = int(train_cfg["num_envs"])
 
     # Create experiment directory
     env_spec = config["environment"]["spec"]

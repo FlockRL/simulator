@@ -6,7 +6,7 @@
 
 # --- Environment ---
 environment:
-  spec: large_obstacles_only
+  spec: 2_obstacles
   seed: null
   spawn_clearance: 2.0
   max_placement_attempts: 50
@@ -29,19 +29,19 @@ collision:
 # --- Perception ---
 perception:
   num_rays: 32
-  max_range: 50.0
-  max_neighbour_range: 10.0
+  max_range: 4.0
+  max_neighbour_range: 0.0
 
 # --- Gym Environment ---
 gym:
   num_drones: 1
-  max_neighbors: 4
+  max_neighbors: 0
   spawn_offset_range: 0.25
   save_runs: false
 
 # --- Reward Function ---
 reward:
-  progress_scale: 20.0
+  progress_scale: 50.0
   step_penalty: 0.05
   success_reward: 200.0
   collision_penalty: -50.0
@@ -52,7 +52,7 @@ reward:
 # --- Training ---
 training:
   total_timesteps: 20_000_000
-  num_envs: 8
+  num_envs: 8 # Decrease this for weaker machines
   checkpoint_freq: 10000
   ppo:
     learning_rate: 1.0e-4

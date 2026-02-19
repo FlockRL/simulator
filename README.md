@@ -43,6 +43,7 @@ flockrl_sim/
 ## Documentation
 
 - `docs/gym-env-usage.md` Gymnasium environment usage, configuration, and logging
+- `docs/rl-training.md` End-to-end PPO training, TensorBoard monitoring, evaluation, and troubleshooting
 - `docs/core-simulator.md` Core simulator engine and logging format
 - `docs/collision-system.md` Collision detection and response details
 - `docs/perception-system.md` Raycasting and neighbor observation logic
