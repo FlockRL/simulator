@@ -71,7 +71,7 @@ class FlockRLGymEnv(gym.Env):
         self,
         reward_fn: RewardFunction,
         environment: Environment,
-        config_path: Optional[Path] = None,
+        config_path: Path = Path(__file__).parent.parent / "config.yml",
         save_observations: bool = False,
     ) -> None:
         """
@@ -107,8 +107,8 @@ class FlockRLGymEnv(gym.Env):
         collision_system = self._build_collision_system(collision_config)
         self._collision_system = collision_system
         
-        log_dir = gym_config["log_dir"]
-        self._save_runs = bool(gym_config["save_runs"])
+        log_dir = gym_config.get("log_dir")
+        self._save_runs = bool(gym_config.get("save_runs", False))
         if self._save_runs and not log_dir:
             raise ValueError("gym.save_runs requires gym.log_dir to be set.")
         

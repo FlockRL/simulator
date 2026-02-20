@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from pydantic import BaseModel, Field, field_validator
 from .obstacles import ClutterSpec, WallSpec
 from .random_values import Vector3Value
@@ -13,7 +13,7 @@ class EnvironmentSpec(BaseModel):
     bounds: Tuple[
         float, float, float, float, float, float
     ]  # x_min, x_max, y_min, y_max, z_min, z_max
-    random_seed: int  # Seed is to keep environments reproducible
+    random_seed: Optional[int] = None  # Seed for reproducible environments. If None, uses system time for non-deterministic generation
     obstacles: List[Union[WallSpec, ClutterSpec]] = Field(default_factory=list)
     start_position: Vector3Value
     goal_position: Vector3Value

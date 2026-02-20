@@ -1,0 +1,41 @@
+{
+    "name": "3_balloons",
+    "description": "A realistic room environment with 3 balloons floating at various positions",
+    "bounds": [-2.0, 2.0, -2.0, 2.0, 0.0, 3.0],
+    "random_seed": 42,
+    "obstacles": [
+      {
+        "id": "balloon_1",
+        "type": "clutter",
+        "position": [-1.0, 1.5, 1.5],
+        "orientation": [0.0, 0.0, 0.0],
+        "subtype": "rectangular_prism",
+        "length": 0.5,
+        "width": 0.5,
+        "height": 0.5
+      },
+      {
+        "id": "balloon_2",
+        "type": "clutter",
+        "position": [0.0, 0.0, 1.5],
+        "orientation": [0.0, 0.0, 0.0],
+        "subtype": "rectangular_prism",
+        "length": 0.5,
+        "width": 0.5,
+        "height": 0.5
+      },
+      {
+        "id": "balloon_3",
+        "type": "clutter",
+        "position": [1.5, -1.5, 1.5],
+        "orientation": [0.0, 0.0, 0.0],
+        "subtype": "rectangular_prism",
+        "length": 0.5,
+        "width": 0.5,
+        "height": 0.5
+      }
+    ],
+    "start_position": [-1.5, -1.5, 0.5],
+    "goal_position": [1.5, 1.5, 0.5]
+  }
+  

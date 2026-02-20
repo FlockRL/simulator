@@ -42,7 +42,7 @@ class Environment:
     obstacles: List[Obstacle]
     start_position: Tuple[float, float, float]
     goal_position: Tuple[float, float, float]
-    seed: int
+    seed: Optional[int]
 
     def __post_init__(self) -> None:
         validation_result = validate_environment(
@@ -72,9 +72,10 @@ class Environment:
         logger.debug(f"Bounds: {self.bounds}")
         logger.debug(f"Seed: {self.seed}")
         logger.debug(f"Number of obstacles: {len(self.obstacles)}")
+        seed_str = str(self.seed) if self.seed is not None else "None (non-deterministic)"
         summary_lines = [
             f"Environment bounds: {self.bounds}",
-            f"Seed: {self.seed}",
+            f"Seed: {seed_str}",
             f"Number of obstacles: {len(self.obstacles)}",
             f"Start position: {self.start_position}",
             f"Goal position: {self.goal_position}",
@@ -103,7 +104,8 @@ class EnvironmentBuilder:
     @classmethod
     def from_spec(cls, spec: EnvironmentSpec, spawn_clearance: float, max_placement_attempts: int) -> "EnvironmentBuilder":
         """Builds environment and validates it from EnvironmentSpec (manual, random, or hybrid)"""
-        rng = random.Random(spec.random_seed)
+        # If random_seed is None, use system time for non-deterministic generation
+        rng = random.Random() if spec.random_seed is None else random.Random(spec.random_seed)
         start_pos = resolve_vector(spec.start_position, rng)
         goal_pos = resolve_vector(spec.goal_position, rng)
         env = Environment(

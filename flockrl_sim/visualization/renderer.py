@@ -38,6 +38,30 @@ class OfflineVisualizer:
         with open(self.log_path, "r") as f:
             data = json.load(f)
 
+        # Validate data structure
+        if isinstance(data, list):
+            raise ValueError(
+                f"Expected a simulation run file (dict with 'metadata' and 'frames'), "
+                f"but got a list. This looks like 'episode_results.json' (episode summary), "
+                f"not a simulation run file (episode_XXXXXX.json). "
+                f"Please use a file created by CoreSimulator.save_run() for visualization."
+            )
+        
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"Expected a dict with 'metadata' and 'frames' keys, but got {type(data).__name__}"
+            )
+        
+        if "metadata" not in data:
+            raise ValueError(
+                f"Missing 'metadata' key in log file. Expected structure: {{'metadata': ..., 'frames': ...}}"
+            )
+        
+        if "frames" not in data:
+            raise ValueError(
+                f"Missing 'frames' key in log file. Expected structure: {{'metadata': ..., 'frames': ...}}"
+            )
+
         self.metadata = data["metadata"]
         self.frames = data["frames"]
 
