@@ -11,18 +11,19 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import numpy as np
+import logging
 
 from ..environment.obstacles import Environment
 from ..environment.obstacles_types import Gate, RectangularPrism, Wall
 from ..geometry import (
     OBB,
     build_rotation_matrix,
-    point_in_obb,
     points_in_obb_batch,
     ray_intersect_obb_batch,
 )
 from ..state import SwarmState
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class SensorConfig:
@@ -138,7 +139,11 @@ class PerceptionSystem:
                 )
                 gate_ids = ()
             else:
-                continue  # skip obstacles without OBB geometry
+                logger.warning(
+                    "Obstacle type %r has no OBB geometry and will be ignored by the perception system.",
+                    type(obs).__name__,
+                )
+                continue
 
             self._ray_obstacles.append(
                 {
@@ -149,23 +154,6 @@ class PerceptionSystem:
                     "gate_ids": gate_ids,
                 }
             )
-
-    def _is_point_inside_gate(self, point: np.ndarray, gate) -> bool:
-        """
-        Check if a point is inside a gate's bounding volume, this is to filter out rays that hit a portion of the wall which contains a gate
-        """
-        gate_pos = np.array(gate.position, dtype=float)
-
-        # Gate dimensions: (width, thickness, height) map to (x, y, z) half-extents
-        half_extents = np.array(
-            [gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float
-        )
-
-        obb = OBB(
-            center=gate_pos, half_extents=half_extents, orientation=gate.orientation
-        )
-
-        return point_in_obb(point, obb)
 
     def observe(self, state: SwarmState) -> List[SensorReading]:
         """

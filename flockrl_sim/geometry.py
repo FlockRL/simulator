@@ -107,6 +107,10 @@ def ray_intersect_obb(
 
     tmin = np.maximum.reduce(np.minimum(t1, t2))
     tmax = np.minimum.reduce(np.maximum(t1, t2))
+    
+    if __debug__:
+        inside = (tmax >= 0) & (tmin <= tmax) & (tmin < 0)
+        assert not np.any(inside), "Ray origin inside OBB - collision should have ended episode"
 
     if tmax < 0 or tmin > tmax or tmin > max_distance:
         return None
@@ -197,19 +201,6 @@ def sphere_intersect_obb(
     contact_world = obb.center + R @ contact_local
 
     return penetration, contact_world, normal_world
-
-
-def point_in_obb(point: np.ndarray, obb: OBB) -> bool:
-    """
-    Check if a point is strictly inside an OBB.
-    """
-    R = obb.rotation_matrix
-
-    # Transform point to box's local coordinate system
-    local_point = R.T @ (point - obb.center)
-
-    # Check against half extents
-    return np.all(np.abs(local_point) <= obb.half_extents)
 
 
 def ray_intersect_obb_batch(
