@@ -11,11 +11,19 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import numpy as np
+import logging
 
 from ..environment.obstacles import Environment
-from ..geometry import OBB, point_in_obb
+from ..environment.obstacles_types import Gate, RectangularPrism, Wall
+from ..geometry import (
+    OBB,
+    build_rotation_matrix,
+    points_in_obb_batch,
+    ray_intersect_obb_batch,
+)
 from ..state import SwarmState
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class SensorConfig:
@@ -88,6 +96,7 @@ class PerceptionSystem:
         self.environment = environment
         self.config = config
         self.rays = generate_rays(self.config.num_rays, seed)
+        self._prepare_obstacle_cache()
 
     def reset(
         self, config: SensorConfig, seed: Optional[int] = None
@@ -99,26 +108,59 @@ class PerceptionSystem:
         self.config = config
         self.rays = generate_rays(self.config.num_rays, seed)
 
-    def _is_point_inside_gate(self, point: np.ndarray, gate) -> bool:
-        """
-        Check if a point is inside a gate's bounding volume, this is to filter out rays that hit a portion of the wall which contains a gate
-        """
-        gate_pos = np.array(gate.position, dtype=float)
+    def _prepare_obstacle_cache(self) -> None:
+        """Pre-compute obstacle OBB data for efficient batch raycasting."""
+        self._ray_obstacles: List[Dict] = []
+        self._gate_cache: Dict[str, Dict] = {}
 
-        # Gate dimensions: (width, thickness, height) map to (x, y, z) half-extents
-        half_extents = np.array(
-            [gate.width * 0.5, gate.thickness * 0.5, gate.height * 0.5], dtype=float
-        )
+        for obs in self.environment.obstacles:
+            center = np.array(obs.position, dtype=float)
+            R = build_rotation_matrix(obs.orientation)
 
-        obb = OBB(
-            center=gate_pos, half_extents=half_extents, orientation=gate.orientation
-        )
+            if isinstance(obs, Gate):
+                half = np.array(
+                    [obs.width * 0.5, obs.thickness * 0.5, obs.height * 0.5]
+                )
+                self._gate_cache[obs.id] = {
+                    "center": center,
+                    "half_extents": half,
+                    "rotation": R,
+                }
+                continue  # gates are transparent to rays
 
-        return point_in_obb(point, obb)
+            if isinstance(obs, Wall):
+                half = np.array(
+                    [obs.length * 0.5, obs.thickness * 0.5, obs.height * 0.5]
+                )
+                gate_ids = obs.gate_ids
+            elif isinstance(obs, RectangularPrism):
+                half = np.array(
+                    [obs.length * 0.5, obs.width * 0.5, obs.height * 0.5]
+                )
+                gate_ids = ()
+            else:
+                logger.warning(
+                    "Obstacle type %r has no OBB geometry and will be ignored by the perception system.",
+                    type(obs).__name__,
+                )
+                continue
+
+            self._ray_obstacles.append(
+                {
+                    "center": center,
+                    "half_extents": half,
+                    "rotation": R,
+                    "type": obs.type,
+                    "gate_ids": gate_ids,
+                }
+            )
 
     def observe(self, state: SwarmState) -> List[SensorReading]:
         """
         Compute sensor readings for every drone in state.
+
+        Uses vectorized batch raycasting: all N*M rays are tested against each
+        obstacle in a single numpy operation instead of per-ray Python loops.
 
         Args:
             state: Current state of the swarm
@@ -130,70 +172,67 @@ class PerceptionSystem:
 
         N = state.pos.shape[0]
         M = self.config.num_rays
+        max_range = self.config.max_range
 
-        # Build gate map for filtering wall hits that pass through gates
-        gates = [obs for obs in self.environment.obstacles if obs.type == "gate"]
-        gate_map = {gate.id: gate for gate in gates}
+        # Build all ray origins and directions for batch processing
+        # Each drone casts M rays, total K = N*M rays
+        origins = np.repeat(state.pos, M, axis=0)  # (K, 3)
+        directions = np.tile(self.rays, (N, 1))  # (K, 3)
 
-        # for each drone, calculate relative position/velocity of other drones in the swarm
+        # Initialize all distances to max range
+        distances = np.full(N * M, max_range)
+
+        # Test rays against each obstacle in one batch operation per obstacle
+        for obs_data in self._ray_obstacles:
+            obs_dists = ray_intersect_obb_batch(
+                origins,
+                directions,
+                obs_data["center"],
+                obs_data["half_extents"],
+                obs_data["rotation"],
+                max_range,
+            )
+
+            # Filter wall hits that pass through gates
+            if obs_data["type"] == "wall" and obs_data["gate_ids"]:
+                hit_mask = obs_dists < max_range
+                if np.any(hit_mask):
+                    hit_points = (
+                        origins[hit_mask]
+                        + obs_dists[hit_mask, np.newaxis] * directions[hit_mask]
+                    )
+
+                    in_any_gate = np.zeros(hit_mask.sum(), dtype=bool)
+                    for gate_id in obs_data["gate_ids"]:
+                        gate = self._gate_cache[gate_id]
+                        in_any_gate |= points_in_obb_batch(
+                            hit_points,
+                            gate["center"],
+                            gate["half_extents"],
+                            gate["rotation"],
+                        )
+
+                    # Invalidate hits inside gates
+                    hit_indices = np.where(hit_mask)[0]
+                    obs_dists[hit_indices[in_any_gate]] = max_range
+
+            # Update closest distances
+            np.minimum(distances, obs_dists, out=distances)
+
+        # Reshape to per-drone arrays
+        all_dists = distances.reshape(N, M)
+        all_hits = all_dists < max_range
+
+        # Neighbor detection (already vectorized)
         neighbor_pos = state.pos[None, :, :] - state.pos[:, None, :]
         vel = state.vel if state.vel is not None else np.zeros_like(state.pos)
         neighbor_vel = vel[None, :, :] - vel[:, None, :]
-
-        # for each drone, calculate relative distance of other drones in the swarm
         neighbor_dist = np.linalg.norm(neighbor_pos, axis=-1)
-
-        # drones will not consider itself as a neighbor
         np.fill_diagonal(neighbor_dist, float("inf"))
 
+        # Build per-drone SensorReadings
         readings = []
-        # for each drone get a SensorReading
         for i in range(N):
-            # by default there is no ray hit and ray-cast distance is maximum sensing distance
-            ray_dists = np.full(M, self.config.max_range)
-            ray_hits = np.full(M, False)
-
-            # for each ray, get its ray-cast distance and whether it hit an obstacle
-            for j in range(M):
-                # Get ray intersections from all obstacles, tracking which obstacle each hit came from
-                raycast_results = [
-                    (obst, obst.ray_intersect(
-                        state.pos[i], self.rays[j], self.config.max_range
-                    ))
-                    for obst in self.environment.obstacles
-                ]
-
-                # Filter out None results
-                hits = [(obst, res) for obst, res in raycast_results if res is not None]
-
-                # Filter out wall hits that pass through gates
-                filtered_hits = []
-                for obst, hit_info in hits:
-                    # Check if this is a wall hit
-                    if obst.type == "wall":
-                        _, hit_point, _ = hit_info
-                        # Check if hit point is inside any of this wall's gates
-                        gate_ids = obst.gate_ids
-                        is_in_gate = False
-                        for gate_id in gate_ids:
-                            gate = gate_map[gate_id]
-                            if self._is_point_inside_gate(hit_point, gate):
-                                is_in_gate = True
-                                break
-                        # Skip this wall hit if it's inside a gate (ray passes through)
-                        if is_in_gate:
-                            continue
-
-                    # Also filter out gate hits (gates should be transparent to rays)
-                    if obst.type == "gate":
-                        continue
-
-                    filtered_hits.append(hit_info)
-
-                if filtered_hits:
-                    ray_dists[j] = min(hit[0] for hit in filtered_hits)
-                    ray_hits[j] = True
-
             neighbor_vectors = np.zeros((0, 6), dtype=float)
             if self.config.max_neighbour_range > 0:
                 in_range = neighbor_dist[i] < self.config.max_neighbour_range
@@ -206,6 +245,6 @@ class PerceptionSystem:
                         axis=1,
                     )
 
-            readings.append(SensorReading(ray_dists, ray_hits, neighbor_vectors))
+            readings.append(SensorReading(all_dists[i], all_hits[i], neighbor_vectors))
 
         return readings
