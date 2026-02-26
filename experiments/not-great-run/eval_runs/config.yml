@@ -1,0 +1,54 @@
+environment:
+  spec: 2_obstacles
+  seed: null
+  spawn_clearance: 2.0
+  max_placement_attempts: 50
+simulation:
+  delta_t: 0.01666666666
+  max_steps: 2000
+  goal_threshold: 0.5
+  max_acceleration: 5.0
+  terminate_on_collision: true
+  reset_position_noise: 0.5
+  reset_velocity_noise: 0.1
+collision:
+  drone_radius: 0.2
+  restitution: 1.0
+perception:
+  num_rays: 32
+  max_range: 4.0
+  max_neighbour_range: 0.0
+gym:
+  num_drones: 1
+  max_neighbors: 0
+  spawn_offset_range: 0.25
+  save_runs: true
+  log_dir: /Users/joshz/repos/flockrl/simulator/experiments/not-great-run/eval_runs
+reward:
+  progress_scale: 50.0
+  step_penalty: 0.05
+  success_reward: 200.0
+  collision_penalty: -50.0
+  wall_collision_penalty: -50.0
+  obstacle_collision_penalty: -50.0
+  alive_bonus: 0.1
+training:
+  total_timesteps: 20000000
+  num_envs: 8
+  checkpoint_freq: 10000
+  ppo:
+    learning_rate: 0.0001
+    n_steps: 2048
+    batch_size: 64
+    n_epochs: 4
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.1
+    ent_coef: 0.0
+    vf_coef: 0.5
+    max_grad_norm: 0.5
+    log_std_init: -1.0
+    ortho_init: false
+visualization:
+  fps: 60
+  render_mode: offline

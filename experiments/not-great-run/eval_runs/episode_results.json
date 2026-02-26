@@ -1,0 +1,16 @@
+[
+  {
+    "episode_num": 0,
+    "steps": 27,
+    "termination_reason": "collision",
+    "total_reward": -39.319044987935314,
+    "final_goal_distance": 3.3369044072248766,
+    "min_goal_distance": 3.3369044072248766,
+    "collision_count": 1,
+    "start_time": 1772094700.111201,
+    "end_time": 1772094700.118162,
+    "metadata": {
+      "seed": null
+    }
+  }
+]

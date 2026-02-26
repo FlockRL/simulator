@@ -13,3 +13,10 @@ logs/
 models/
 eval_logs/
 experiments/*
+# Explicitly track only selected files under this experiment
+!experiments/not-great-run/
+!experiments/not-great-run/config.yml
+!experiments/not-great-run/model.zip
+!experiments/not-great-run/eval_runs/config.yml
+!experiments/not-great-run/eval_runs/episode_000000.json
+!experiments/not-great-run/eval_runs/episode_results.json
