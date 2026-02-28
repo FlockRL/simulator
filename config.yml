@@ -41,15 +41,16 @@ gym:
 
 # --- Reward Function ---
 reward:
-  progress_scale: 50.0
-  step_penalty: 0.05
-  success_reward: 200.0
-  collision_penalty: -50.0
-  wall_collision_penalty: -50.0
-  obstacle_collision_penalty: -50.0
+  progress_scale: 60.0
+  step_penalty: 0.04
+  success_reward: 300.0
+  collision_penalty: -80.0
+  wall_collision_penalty: -80.0
+  obstacle_collision_penalty: -80.0
   alive_bonus: 0.1
 
 # --- Training ---
+# For 2_obstacles, 1M steps gives ~0.8% success; 20M recommended for better convergence.
 training:
   total_timesteps: 20_000_000
   num_envs: 8 # Decrease this for weaker machines
@@ -62,11 +63,11 @@ training:
     gamma: 0.99
     gae_lambda: 0.95
     clip_range: 0.1
-    ent_coef: 0.0
+    ent_coef: 0.01  # Small exploration; 0.0 can collapse to repetitive collisions
     vf_coef: 0.5
     max_grad_norm: 0.5
     log_std_init: -1.0
-    ortho_init: false
+    ortho_init: true
 
 # --- Visualization ---
 visualization:

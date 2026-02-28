@@ -8,6 +8,7 @@ under experiments/<name>/ with a snapshot of the config and all outputs.
 Usage:
     python scripts/train_ppo.py my_experiment                         # basic run
     python scripts/train_ppo.py my_experiment --config my_config.yml  # different config
+    python scripts/train_ppo.py my_experiment --load path/to/model.zip --env rand_3_obstacles  # fine-tune
 """
 
 import argparse
@@ -17,6 +18,7 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
+import yaml
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
@@ -123,6 +125,18 @@ def main():
     parser = argparse.ArgumentParser(description="Train PPO on FlockRL")
     parser.add_argument("name", type=str, help="Experiment name (saved under experiments/<name>/)")
     parser.add_argument("--config", type=Path, default=Path("config.yml"), help="Path to config.yml")
+    parser.add_argument(
+        "--load",
+        type=Path,
+        default=None,
+        help="Load this model and continue training (e.g. experiments/test3/model.zip)",
+    )
+    parser.add_argument(
+        "--env",
+        type=str,
+        default=None,
+        help="Override environment spec (used with --load; e.g. rand_3_obstacles)",
+    )
     args = parser.parse_args()
 
     # Load config
@@ -134,47 +148,62 @@ def main():
     total_timesteps = int(train_cfg["total_timesteps"])
     num_envs = int(train_cfg["num_envs"])
 
-    # Create experiment directory
+    # Override env spec when fine-tuning with --env
+    if args.env is not None:
+        config["environment"]["spec"] = args.env
+        if args.load is None:
+            sys.exit("--env requires --load (use --env only when continuing training on a different env)")
+
     env_spec = config["environment"]["spec"]
     name = args.name
     exp_dir = Path("experiments") / name
     exp_dir.mkdir(parents=True, exist_ok=True)
     (exp_dir / "checkpoints").mkdir(exist_ok=True)
 
-    # Snapshot config into experiment directory
+    # Snapshot config into experiment directory (with overridden spec if any)
     snapshot_path = exp_dir / "config.yml"
-    shutil.copy2(config_path, snapshot_path)
+    with open(snapshot_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
     print(f"Experiment: {exp_dir}")
     print(f"Env spec:   {env_spec}")
     print(f"Timesteps:  {total_timesteps:,}")
     print(f"Num envs:   {num_envs}")
+    if args.load is not None:
+        print(f"Load from:  {args.load.resolve()}")
     print("=" * 60)
 
     # Create vectorized environment (use snapshot so config_path matches exp_dir)
     env = SubprocVecEnv([make_env(i, config, snapshot_path, exp_dir) for i in range(num_envs)])
 
-    # Create PPO model
-    model = PPO(
-        "MlpPolicy",
-        env,
-        learning_rate=float(ppo_cfg["learning_rate"]),
-        n_steps=int(ppo_cfg["n_steps"]),
-        batch_size=int(ppo_cfg["batch_size"]),
-        n_epochs=int(ppo_cfg["n_epochs"]),
-        gamma=float(ppo_cfg["gamma"]),
-        gae_lambda=float(ppo_cfg["gae_lambda"]),
-        clip_range=float(ppo_cfg["clip_range"]),
-        ent_coef=float(ppo_cfg["ent_coef"]),
-        vf_coef=float(ppo_cfg["vf_coef"]),
-        max_grad_norm=float(ppo_cfg["max_grad_norm"]),
-        policy_kwargs={
-            "log_std_init": float(ppo_cfg["log_std_init"]),
-            "ortho_init": bool(ppo_cfg["ortho_init"]),
-        },
-        verbose=1,
-        tensorboard_log=str(exp_dir / "tensorboard"),
-    )
+    if args.load is not None:
+        load_path = args.load.resolve()
+        if not load_path.exists():
+            sys.exit(f"Model not found: {load_path}")
+        model = PPO.load(str(load_path), env=env)
+        model.tensorboard_log = str(exp_dir / "tensorboard")
+    else:
+        # Create PPO model from scratch
+        model = PPO(
+            "MlpPolicy",
+            env,
+            learning_rate=float(ppo_cfg["learning_rate"]),
+            n_steps=int(ppo_cfg["n_steps"]),
+            batch_size=int(ppo_cfg["batch_size"]),
+            n_epochs=int(ppo_cfg["n_epochs"]),
+            gamma=float(ppo_cfg["gamma"]),
+            gae_lambda=float(ppo_cfg["gae_lambda"]),
+            clip_range=float(ppo_cfg["clip_range"]),
+            ent_coef=float(ppo_cfg["ent_coef"]),
+            vf_coef=float(ppo_cfg["vf_coef"]),
+            max_grad_norm=float(ppo_cfg["max_grad_norm"]),
+            policy_kwargs={
+                "log_std_init": float(ppo_cfg["log_std_init"]),
+                "ortho_init": bool(ppo_cfg["ortho_init"]),
+            },
+            verbose=1,
+            tensorboard_log=str(exp_dir / "tensorboard"),
+        )
 
     # Callbacks
     checkpoint_cb = CheckpointCallback(
