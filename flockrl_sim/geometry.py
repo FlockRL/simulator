@@ -203,6 +203,9 @@ def sphere_intersect_obb(
     return penetration, contact_world, normal_world
 
 
+import numba as nb
+
+@nb.njit(fastmath=True, cache=True)
 def ray_intersect_obb_batch(
     origins: np.ndarray,
     directions: np.ndarray,
@@ -211,43 +214,68 @@ def ray_intersect_obb_batch(
     obb_rotation: np.ndarray,
     max_distance: float,
 ) -> np.ndarray:
-    """
-    Batch ray-OBB intersection using vectorized slab method.
+    """Numba-optimized batch ray-OBB intersection."""
+    K = origins.shape[0]
+    result = np.full(K, max_distance, dtype=np.float64)
+    
+    for i in range(K):
+        # Transform ray to local space
+        o_local_x = 0.0; o_local_y = 0.0; o_local_z = 0.0
+        d_local_x = 0.0; d_local_y = 0.0; d_local_z = 0.0
+        
+        # Manual matrix multiplication for speed
+        ox = origins[i, 0] - obb_center[0]
+        oy = origins[i, 1] - obb_center[1]
+        oz = origins[i, 2] - obb_center[2]
+        dx = directions[i, 0]
+        dy = directions[i, 1]
+        dz = directions[i, 2]
+        
+        for j in range(3):
+            o_local_x += ox * obb_rotation[0, 0] + oy * obb_rotation[1, 0] + oz * obb_rotation[2, 0]
+            o_local_y += ox * obb_rotation[0, 1] + oy * obb_rotation[1, 1] + oz * obb_rotation[2, 1]
+            o_local_z += ox * obb_rotation[0, 2] + oy * obb_rotation[1, 2] + oz * obb_rotation[2, 2]
+            
+            d_local_x += dx * obb_rotation[0, 0] + dy * obb_rotation[1, 0] + dz * obb_rotation[2, 0]
+            d_local_y += dx * obb_rotation[0, 1] + dy * obb_rotation[1, 1] + dz * obb_rotation[2, 1]
+            d_local_z += dx * obb_rotation[0, 2] + dy * obb_rotation[1, 2] + dz * obb_rotation[2, 2]
 
-    Tests K rays against a single OBB simultaneously.
+        # Slab method
+        tmin = -1e9
+        tmax = 1e9
+        
+        # X-axis
+        if abs(d_local_x) > 1e-8:
+            tx1 = (-obb_half_extents[0] - o_local_x) / d_local_x
+            tx2 = (obb_half_extents[0] - o_local_x) / d_local_x
+            tmin = max(tmin, min(tx1, tx2))
+            tmax = min(tmax, max(tx1, tx2))
+        elif abs(o_local_x) > obb_half_extents[0]:
+            continue # Ray is parallel and outside
 
-    Args:
-        origins: Ray origins, shape (K, 3)
-        directions: Normalized ray directions, shape (K, 3)
-        obb_center: OBB center, shape (3,)
-        obb_half_extents: OBB half extents, shape (3,)
-        obb_rotation: OBB rotation matrix, shape (3, 3)
-        max_distance: Maximum ray distance
+        # Y-axis
+        if abs(d_local_y) > 1e-8:
+            ty1 = (-obb_half_extents[1] - o_local_y) / d_local_y
+            ty2 = (obb_half_extents[1] - o_local_y) / d_local_y
+            tmin = max(tmin, min(ty1, ty2))
+            tmax = min(tmax, max(ty1, ty2))
+        elif abs(o_local_y) > obb_half_extents[1]:
+            continue
+            
+        # Z-axis
+        if abs(d_local_z) > 1e-8:
+            tz1 = (-obb_half_extents[2] - o_local_z) / d_local_z
+            tz2 = (obb_half_extents[2] - o_local_z) / d_local_z
+            tmin = max(tmin, min(tz1, tz2))
+            tmax = min(tmax, max(tz1, tz2))
+        elif abs(o_local_z) > obb_half_extents[2]:
+            continue
 
-    Returns:
-        Distances to hit for each ray, shape (K,). max_distance for misses.
-    """
-    # Transform rays to OBB local space
-    # R.T @ v for column vector v == v @ R for row vector v
-    o_local = (origins - obb_center) @ obb_rotation  # (K, 3)
-    d_local = directions @ obb_rotation  # (K, 3)
-
-    # Slab method for AABB in local space
-    with np.errstate(divide="ignore", invalid="ignore"):
-        t1 = (-obb_half_extents - o_local) / d_local  # (K, 3)
-        t2 = (obb_half_extents - o_local) / d_local  # (K, 3)
-
-    tmin = np.max(np.minimum(t1, t2), axis=1)  # (K,)
-    tmax = np.min(np.maximum(t1, t2), axis=1)  # (K,)
-
-    # Hit distance: use entry point if in front of ray, else exit point
-    t_hit = np.where(tmin >= 0, tmin, tmax)
-
-    # Valid hits: box not behind ray, slabs overlap, within max distance
-    valid = (tmax >= 0) & (tmin <= tmax) & (t_hit <= max_distance)
-
-    result = np.full(origins.shape[0], max_distance)
-    result[valid] = t_hit[valid]
+        if tmax >= 0 and tmin <= tmax:
+            t_hit = tmin if tmin >= 0 else tmax
+            if t_hit <= max_distance:
+                result[i] = t_hit
+                
     return result
 
 

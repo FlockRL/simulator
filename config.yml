@@ -6,15 +6,15 @@
 
 # --- Environment ---
 environment:
-  spec: 2_obstacles
+  spec: rand_2_obstacles
   seed: null
   spawn_clearance: 2.0
   max_placement_attempts: 50
 
 # --- Simulation ---
 simulation:
-  delta_t: 0.01666666666
-  max_steps: 2000
+  delta_t: 0.033333333333
+  max_steps: 1000
   goal_threshold: 0.5
   max_acceleration: 5.0
   terminate_on_collision: true
@@ -28,7 +28,7 @@ collision:
 
 # --- Perception ---
 perception:
-  num_rays: 32
+  num_rays: 16
   max_range: 4.0
   max_neighbour_range: 0.0
 
@@ -51,13 +51,13 @@ reward:
 
 # --- Training ---
 training:
-  total_timesteps: 20_000_000
-  num_envs: 8 # Decrease this for weaker machines
+  total_timesteps: 5_000_000
+  num_envs: 16 # Decrease this for weaker machines. Try to match amount of CPU cores.
   checkpoint_freq: 10000
   ppo:
     learning_rate: 1.0e-4
     n_steps: 2048
-    batch_size: 64
+    batch_size: 2048 # 2^24, must be divisible by n_steps * num_envs
     n_epochs: 4
     gamma: 0.99
     gae_lambda: 0.95

@@ -17,6 +17,7 @@ dependencies = [
     "simple-term-menu>=1.6.1",
     "dash>=2.14",
     "plotly>=5.18",
+    "numba>=0.64.0",
 ]
 
 [project.optional-dependencies]

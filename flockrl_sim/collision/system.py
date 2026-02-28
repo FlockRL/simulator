@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, List
 
 import numpy as np
+import numba as nb
 
 from ..environment import Environment
 from ..environment.obstacles_types import RectangularPrism
@@ -11,30 +12,31 @@ from ..geometry import OBB, sphere_intersect_obb
 from ..state import SwarmState
 
 
-@dataclass
 class CollisionInfo:
-    """
-    Will be generated for each collision that occurs.
+    """Highly optimized collision info container using __slots__."""
+    __slots__ = [
+        'drone_id', 'collision_type', 'normal_vector', 'contact_point', 
+        'penetration_depth', 'rebound_velocity', 'new_position'
+    ]
 
-    Data fields:
-        drone_id: ID of the drone that collided
-        collision_type: Assuming only drones can collide into objects,
-            this will be the type of object collided into ("wall", "clutter")
-        normal_vector: Surface normal at collision point, shape (3,)
-        contact_point: Point of contact in world coordinates, shape (3,)
-        penetration_depth: How far the drone penetrated the obstacle [m]
-        rebound_velocity: Velocity of the drone after the collision, shape (3,)
-        new_position: The new position of the drone after the collision, shape (3,)
-    """
+    def __init__(self, drone_id: int, collision_type: str, normal_vector: np.ndarray,
+                 contact_point: np.ndarray, penetration_depth: float,
+                 rebound_velocity: np.ndarray, new_position: np.ndarray):
+        self.drone_id = drone_id
+        self.collision_type = collision_type
+        self.normal_vector = normal_vector
+        self.contact_point = contact_point
+        self.penetration_depth = penetration_depth
+        self.rebound_velocity = rebound_velocity
+        self.new_position = new_position
 
-    drone_id: int
-    collision_type: str
-    normal_vector: np.ndarray  # shape (3,)
-    contact_point: np.ndarray  # shape (3,)
-    penetration_depth: float
-    rebound_velocity: np.ndarray  # shape (3,)
-    new_position: np.ndarray  # shape (3,)
-
+@nb.njit(fastmath=True, cache=True)
+def fast_apply_rebound(velocity: np.ndarray, normal: np.ndarray, restitution: float) -> np.ndarray:
+    n_norm = np.linalg.norm(normal) + 1e-12
+    n = normal / n_norm
+    v_n = np.dot(velocity, n) * n
+    v_t = velocity - v_n
+    return v_t - restitution * v_n
 
 @dataclass
 class CollisionSystem:
@@ -83,6 +85,11 @@ class CollisionSystem:
         info = {"collisions": collisions}
         return state, info
 
+    def apply_rebound(
+        self, velocity: np.ndarray, normal: np.ndarray, restitution: float
+    ) -> np.ndarray:
+        return fast_apply_rebound(velocity, normal, restitution)
+    
     def check_bounds_collision(
         self, state: SwarmState, bounds: Any
     ) -> List[CollisionInfo]:
@@ -175,85 +182,85 @@ class CollisionSystem:
         return collisions
 
     def check_drone_collision(self, state: SwarmState) -> List[CollisionInfo]:
-        """
-        Check for collisions between drones (sphere-sphere).
-        """
+        """Vectorized sphere-sphere collision check."""
         collisions: List[CollisionInfo] = []
+        num_drones = state.pos.shape[0]
+        if num_drones < 2:
+            return collisions
+
         r = self.drone_radius
         min_dist = 2.0 * r
         min_dist_sq = min_dist * min_dist
 
-        num_drones = state.pos.shape[0]
-        for i in range(num_drones):
-            for j in range(i + 1, num_drones):
-                pos_i = state.pos[i]
-                pos_j = state.pos[j]
-                diff = pos_i - pos_j
-                dist_sq = float(np.dot(diff, diff))
-                if dist_sq >= min_dist_sq: # Equivalent to dx^2 + dy^2 + dz^2 >= (2r)^2
-                    continue
+        # Vectorized pairwise squared distances
+        diffs = state.pos[:, None, :] - state.pos[None, :, :]  # Shape: (N, N, 3)
+        dists_sq = np.sum(diffs**2, axis=-1)  # Shape: (N, N)
 
-                dist = np.sqrt(dist_sq)
-                if dist > 1e-12:
-                    normal = diff / dist
+        # Get upper triangle indices to avoid checking (i,j) and (j,i), and ignore self (i,i)
+        i_idx, j_idx = np.triu_indices(num_drones, k=1)
+
+        # Boolean mask of actual collisions
+        collision_mask = dists_sq[i_idx, j_idx] < min_dist_sq
+        
+        # Extract indices of only the colliding pairs
+        colliding_i = i_idx[collision_mask]
+        colliding_j = j_idx[collision_mask]
+        actual_dists_sq = dists_sq[i_idx, j_idx][collision_mask]
+
+        # Only execute the heavy resolution math for actual collisions
+        for idx in range(len(colliding_i)):
+            i = colliding_i[idx]
+            j = colliding_j[idx]
+            dist_sq = actual_dists_sq[idx]
+            dist = np.sqrt(dist_sq)
+
+            diff = diffs[i, j]
+            if dist > 1e-12:
+                normal = diff / dist
+            else:
+                rel_vel = state.vel[i] - state.vel[j]
+                rel_speed = float(np.linalg.norm(rel_vel))
+                if rel_speed > 1e-12:
+                    normal = rel_vel / rel_speed
                 else:
-                    rel_vel = state.vel[i] - state.vel[j]
-                    rel_speed = float(np.linalg.norm(rel_vel))
-                    if rel_speed > 1e-12:
-                        normal = rel_vel / rel_speed
-                    else:
-                        normal = np.array([1.0, 0.0, 0.0], dtype=float)
+                    normal = np.array([1.0, 0.0, 0.0], dtype=float)
 
-                penetration = min_dist - dist
-                correction = 0.5 * penetration * normal
-                new_pos_i = pos_i + correction
-                new_pos_j = pos_j - correction
+            penetration = min_dist - dist
+            correction = 0.5 * penetration * normal
+            new_pos_i = state.pos[i] + correction
+            new_pos_j = state.pos[j] - correction
 
-                vel_i = state.vel[i]
-                vel_j = state.vel[j]
-                v1n = float(np.dot(vel_i, normal))
-                v2n = float(np.dot(vel_j, normal))
-                rel_n = v1n - v2n
+            vel_i = state.vel[i]
+            vel_j = state.vel[j]
+            v1n = float(np.dot(vel_i, normal))
+            v2n = float(np.dot(vel_j, normal))
+            rel_n = v1n - v2n
 
-                if rel_n < 0.0:
-                    impulse = -(1.0 + self.restitution) * rel_n * 0.5
-                    v1n_after = v1n + impulse
-                    v2n_after = v2n - impulse
-                else:
-                    v1n_after = v1n
-                    v2n_after = v2n
+            if rel_n < 0.0:
+                impulse = -(1.0 + self.restitution) * rel_n * 0.5
+                v1n_after = v1n + impulse
+                v2n_after = v2n - impulse
+            else:
+                v1n_after = v1n
+                v2n_after = v2n
 
-                v1_t = vel_i - v1n * normal
-                v2_t = vel_j - v2n * normal
-                rebound_vel_i = v1_t + v1n_after * normal
-                rebound_vel_j = v2_t + v2n_after * normal
+            v1_t = vel_i - v1n * normal
+            v2_t = vel_j - v2n * normal
+            rebound_vel_i = v1_t + v1n_after * normal
+            rebound_vel_j = v2_t + v2n_after * normal
 
-                contact_i = pos_i - normal * r
-                contact_j = pos_j + normal * r
-                per_drone_penetration = 0.5 * penetration
+            contact_i = state.pos[i] - normal * r
+            contact_j = state.pos[j] + normal * r
+            per_drone_penetration = 0.5 * penetration
 
-                collisions.append(
-                    CollisionInfo(
-                        drone_id=int(state.ids[i]),
-                        collision_type="drone",
-                        normal_vector=normal.astype(float),
-                        contact_point=contact_i.astype(float),
-                        penetration_depth=float(per_drone_penetration),
-                        rebound_velocity=rebound_vel_i.astype(float),
-                        new_position=new_pos_i.astype(float),
-                    )
-                )
-                collisions.append(
-                    CollisionInfo(
-                        drone_id=int(state.ids[j]),
-                        collision_type="drone",
-                        normal_vector=(-normal).astype(float),
-                        contact_point=contact_j.astype(float),
-                        penetration_depth=float(per_drone_penetration),
-                        rebound_velocity=rebound_vel_j.astype(float),
-                        new_position=new_pos_j.astype(float),
-                    )
-                )
+            collisions.append(CollisionInfo(
+                int(state.ids[i]), "drone", normal.astype(float), contact_i.astype(float),
+                float(per_drone_penetration), rebound_vel_i.astype(float), new_pos_i.astype(float)
+            ))
+            collisions.append(CollisionInfo(
+                int(state.ids[j]), "drone", (-normal).astype(float), contact_j.astype(float),
+                float(per_drone_penetration), rebound_vel_j.astype(float), new_pos_j.astype(float)
+            ))
 
         return collisions
 
