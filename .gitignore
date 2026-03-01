@@ -20,3 +20,6 @@ experiments/*
 !experiments/not-great-run/eval_runs/config.yml
 !experiments/not-great-run/eval_runs/episode_000000.json
 !experiments/not-great-run/eval_runs/episode_results.json
+
+# Explicitly track my current run:
+!memorized_model_jerk/

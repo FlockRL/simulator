@@ -58,6 +58,7 @@ class ProgressReward(RewardFunction):
         wall_collision_penalty: float = -50.0,
         obstacle_collision_penalty: float = -50.0,
         alive_bonus: float = 0.1,
+        jerk_penalty: float = 0.0
     ):
         self.progress_scale = progress_scale
         self.step_penalty = step_penalty
@@ -66,7 +67,9 @@ class ProgressReward(RewardFunction):
         self.wall_collision_penalty = wall_collision_penalty
         self.obstacle_collision_penalty = obstacle_collision_penalty
         self.alive_bonus = alive_bonus
+        self.jerk_penalty = jerk_penalty
         self._last_dist = None
+        self._last_action = None
 
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "ProgressReward":
@@ -80,15 +83,24 @@ class ProgressReward(RewardFunction):
             wall_collision_penalty=reward_cfg.get("wall_collision_penalty", -50.0),
             obstacle_collision_penalty=reward_cfg.get("obstacle_collision_penalty", -50.0),
             alive_bonus=reward_cfg.get("alive_bonus", 0.1),
+            jerk_penalty=reward_cfg.get("jerk_penalty", 0.0),
         )
 
     def reset(self, state: SwarmState) -> None:
         self._last_dist = np.linalg.norm(state.pos - state.goals, axis=1)
+        self._last_action = np.zeros((state.pos.shape[0], 3), dtype=np.float32)
 
     def compute(self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]) -> np.ndarray:
         curr_dist = np.linalg.norm(state.pos - state.goals, axis=1)
         progress = self._last_dist - curr_dist
         rewards = self.progress_scale * progress - self.step_penalty + self.alive_bonus
+
+        # Jerk Penalty Calculations:
+        action_diff = np.linalg.norm(action - self._last_action, axis=1)
+        rewards -= self.jerk_penalty * action_diff
+        
+        # Save the current action for the next step's calculation
+        self._last_action = action.copy()
 
         if sim_info["termination_reason"] == "success":
             rewards += self.success_reward
