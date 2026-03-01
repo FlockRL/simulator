@@ -47,6 +47,7 @@ class ProgressReward(RewardFunction):
 
     Rewards getting closer to the goal, penalizes collisions,
     and gives a large bonus for reaching the goal.
+    Optional smoothness_penalty penalizes change in action (jerk) for sim-to-real.
     """
 
     def __init__(
@@ -58,6 +59,7 @@ class ProgressReward(RewardFunction):
         wall_collision_penalty: float = -50.0,
         obstacle_collision_penalty: float = -50.0,
         alive_bonus: float = 0.1,
+        smoothness_penalty: float = 0.0,
     ):
         self.progress_scale = progress_scale
         self.step_penalty = step_penalty
@@ -66,7 +68,9 @@ class ProgressReward(RewardFunction):
         self.wall_collision_penalty = wall_collision_penalty
         self.obstacle_collision_penalty = obstacle_collision_penalty
         self.alive_bonus = alive_bonus
+        self.smoothness_penalty = smoothness_penalty
         self._last_dist = None
+        self._last_action: np.ndarray | None = None
 
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "ProgressReward":
@@ -80,15 +84,22 @@ class ProgressReward(RewardFunction):
             wall_collision_penalty=reward_cfg.get("wall_collision_penalty", -50.0),
             obstacle_collision_penalty=reward_cfg.get("obstacle_collision_penalty", -50.0),
             alive_bonus=reward_cfg.get("alive_bonus", 0.1),
+            smoothness_penalty=reward_cfg.get("smoothness_penalty", 0.0),
         )
 
     def reset(self, state: SwarmState) -> None:
         self._last_dist = np.linalg.norm(state.pos - state.goals, axis=1)
+        self._last_action = np.zeros_like(state.pos)
 
     def compute(self, state: SwarmState, action: np.ndarray, sim_info: Dict[str, Any]) -> np.ndarray:
         curr_dist = np.linalg.norm(state.pos - state.goals, axis=1)
         progress = self._last_dist - curr_dist
         rewards = self.progress_scale * progress - self.step_penalty + self.alive_bonus
+
+        if self.smoothness_penalty > 0 and self._last_action is not None:
+            jerk = np.linalg.norm(action - self._last_action, axis=1)
+            rewards -= self.smoothness_penalty * jerk
+        self._last_action = np.asarray(action, dtype=np.float64).copy()
 
         if sim_info["termination_reason"] == "success":
             rewards += self.success_reward
