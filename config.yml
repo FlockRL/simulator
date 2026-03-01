@@ -1,13 +1,11 @@
 # =============================================================================
-# FlockRL Simulator Configuration
+# FlockRL Simulator Configuration (ROBUST SENSING & SMOOTH FLIGHT)
 # =============================================================================
-# This is the single source of truth for all training and evaluation settings.
-# Each training run snapshots this file into experiments/<run_name>/config.yml.
 
 # --- Environment ---
 environment:
-  spec: 3_obstacles
-  seed: 42
+  spec: rand_2_obstacles
+  seed: null                         # Restored: Random seeds for robust learning
   spawn_clearance: 2.0
   max_placement_attempts: 50
 
@@ -18,8 +16,8 @@ simulation:
   goal_threshold: 0.5
   max_acceleration: 5.0
   terminate_on_collision: true
-  reset_position_noise: 0.0
-  reset_velocity_noise: 0.0
+  reset_position_noise: 0.5          # Restored: Forces the drone to use sensors, not memory
+  reset_velocity_noise: 0.1          # Restored
 
 # --- Collision ---
 collision:
@@ -28,7 +26,7 @@ collision:
 
 # --- Perception ---
 perception:
-  num_rays: 0
+  num_rays: 16                       # Restored: The LIDAR is back online!
   max_range: 4.0
   max_neighbour_range: 0.0
 
@@ -36,34 +34,34 @@ perception:
 gym:
   num_drones: 1
   max_neighbors: 0
-  spawn_offset_range: 0.0
+  spawn_offset_range: 0.25           # Restored
   save_runs: false
 
 # --- Reward Function ---
 reward:
-  progress_scale: 25.0
-  step_penalty: 0.05
+  progress_scale: 20.0               # Balanced to respect collision and jerk penalties
+  step_penalty: 0.05                 
   success_reward: 200.0
-  collision_penalty: -200.0
+  collision_penalty: -200.0          # High penalty for crashes
   wall_collision_penalty: -200.0
   obstacle_collision_penalty: -200.0
-  alive_bonus: 0.0
-  jerk_penalty: 0.5
+  alive_bonus: 0.0                   # Exploit fixed: Hovering strictly punished
+  jerk_penalty: 0.5                  # NEW: Enforces smooth acceleration curves!
 
 # --- Training ---
 training:
-  total_timesteps: 1_500_000
-  num_envs: 16 # Decrease this for weaker machines. Try to match amount of CPU cores.
+  total_timesteps: 5_000_000         
+  num_envs: 16                       # Assuming you are still on the 12th Gen i7
   checkpoint_freq: 10000
   ppo:
-    learning_rate: 3.0e-4
-    n_steps: 512
-    batch_size: 2048 # 2^12, must be divisible by n_steps * num_envs
-    n_epochs: 20
+    learning_rate: 3.0e-4            # Fast learning rate
+    n_steps: 1024
+    batch_size: 2048 
+    n_epochs: 10
     gamma: 0.99
     gae_lambda: 0.95
     clip_range: 0.2
-    ent_coef: 0.00
+    ent_coef: 0.05                   # Restored: Forces exploration to find the best path
     vf_coef: 0.5
     max_grad_norm: 0.5
     log_std_init: -1.0

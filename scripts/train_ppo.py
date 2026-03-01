@@ -123,6 +123,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train PPO on FlockRL")
     parser.add_argument("name", type=str, help="Experiment name (saved under experiments/<name>/)")
     parser.add_argument("--config", type=Path, default=Path("config.yml"), help="Path to config.yml")
+    parser.add_argument("--load", type=Path, default=None, help="Path to a pre-trained model.zip to finetune")
     args = parser.parse_args()
 
     # Load config
@@ -154,28 +155,43 @@ def main():
     # Create vectorized environment (use snapshot so config_path matches exp_dir)
     env = SubprocVecEnv([make_env(i, config, snapshot_path, exp_dir) for i in range(num_envs)])
 
-    # Create PPO model
-    model = PPO(
-        "MlpPolicy",
-        env,
-        learning_rate=float(ppo_cfg["learning_rate"]),
-        n_steps=int(ppo_cfg["n_steps"]),
-        batch_size=int(ppo_cfg["batch_size"]),
-        n_epochs=int(ppo_cfg["n_epochs"]),
-        gamma=float(ppo_cfg["gamma"]),
-        gae_lambda=float(ppo_cfg["gae_lambda"]),
-        clip_range=float(ppo_cfg["clip_range"]),
-        ent_coef=float(ppo_cfg["ent_coef"]),
-        vf_coef=float(ppo_cfg["vf_coef"]),
-        max_grad_norm=float(ppo_cfg["max_grad_norm"]),
-        policy_kwargs={
-            "log_std_init": float(ppo_cfg["log_std_init"]),
-            "ortho_init": bool(ppo_cfg["ortho_init"]),
-        },
-        verbose=1,
-        tensorboard_log=str(exp_dir / "tensorboard"),
-    )
-
+    # Create or Load PPO model
+    if args.load:
+        print(f"Loading pre-trained model from {args.load}")
+        # Load the existing brain but attach it to the new environment and tensorboard
+        model = PPO.load(
+            str(args.load),
+            env=env,
+            tensorboard_log=str(exp_dir / "tensorboard"),
+            custom_objects={
+                "learning_rate": float(ppo_cfg["learning_rate"]),
+                "ent_coef": float(ppo_cfg["ent_coef"]),
+                "clip_range": float(ppo_cfg["clip_range"])
+            }
+        )
+    else:
+        print("Creating a brand new PPO model")
+        model = PPO(
+            "MlpPolicy",
+            env,
+            learning_rate=float(ppo_cfg["learning_rate"]),
+            n_steps=int(ppo_cfg["n_steps"]),
+            batch_size=int(ppo_cfg["batch_size"]),
+            n_epochs=int(ppo_cfg["n_epochs"]),
+            gamma=float(ppo_cfg["gamma"]),
+            gae_lambda=float(ppo_cfg["gae_lambda"]),
+            clip_range=float(ppo_cfg["clip_range"]),
+            ent_coef=float(ppo_cfg["ent_coef"]),
+            vf_coef=float(ppo_cfg["vf_coef"]),
+            max_grad_norm=float(ppo_cfg["max_grad_norm"]),
+            policy_kwargs={
+                "log_std_init": float(ppo_cfg["log_std_init"]),
+                "ortho_init": bool(ppo_cfg["ortho_init"]),
+            },
+            verbose=1,
+            tensorboard_log=str(exp_dir / "tensorboard"),
+        )
+        
     # Callbacks
     checkpoint_cb = CheckpointCallback(
         save_freq=int(train_cfg["checkpoint_freq"]),
