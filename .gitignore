@@ -12,4 +12,10 @@ build/
 logs/
 models/
 eval_logs/
+# Ignore all experiment runs
 experiments/*
+# Except blind1: allow only model.zip and config.yml for sharing
+!experiments/blind1/
+experiments/blind1/*
+!experiments/blind1/model.zip
+!experiments/blind1/config.yml
