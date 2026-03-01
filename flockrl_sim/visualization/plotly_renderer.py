@@ -38,6 +38,7 @@ class PlotlyRenderer:
         self.playback_speed = playback_speed
         # Match the simulator's success radius (goal_threshold)
         self.goal_threshold = metadata["config"]["simulation"]["goal_threshold"]
+        self.drone_radius = metadata["config"]["collision"]["drone_radius"]
 
     def render(self, host: str = "127.0.0.1", port: int = 8050, debug: bool = False) -> None:
         """
@@ -172,9 +173,12 @@ class PlotlyRenderer:
                 Output("info-display", "children"),
                 Output("frame-slider", "value", allow_duplicate=True),
                 Output("current-frame", "data", allow_duplicate=True),
+                Output("is-playing", "data", allow_duplicate=True),
+                Output("play-button", "children", allow_duplicate=True),
+                Output("interval-component", "disabled", allow_duplicate=True),
             ],
             [
-                Input("interval-component", "n_intervals"), 
+                Input("interval-component", "n_intervals"),
                 Input("frame-slider", "value"),
             ],
             [State("is-playing", "data"), State("current-frame", "data")],
@@ -182,6 +186,7 @@ class PlotlyRenderer:
         )
         def update_figure(n_intervals, slider_value, is_playing, current_frame):
             ctx = dash.callback_context
+            stop_playing = False
 
             if not ctx.triggered:
                 frame_idx = 0
@@ -192,7 +197,8 @@ class PlotlyRenderer:
                 elif trigger_id == "interval-component" and is_playing:
                     frame_idx = current_frame + 1
                     if frame_idx >= len(self.frames):
-                        frame_idx = 0
+                        frame_idx = len(self.frames) - 1
+                        stop_playing = True
                 else:
                     frame_idx = current_frame
 
@@ -205,7 +211,11 @@ class PlotlyRenderer:
                 f"Time: {frame_time:.3f}s | Drones: {len(frame_state['pos'])}"
             )
 
-            return (fig, info_text, frame_idx, frame_idx)
+            new_is_playing = False if stop_playing else is_playing
+            btn_label = "Play" if not new_is_playing else "Pause"
+            interval_disabled = not new_is_playing
+
+            return (fig, info_text, frame_idx, frame_idx, new_is_playing, btn_label, interval_disabled)
 
         print(f"\n{'=' * 60}")
         print("Starting Dash visualization server...")
@@ -280,18 +290,21 @@ class PlotlyRenderer:
         positions = np.array(current_state["pos"])
         drone_ids = current_state["ids"]
 
-        fig.add_trace(
-            go.Scatter3d(
-                x=positions[:, 0],
-                y=positions[:, 1],
-                z=positions[:, 2],
-                mode="markers",
-                marker=dict(size=10, color="orange", line=dict(color="black", width=2)),
-                text=[f"Drone {drone_id}" for drone_id in drone_ids],
-                hoverinfo="text",
-                name="Drones",
+        for i, (pos, drone_id) in enumerate(zip(positions, drone_ids)):
+            drone_traces = self._create_sphere_mesh(
+                cx=pos[0],
+                cy=pos[1],
+                cz=pos[2],
+                radius=self.drone_radius,
+                color="orange",
+                opacity=0.8,
+                name=f"Drone {drone_id}",
             )
-        )
+            for trace in drone_traces:
+                trace.showlegend = i == 0
+                if i == 0:
+                    trace.name = "Drones"
+                fig.add_trace(trace)
 
         fig.update_layout(
             scene=dict(
@@ -333,9 +346,12 @@ class PlotlyRenderer:
     def _create_goal_mesh(
         self, cx: float, cy: float, cz: float, radius: float, name: str
     ) -> List["go.Mesh3d"]:
-        """
-        Render the goal as a translucent sphere whose radius matches the goal_threshold.
-        """
+        return self._create_sphere_mesh(cx, cy, cz, radius, color="green", opacity=0.2, name=name)
+
+    def _create_sphere_mesh(
+        self, cx: float, cy: float, cz: float, radius: float,
+        color: str = "green", opacity: float = 0.2, name: str = "",
+    ) -> List["go.Mesh3d"]:
         n_theta = 12
         n_phi = 24
         theta = np.linspace(0, np.pi, n_theta)
@@ -362,7 +378,6 @@ class PlotlyRenderer:
                 v10 = (t + 1) * n_phi + p
                 v11 = (t + 1) * n_phi + p_next
 
-                # Two triangles per quad on the sphere surface
                 i.extend([v00, v00])
                 j.extend([v10, v11])
                 k.extend([v11, v01])
@@ -374,8 +389,8 @@ class PlotlyRenderer:
             i=i,
             j=j,
             k=k,
-            color="green",
-            opacity=0.2,
+            color=color,
+            opacity=opacity,
             name=name,
             showlegend=False,
             hoverinfo="name",
