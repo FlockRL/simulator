@@ -6,7 +6,9 @@
 
 # --- Environment ---
 environment:
-  spec: 2_obstacles
+  spec:
+    - rand_2_obstacles
+    - rand_3_obstacles
   seed: null
   spawn_clearance: 2.0
   max_placement_attempts: 50

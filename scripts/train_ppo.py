@@ -98,12 +98,15 @@ def make_env(rank: int, config: dict, config_path: Path, exp_dir: Path):
     """Create a single environment instance for parallel training."""
     def _init():
         reward_fn = ProgressReward.from_config(config)
-        environment = load_environment_from_spec(config["environment"]["spec"], config)
+        spec_cfg = config["environment"]["spec"]
+        spec_names = spec_cfg if isinstance(spec_cfg, list) else [spec_cfg]
+        environment = load_environment_from_spec(spec_names[0], config)
 
         flockrl_env = FlockRLGymEnv(
             reward_fn=reward_fn,
             environment=environment,
             config_path=config_path,
+            spec_names=spec_names,
         )
         env = SingleDroneWrapper(flockrl_env)
 
@@ -135,7 +138,8 @@ def main():
     num_envs = int(train_cfg["num_envs"])
 
     # Create experiment directory
-    env_spec = config["environment"]["spec"]
+    spec_cfg = config["environment"]["spec"]
+    env_spec = spec_cfg if isinstance(spec_cfg, list) else [spec_cfg]
     name = args.name
     exp_dir = Path("experiments") / name
     exp_dir.mkdir(parents=True, exist_ok=True)
