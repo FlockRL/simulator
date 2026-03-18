@@ -73,6 +73,7 @@ class FlockRLGymEnv(gym.Env):
         environment: Environment,
         config_path: Path = Path(__file__).parent.parent / "config.yml",
         save_observations: bool = False,
+        spec_names: Optional[List[str]] = None,
     ) -> None:
         """
         Args:
@@ -97,6 +98,7 @@ class FlockRLGymEnv(gym.Env):
         }
         
         self.environment = environment
+        self._spec_names = spec_names
         self.sim_config = sim_config
         self.perception_config = perception_config
         self.config = config
@@ -180,6 +182,12 @@ class FlockRLGymEnv(gym.Env):
             restitution=restitution,
             drone_radius=drone_radius
         )
+
+    def _swap_environment(self, env: Environment) -> None:
+        """Replace the environment on self, simulator, and collision system."""
+        self.environment = env
+        self.simulator.environment = env
+        self._collision_system.environment = env
 
     def _observation_dim(self) -> int:
         # vel(3) + goal vector(3) + goal distance(1)
@@ -301,6 +309,10 @@ class FlockRLGymEnv(gym.Env):
         self._rng = self.np_random
         if seed is not None:
             self._reset_perception(seed)
+
+        if self._spec_names:
+            chosen = self._spec_names[int(self._rng.integers(len(self._spec_names)))]
+            self._swap_environment(load_environment_from_spec(chosen, self.config))
 
         # Include full config in metadata for reproducibility
         metadata = {
